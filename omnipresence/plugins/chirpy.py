@@ -10,20 +10,20 @@ class ChirpyCommand(object):
     name = 'chirpy'
     
     table = None
+    
+    def registered(self):
+        sqlobject_uri = self.factory.config.get('chirpy', 'database')
+        
+        class ChirpyQuote(sqlobject.SQLObject):
+            _connection = sqlobject.connectionForURI(sqlobject_uri)
+            
+            class sqlmeta:
+                fromDatabase = True
+                table = self.factory.config.get('chirpy', 'table')
+        
+        self.table = ChirpyQuote
 
     def execute(self, bot, user, channel, args):
-        if not self.table:
-            sqlobject_uri = self.factory.config.get('chirpy', 'database')
-            
-            class ChirpyQuote(sqlobject.SQLObject):
-                _connection = sqlobject.connectionForURI(sqlobject_uri)
-                
-                class sqlmeta:
-                    fromDatabase = True
-                    table = self.factory.config.get('chirpy', 'table')
-            
-            self.table = ChirpyQuote
-        
         quotes = self.table.select('CHAR_LENGTH(body) < 400 AND approved = 1')
         if quotes.count() > 0:
             quote = random.choice(list(quotes))

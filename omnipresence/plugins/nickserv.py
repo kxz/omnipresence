@@ -14,8 +14,8 @@ class NickServHandler(object):
     signed_on = False
     nick_in_use = False
 
-    def connectionMade(self, bot):
-        # Grab some options from the bot configuration file.
+    def registered(self):
+        # Grab some options from the configuration file.
         self.configured_nick = self.factory.config.get('core', 'nickname')
         self.password = self.factory.config.get('nickserv', 'password')
 
@@ -30,6 +30,7 @@ class NickServHandler(object):
         if self.kill_ghosts:
             self.ghost_killed_re = re.compile(self.factory.config.get('nickserv', 'ghost_killed_re'))
 
+    def connectionMade(self, bot):
         if self.suspend_joins:
             bot.suspend_joins()
 

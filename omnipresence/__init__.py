@@ -5,6 +5,7 @@ from twisted.words.protocols import irc
 
 import platform
 import sqlobject
+import re
 
 from omnipresence import iomnipresence, plugins, util
 
@@ -28,6 +29,9 @@ class IRCClient(irc.IRCClient):
 
     # Suspended join queue.
     suspended_joins = None
+    
+    # Dictionary mapping channels to the nicks present in each channel.
+    channel_names = {}
 
     # Utility methods
 
@@ -62,25 +66,44 @@ class IRCClient(irc.IRCClient):
         self.suspended_joins = None
 
     def call_handlers(self, event, channel, args=[]):
-        # If the channel doesn't start with an IRC channel prefix, treat the 
-        # event as a private one.  Some networks send notices to "AUTH" when 
-        # performing ident lookups, for example.
-        if channel[0] not in irc.CHANNEL_PREFIXES:
-            channel = '@'
+        # If the channel is None, this is a server event not associated with a 
+        # specific channel, such as a successful sign-on or a quit.  Send the 
+        # event to every registered handler.
+        if channel is None:
+            handlers = set()
+            
+            # If this is a quit or nick change, only invoke callbacks on the 
+            # handlers that are active for the channels where the relevant 
+            # user is present.
+            if event in ('userQuit', 'userRenamed'):
+                for channel in self.channel_names:
+                    if args[0].split('!', 1)[0] in self.channel_names[channel]:
+                        handlers.update(self.factory.handlers[channel])
+            else:
+                for channel in self.channel_names:
+                    handlers.update(self.factory.handlers[channel])
+        else:
+            # If the channel doesn't start with an IRC channel prefix, treat 
+            # the event as a private one.  Some networks send notices to "AUTH" 
+            # when performing ident lookups, for example.
+            if channel[0] not in irc.CHANNEL_PREFIXES:
+                channel = '@'
+    
+            try:
+                handlers = self.factory.handlers[channel]
+            except KeyError:
+                # How'd we get in this channel?
+                log.err(None, 'Received event for non-configured channel "%s".'
+                               % channel)
+                return
 
-        try:
-            channel_handlers = self.factory.handlers[channel]
-        except KeyError:
-            # How'd we get in this channel?
-            log.err(None, 'Received event for non-configured channel "%s".' % channel)
-            return
-
-        for handler in channel_handlers:
+        for handler in handlers:
             if hasattr(handler, event):
                 try:
                     getattr(handler, event)(self, *args)
                 except:
-                    log.err(None, 'Handler "%s" encountered an error.' % handler.name)
+                    log.err(None, 'Handler "%s" encountered an error.'
+                                   % handler.name)
 
     def run_commands(self, user, channel, message):
         # First, see if the message matches any of the command prefixes 
@@ -122,18 +145,18 @@ class IRCClient(irc.IRCClient):
     # Inherited from twisted.internet.protocol.BaseProtocol
 
     def connectionMade(self):
-        self.call_handlers('connectionMade', self.nickname)
+        self.call_handlers('connectionMade', None)
         irc.IRCClient.connectionMade(self)
         log.msg('Connected to server.')
 
     # Inherited from twisted.internet.protocol.Protocol
 
     def connectionLost(self, reason):
+        self.call_handlers('connectionLost', None, [reason])
         irc.IRCClient.connectionLost(self, reason)
         log.msg('Disconnected from server.')
 
     # Inherited from twisted.words.protocols.irc.IRCClient
-    # <http://twistedmatrix.com/documents/8.2.0/api/twisted.words.protocols.irc.IRCClient.html>
 
     def myInfo(self, servername, version, umodes, cmodes):
         # Once myInfo is called, we know which server we are connected to, so 
@@ -156,6 +179,13 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('privmsg', channel, [user, channel, message])
         self.run_commands(user, channel, message)
         
+    def joined(self, prefix, channel):
+        self.call_handlers('joined', channel, [prefix, channel])
+        self.channel_names[channel] = set()
+    
+    def left(self, prefix, channel):
+        self.call_handlers('left', channel, [prefix, channel])
+    
     def noticed(self, user, channel, message):
         try:
             message = message.decode(self.factory.encoding)
@@ -168,14 +198,90 @@ class IRCClient(irc.IRCClient):
             log.msg('Notice from %s for %s: %s' % (user, channel, message))
 
         self.call_handlers('noticed', channel, [user, channel, message])
-
+    
+    def modeChanged(self, user, channel, set, modes, args):
+        self.call_handlers('modeChanged', channel,
+                           [user, channel, set, modes, args])
+    
     def signedOn(self):
         log.msg('Successfully signed on to server.')
-        self.call_handlers('signedOn', self.nickname)
+        self.call_handlers('signedOn', None)
         for channel in self.factory.config.options('channels'):
             # Skip over "@", which has a special meaning to the bot.
             if channel != '@':
                 self.join(channel)
+
+    def kickedFrom(self, channel, kicker, message):
+        try:
+            message = message.decode(self.factory.encoding)
+        except UnicodeDecodeError:
+            log.err(None, 'Could not decode kick message from %s on channel %s.'
+                           % (kicker, channel))
+            message = u''
+        
+        self.call_handlers('kickedFrom', channel, [channel, kicker, message])
+        self.channel_names[channel].clear()
+    
+    def nickChanged(self, nick):
+        self.call_handlers('nickChanged', None, [nick])
+    
+    def userJoined(self, user, channel):
+        self.call_handlers('userJoined', channel, [user, channel])
+        self.channel_names[channel].add(user.split('!', 1)[0])
+    
+    def userLeft(self, user, channel):
+        self.call_handlers('userLeft', channel, [user, channel])
+        self.channel_names[channel].discard(user.split('!', 1)[0])
+    
+    def userQuit(self, user, quitMessage):
+        try:
+            quitMessage = quitMessage.decode(self.factory.encoding)
+        except UnicodeDecodeError:
+            log.err(None, 'Could not decode quit message from %s.' % user)
+            quitMessage = u''
+        
+        self.call_handlers('userQuit', None, [user, quitMessage])
+        for channel in self.channel_names:
+            self.channel_names[channel].discard(user.split('!', 1)[0])
+
+    def userKicked(self, kickee, channel, kicker, message):
+        try:
+            message = message.decode(self.factory.encoding)
+        except UnicodeDecodeError:
+            log.err(None, 'Could not decode kick message from %s on channel %s.'
+                           % (kicker, channel))
+            message = u''
+        
+        self.call_handlers('userKicked', channel,
+                           [kickee, channel, kicker, message])
+        self.channel_names[channel].discard(kickee)
+
+    def action(self, user, channel, data):
+        try:
+            data = data.decode(self.factory.encoding)
+        except UnicodeDecodeError:
+            log.err(None, 'Could not decode action from %s on channel %s.'
+                           % (user, channel))
+            return
+        
+        self.call_handlers('action', channel, [user, channel, data])
+
+    def topicUpdated(self, user, channel, newTopic):
+        try:
+            newTopic = newTopic.decode(self.factory.encoding)
+        except UnicodeDecodeError:
+            log.err(None, 'Could not decode topic from %s on channel %s.'
+                           % (user, channel))
+            return
+        
+        self.call_handlers('topicUpdated', channel, [user, channel, newTopic])
+    
+    def userRenamed(self, oldname, newname):
+        self.call_handlers('userRenamed', None, [oldname, newname])
+        for channel in self.channel_names:
+            if oldname in self.channel_names[channel]:
+                self.channel_names[channel].discard(oldname)
+                self.channel_names[channel].add(newname)
 
     def _join(self, channel):
         log.msg('Joining channel %s.' % channel)
@@ -191,6 +297,44 @@ class IRCClient(irc.IRCClient):
 
         self._join(channel)
 
+    def leave(self, channel, reason=None):
+        self.call_handlers('leave', channel, [channel, reason])
+        self.channel_names[channel].clear()
+        irc.IRCClient.leave(self, channel, reason)
+    
+    def kick(self, channel, user, reason=None):
+        self.call_handlers('kick', channel, [channel, user, reason])
+        
+        if reason is not None:
+            try:
+                reason = reason.encode(self.factory.encoding)
+            except UnicodeEncodeError:
+                log.err(None, 'Could not encode kick message to %s on channel '
+                              '%s.' % (user, channel))
+                reason = None
+        
+        irc.IRCClient.kick(self, channel, user, reason)
+        self.channel_names[channel].discard(user)
+
+    def topic(self, channel, topic=None):
+        self.call_handlers('topic', channel, [channel, topic])
+        
+        if topic is not None:
+            try:
+                topic = topic.encode(self.factory.encoding)
+            except UnicodeEncodeError:
+                log.err(None, 'Could not encode topic on channel %s.' % channel)
+                return
+        
+        irc.IRCClient.topic(self, channel, topic)
+    
+    def mode(self, chan, set, modes, limit=None, user=None, mask=None):
+        self.call_handlers('mode', chan,
+                           [chan, set, modes, limit, user, mask])
+        irc.IRCClient.mode(self, chan, set, modes, limit, user, mask)
+    
+    # def say(...) is not necessary, as it simply delegates to msg().
+    
     def msg(self, user, message):
         self.call_handlers('msg', user, [user, message])
 
@@ -212,15 +356,75 @@ class IRCClient(irc.IRCClient):
             return
 
         irc.IRCClient.notice(self, user, message)
+    
+    def setNick(self, nickname):
+        oldnick = self.nickname
+        self.call_handlers('setNick', None, [nickname])
+        irc.IRCClient.setNick(self, nickname)
+        for channel in self.channel_names:
+            if oldnick in self.channel_names[channel]: # sanity check
+                self.channel_names[channel].discard(oldnick)
+                self.channel_names[channel].add(nickname)
+    
+    def quit(self, message=''):
+        self.call_handlers('quit', None, [message])
+        irc.IRCClient.quit(self, message)
+        self.channel_names = {}
+    
+    def me(self, channel, action):
+        self.call_handlers('me', channel, [channel, action])
+        irc.IRCClient.me(self, channel, action)
 
     def irc_ERR_NICKNAMEINUSE(self, prefix, params):
         self.call_handlers('irc_ERR_NICKNAMEINUSE', self.nickname)
         irc.IRCClient.irc_ERR_NICKNAMEINUSE(self, prefix, params)
 
+    def irc_JOIN(self, prefix, params):
+        nick = prefix.split('!', 1)[0]
+        channel = params[-1]
+        if nick == self.nickname:
+            self.joined(prefix, channel)
+        else:
+            self.userJoined(prefix, channel)
+
+    def irc_PART(self, prefix, params):
+        nick = prefix.split('!', 1)[0]
+        channel = params[0]
+        if nick == self.nickname:
+            self.left(prefix, channel)
+        else:
+            self.userLeft(prefix, channel)
+
+    def irc_QUIT(self, prefix, params):
+        self.userQuit(prefix, params[0])
+
     # IRC methods not defined by t.w.p.irc.IRCClient
 
     def irc_PONG(self, user, secs):
         self.ping_count = 0
+    
+    def names(self, *channels):
+        for ch in channels:
+            self.sendLine("NAMES " + ch)
+
+    def irc_RPL_NAMREPLY(self, prefix, params):
+        channel = params[2]
+        names = params[3].split()
+        self.namesArrived(channel, names)
+
+    def irc_RPL_ENDOFNAMES(self, prefix, params):
+        channel = params[1]
+        self.endNames(channel)
+
+    def namesArrived(self, channel, names):
+        # Liberally strip out all user mode prefixes such as @%+.  Some
+        # networks support more prefixes, so this removes any prefixes with
+        # characters not valid in nicknames.
+        names = map(lambda x: re.sub(r'^[^A-Za-z0-9\-\[\]\\`^{}]+', '', x), names)
+        self.channel_names[channel].update(names)
+
+    def endNames(self, channel):
+        self.call_handlers('endNames', channel, [channel])
 
 
 class IRCClientFactory(protocol.ReconnectingClientFactory):
@@ -252,6 +456,8 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
 
         for handler in getPlugins(iomnipresence.IHandler, plugins):
             handler.factory = self
+            if hasattr(handler, 'registered'):
+                getattr(handler, 'registered')()
             found_handlers[handler.name] = handler
 
         channels = self.config.options('channels')
@@ -278,6 +484,8 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
 
         for command in getPlugins(iomnipresence.ICommand, plugins):
             command.factory = self
+            if hasattr(command, 'registered'):
+                getattr(command, 'registered')()
             found_commands[command.name] = command
 
         for (keyword, command_name) in self.config.items('commands'):
