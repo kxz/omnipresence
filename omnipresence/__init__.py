@@ -3,7 +3,6 @@ from twisted.plugin import getPlugins
 from twisted.python import log
 from twisted.words.protocols import irc
 
-import imp
 import platform
 import sqlobject
 
