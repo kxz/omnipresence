@@ -1,8 +1,9 @@
-from twisted.internet import defer, protocol, task
+from twisted.internet import defer, protocol, task, threads
 from twisted.plugin import getPlugins
-from twisted.python import log
+from twisted.python import failure, log
 from twisted.words.protocols import irc
 
+import httplib2
 import platform
 import sqlobject
 import re
@@ -129,19 +130,26 @@ class IRCClient(irc.IRCClient):
 
         keyword = message.split()[0].lower()
         if keyword in self.factory.commands:
-            try:
-                self.factory.commands[keyword].execute(self, user, channel, message)
-            except:
-                log.err(None, 'Command "%s" encountered an error.' % keyword)
+            log.msg('Command from %s on channel %s: %s'
+                     % (user, channel, message))
+            d = defer.maybeDeferred(self.factory.commands[keyword].execute,
+                                    self, user, channel, message)
+            d.addErrback(self.reply_with_error, user, channel, keyword)
 
     def reply(self, user, channel, message):
-        user = user.split('!', 1)[0]
+        nick = user.split('!', 1)[0]
+        log.msg('Reply for %s on channel %s: %s' % (user, channel, message))
         
         if channel == self.nickname:
-            self.notice(user, message)
+            self.notice(nick, message)
             return
         
-        self.msg(channel, '\x0314%s' % message)
+        self.msg(channel, '\x0314%s: %s' % (nick, message))
+
+    def reply_with_error(self, failure, user, channel, keyword):
+        self.reply(user, channel, 'Command \x02%s\x02 encountered an error: %s.'
+                                   % (keyword, failure.getErrorMessage()))
+        log.err(failure, 'Command "%s" encountered an error.' % keyword)
 
     # Inherited from twisted.internet.protocol.BaseProtocol
 
@@ -363,10 +371,18 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     commands = {}
 
     encoding = 'utf-8'
+    
+    http_cache_dir = None
+    http_user_agent = '%s/%s (bot; +%s)' % (VERSION_NAME, VERSION_NUM, SOURCE_URL)
 
     def __init__(self, config):
         self.config = config
         self.encoding = self.config.getdefault('core', 'encoding', self.encoding)
+        
+        self.http_cache_dir = self.config.getdefault('core', 'http_cache_dir',
+                                                     self.http_cache_dir)
+        self.http_user_agent = self.config.getdefault('core', 'http_user_agent',
+                                                      self.http_user_agent)
 
         # Set up the bot's SQLObject connection instance.
         sqlobject_uri = self.config.get('core', 'database')
@@ -441,3 +457,23 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         p.userinfo = self.config.getdefault('core', 'userinfo', None)
 
         return p
+
+    # Not really sure where this belongs, since there are dependencies on 
+    # configuration information.  Maybe yet another plugin infrastructure?
+    def get_http(self, *args, **kwargs):
+        """
+        Create and return a Twisted Deferred wrapping an httplib2 Http request, 
+        with any arguments passed in to the request() function.  The location 
+        of the cache directory and the default user-agent string are read in 
+        from the bot configuration file.
+        
+        @rtype: C{Deferred}
+        """
+        h = httplib2.Http(self.http_cache_dir, 10)
+        
+        if 'headers' not in kwargs:
+            kwargs['headers'] = {}
+        if not 'User-Agent' in kwargs['headers']:
+            kwargs['headers']['User-Agent'] = self.http_user_agent
+        
+        return threads.deferToThread(h.request, *args, **kwargs)
