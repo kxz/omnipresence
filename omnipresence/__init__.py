@@ -76,11 +76,12 @@ class IRCClient(irc.IRCClient):
             # handlers that are active for the channels where the relevant 
             # user is present.
             if event in ('userQuit', 'userRenamed'):
-                for channel in self.channel_names:
-                    if args[0].split('!', 1)[0] in self.channel_names[channel]:
+                for channel in self.factory.handlers:
+                    if (channel in self.channel_names and
+                      args[0].split('!', 1)[0] in self.channel_names[channel]):
                         handlers.update(self.factory.handlers[util.canonicalize(channel)])
             else:
-                for channel in self.channel_names:
+                for channel in self.factory.handlers:
                     handlers.update(self.factory.handlers[util.canonicalize(channel)])
         else:
             # If the channel doesn't start with an IRC channel prefix, treat 
@@ -166,13 +167,6 @@ class IRCClient(irc.IRCClient):
         self.ping_timer.start(60, False)
 
     def privmsg(self, user, channel, message):
-        try:
-            message = message.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode message from %s on channel %s.'
-                           % (user, channel))
-            return
-
         if channel[0] not in irc.CHANNEL_PREFIXES:
             log.msg('Message from %s for %s: %s' % (user, channel, message))
 
@@ -187,13 +181,6 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('left', channel, [prefix, channel])
     
     def noticed(self, user, channel, message):
-        try:
-            message = message.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode notice from %s on channel %s.'
-                           % (user, channel))
-            return
-        
         if channel[0] not in irc.CHANNEL_PREFIXES:
             log.msg('Notice from %s for %s: %s' % (user, channel, message))
 
@@ -212,13 +199,6 @@ class IRCClient(irc.IRCClient):
                 self.join(channel)
 
     def kickedFrom(self, channel, kicker, message):
-        try:
-            message = message.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode kick message from %s on channel %s.'
-                           % (kicker, channel))
-            message = u''
-        
         self.call_handlers('kickedFrom', channel, [channel, kicker, message])
         self.channel_names[channel].clear()
     
@@ -234,46 +214,19 @@ class IRCClient(irc.IRCClient):
         self.channel_names[channel].discard(user.split('!', 1)[0])
     
     def userQuit(self, user, quitMessage):
-        try:
-            quitMessage = quitMessage.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode quit message from %s.' % user)
-            quitMessage = u''
-        
         self.call_handlers('userQuit', None, [user, quitMessage])
         for channel in self.channel_names:
             self.channel_names[channel].discard(user.split('!', 1)[0])
 
     def userKicked(self, kickee, channel, kicker, message):
-        try:
-            message = message.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode kick message from %s on channel %s.'
-                           % (kicker, channel))
-            message = u''
-        
         self.call_handlers('userKicked', channel,
                            [kickee, channel, kicker, message])
         self.channel_names[channel].discard(kickee)
 
     def action(self, user, channel, data):
-        try:
-            data = data.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode action from %s on channel %s.'
-                           % (user, channel))
-            return
-        
         self.call_handlers('action', channel, [user, channel, data])
 
     def topicUpdated(self, user, channel, newTopic):
-        try:
-            newTopic = newTopic.decode(self.factory.encoding)
-        except UnicodeDecodeError:
-            log.err(None, 'Could not decode topic from %s on channel %s.'
-                           % (user, channel))
-            return
-        
         self.call_handlers('topicUpdated', channel, [user, channel, newTopic])
     
     def userRenamed(self, oldname, newname):
@@ -304,28 +257,11 @@ class IRCClient(irc.IRCClient):
     
     def kick(self, channel, user, reason=None):
         self.call_handlers('kick', channel, [channel, user, reason])
-        
-        if reason is not None:
-            try:
-                reason = reason.encode(self.factory.encoding)
-            except UnicodeEncodeError:
-                log.err(None, 'Could not encode kick message to %s on channel '
-                              '%s.' % (user, channel))
-                reason = None
-        
         irc.IRCClient.kick(self, channel, user, reason)
         self.channel_names[channel].discard(user)
 
     def topic(self, channel, topic=None):
         self.call_handlers('topic', channel, [channel, topic])
-        
-        if topic is not None:
-            try:
-                topic = topic.encode(self.factory.encoding)
-            except UnicodeEncodeError:
-                log.err(None, 'Could not encode topic on channel %s.' % channel)
-                return
-        
         irc.IRCClient.topic(self, channel, topic)
     
     def mode(self, chan, set, modes, limit=None, user=None, mask=None):
@@ -337,24 +273,10 @@ class IRCClient(irc.IRCClient):
     
     def msg(self, user, message):
         self.call_handlers('msg', user, [user, message])
-
-        try:
-            message = message.encode(self.factory.encoding)
-        except UnicodeEncodeError:
-            log.err(None, 'Could not encode message to %s.' % user)
-            return
-
         irc.IRCClient.msg(self, user, message)
 
     def notice(self, user, message):
         self.call_handlers('notice', user, [user, message])
-
-        try:
-            message = message.encode(self.factory.encoding)
-        except UnicodeEncodeError:
-            log.err(None, 'Could not encode notice to %s.' % user)
-            return
-
         irc.IRCClient.notice(self, user, message)
     
     def setNick(self, nickname):
