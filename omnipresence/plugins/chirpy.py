@@ -9,6 +9,11 @@ import sqlobject
 ID_SYNTAX = re.compile(r'^#([0-9]+)$')
 
 class ChirpyCommand(object):
+    """
+    \x02%s\x02 [\x02#\x02\x1Fid\x1F|\x1Fsearch_string\x1F] - Retrieve a quote 
+    from the quote database.  If neither a quote ID nor a search string is 
+    specified, return a random quote less than 400 characters long.
+    """
     implements(IPlugin, ICommand)
     name = 'chirpy'
     
