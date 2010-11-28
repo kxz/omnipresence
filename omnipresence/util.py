@@ -1,5 +1,4 @@
 from ConfigParser import SafeConfigParser
-import csv
 
 class OmnipresenceConfigParser(SafeConfigParser):
     # Option names need to be parsed case-sensitively, as they are used to 
