@@ -78,10 +78,10 @@ class IRCClient(irc.IRCClient):
             if event in ('userQuit', 'userRenamed'):
                 for channel in self.channel_names:
                     if args[0].split('!', 1)[0] in self.channel_names[channel]:
-                        handlers.update(self.factory.handlers[channel])
+                        handlers.update(self.factory.handlers[util.canonicalize(channel)])
             else:
                 for channel in self.channel_names:
-                    handlers.update(self.factory.handlers[channel])
+                    handlers.update(self.factory.handlers[util.canonicalize(channel)])
         else:
             # If the channel doesn't start with an IRC channel prefix, treat 
             # the event as a private one.  Some networks send notices to "AUTH" 
@@ -90,7 +90,7 @@ class IRCClient(irc.IRCClient):
                 channel = '@'
     
             try:
-                handlers = self.factory.handlers[channel]
+                handlers = self.factory.handlers[util.canonicalize(channel)]
             except KeyError:
                 # How'd we get in this channel?
                 log.err(None, 'Received event for non-configured channel "%s".'
@@ -468,6 +468,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             # beginning of any channel name that's not special (i.e. "@").
             if channel[0] not in irc.CHANNEL_PREFIXES and channel != '@':
                 channel = '#' + channel
+            channel = util.canonicalize(channel)
             self.handlers[channel] = []
             for handler_name in handler_names:
                 if handler_name: # ignore empty lists and list items

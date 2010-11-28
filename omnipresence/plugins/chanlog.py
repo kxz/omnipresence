@@ -9,6 +9,8 @@ import logging.handlers
 import os
 import time
 
+from omnipresence import util
+
 MESSAGE_FORMAT = '[%(asctime)s]  %(message)s'
 DATE_FORMAT = '%d-%b-%Y %H:%M:%S'
 
@@ -22,6 +24,8 @@ class ChannelLogger(object):
     hostmask = ''
     
     def log(self, channel, msg, args):
+        channel = util.canonicalize(channel)
+        
         if channel not in self.handlers:
             return
         
@@ -40,9 +44,11 @@ class ChannelLogger(object):
         self.log(channel, '<%s> %s', (user, message))
         
     def joined(self, bot, prefix, channel):
-        handler = logging.handlers.WatchedFileHandler(os.path.join(self.log_directory, channel))
+        handler = logging.handlers.WatchedFileHandler(
+                      os.path.join(self.log_directory,
+                                   util.canonicalize(channel)[1:]))
         handler.setFormatter(logging.Formatter(MESSAGE_FORMAT, DATE_FORMAT))
-        self.handlers[channel] = handler
+        self.handlers[util.canonicalize(channel)] = handler
         
         nick, hostmask = prefix.split('!', 1)
         self.hostmask = hostmask
@@ -54,7 +60,7 @@ class ChannelLogger(object):
         self.log(channel, '*** %s <%s> has left %s',
                  (bot.nickname, channel))
         log.msg('Stopping logging for channel %s.' % channel)
-        del self.handlers[channel]
+        del self.handlers[util.canonicalize(channel)]
     
     def noticed(self, bot, user, channel, message):
         user = user.split('!', 1)[0]
@@ -69,7 +75,7 @@ class ChannelLogger(object):
     def kickedFrom(self, bot, channel, kicker, message):
         self.userKicked(bot, self.nickname, channel, kicker, message)
         log.msg('Stopping logging for channel %s.' % channel)
-        del self.handlers[channel]
+        del self.handlers[util.canonicalize(channel)]
     
     def nickChanged(self, bot, nick):
         self.userRenamed(bot, self.nickname, nick)

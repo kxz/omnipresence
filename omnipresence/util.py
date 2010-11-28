@@ -15,3 +15,8 @@ class OmnipresenceConfigParser(SafeConfigParser):
     def getspacelist(self, *args, **kwargs):
         value = self.get(*args, **kwargs)
         return map(lambda x: x.strip(), value.split())
+
+
+def canonicalize(name):
+    return name.lower().replace('[',  '{').replace(']',  '}') \
+                       .replace('\\', '|').replace('^',  '~')
