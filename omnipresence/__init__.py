@@ -108,7 +108,10 @@ class IRCClient(irc.IRCClient):
                                    % handler.name)
 
     def run_commands(self, user, channel, message):
-        # First, see if the message matches any of the command prefixes 
+        # First, get rid of formatting codes in the message.
+        message = util.remove_control_codes(message)
+        
+        # Second, see if the message matches any of the command prefixes 
         # specified in the configuration file.  We read directly from 
         # `self.factory.config` on every message, because the 
         # "current_nickname" default may change while the bot is being run.
@@ -128,7 +131,11 @@ class IRCClient(irc.IRCClient):
             if channel != self.nickname:
                 return
 
-        keyword = message.split()[0].lower()
+        args = message.split()
+        if len(args) < 1:
+            return
+
+        keyword = args[0].lower()
         if keyword in self.factory.commands:
             log.msg('Command from %s on channel %s: %s'
                      % (user, channel, message))
