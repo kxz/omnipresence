@@ -213,4 +213,53 @@ class WikipediaSearch(object):
         self.exact_search(None, bot, user, channel, args, language, title)
 
 
+class RandomWikipediaArticle(WikipediaSearch):
+    """
+    \x02%s\x02 [\x1Flanguage_code\x1F[\x02:]] - Get a random main 
+    namespace Wikipedia article, in the Wikipedia corresponding to 
+    \x1Flanguage_code\x1F if one is specified.
+    """
+    name = 'wikipedia_random'
+    
+    def get_random(self, response, bot, user, channel, args, language):
+        data = json.loads(response[1])
+        
+        if 'error' in data:
+            bot.reply(user, channel, 'Wikipedia (random): API encountered an error: %s.'
+                                      % (data['error']['info']))
+            return
+        
+        results = data['query']['random']
+        
+        if len(results) < 1:
+            bot.reply(user, channel, 'Wikipedia (random): No articles found.')
+            return
+        
+        self.get_summary(bot, user, channel, args, language,
+                         results[0]['title'], info_text=' (random)')
+    
+    def execute(self, bot, user, channel, args):
+        args = args.split(None, 1)
+        
+        language = 'en'
+        
+        if len(args) > 1:
+            language = args[1].rstrip(':')
+            if language not in self.languages:
+                bot.reply(user, channel,
+                          'The language code \x02%s\x02 is invalid.'
+                           % language)
+                return
+        
+        params = urllib.urlencode({'action': 'query',
+                                   'list': 'random',
+                                   'rnnamespace': 0,
+                                   'format': 'json'})
+        d = self.factory.get_http('http://%s.wikipedia.org/w/api.php?%s'
+                                   % (language, params))
+        d.addCallback(self.get_random, bot, user, channel, args, language)
+        return d
+
+
 wikipedia = WikipediaSearch()
+wikipedia_random = RandomWikipediaArticle()
