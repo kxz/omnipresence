@@ -1,4 +1,4 @@
-from BeautifulSoup import BeautifulStoneSoup
+from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup, NavigableString
 from ConfigParser import SafeConfigParser
 import datetime
 import re
@@ -18,22 +18,28 @@ HTML_HEX_REFS = re.compile(r'&#x([0-9a-fA-F]+);')
 
 
 class OmnipresenceConfigParser(SafeConfigParser):
+    """An extension of ConfigParser with Omnipresence-specific methods."""
     # Option names need to be parsed case-sensitively, as they are used to 
     # determine things like modules to import.
     optionxform = str
 
     def getdefault(self, section, option, default):
+        """Get the value of the specified option in the specified section, or 
+        return the given default if this option does not exist."""
         if self.has_option(section, option):
             return self.get(section, option)
 
         return default
 
     def getspacelist(self, *args, **kwargs):
-        value = self.get(*args, **kwargs)
-        return map(lambda x: x.strip(), value.split())
+        """Get the value of the specified option converted to a list, split 
+        on whitespace."""
+        return self.get(*args, **kwargs).split()
 
 
 def ago(then):
+    """Given a datetime object, return a string giving an approximate relative 
+    time, such as "5 days ago"."""
     delta = datetime.datetime.now() - then
     
     if delta.days == 0:
@@ -59,10 +65,13 @@ def ago(then):
         return "%d weeks ago" % (delta.days / 7)
 
 def canonicalize(name):
+    """Convert an IRC name to its "canonical" lowercase representation."""
     return name.lower().replace('[',  '{').replace(']',  '}') \
                        .replace('\\', '|').replace('^',  '~')
 
 def decode_html_entities(s):
+    """Convert HTML entities in a string to their Unicode character 
+    equivalents."""
     s = BeautifulStoneSoup(s,
                            convertEntities=BeautifulStoneSoup.HTML_ENTITIES) \
                           .contents[0]
@@ -71,4 +80,20 @@ def decode_html_entities(s):
     return s
 
 def remove_control_codes(s):
+    """Remove IRC formatting control codes from a string."""
     return CONTROL_CODES.sub('', s)
+
+def textify_html(soup):
+    """Convert a BeautifulSoup element's contents to plain text."""
+    result = u''
+    
+    for k in soup.contents:
+        if isinstance(k, NavigableString):
+            result += decode_html_entities(k)
+        elif hasattr(k, 'name'):  # is another soup element
+            if k.name == u'sup':
+                result += u'^'
+            
+            result += textify_html(k)
+    
+    return result
