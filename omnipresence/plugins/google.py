@@ -1,11 +1,14 @@
+import json
+import urllib
+import urlparse
+
+from BeautifulSoup import BeautifulSoup
 from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
 
-import json
-import urllib
-
 from omnipresence import util
+
 
 class GoogleCommand(object):
     """
@@ -22,27 +25,27 @@ class GoogleCommand(object):
     def reply_with_results(self, response, bot, user, channel, args):
         data = json.loads(response[1])
         
-        if 'responseData' not in data or 'results' not in data['responseData'] or len(data['responseData']['results']) < 1:
+        if ('responseData' not in data or
+            'results' not in data['responseData'] or
+            len(data['responseData']['results']) < 1):
             bot.reply(user, channel, 'Google: No results found for \x02%s\x02.'
                                       % args[1])
+            return
         
         results = data['responseData']['results'][:self.max_results]
         
-        i = 1
-        messages = []
-        
-        for result in results:
-            message = u''
-            
-            if len(results) > 1:
-                message += u'(%d) ' % i
-            
-            message += (u'\x02%s\x02: %s'
-                          % (util.decode_html_entities(result['titleNoFormatting']),
-                             result['unescapedUrl']))
-            
-            messages.append(message)
-            i += 1
+        if len(results) == 1:
+            result = results[0]
+            messages = [(u'\x02%s\x02: %s \u2014 %s'
+                           % (util.decode_html_entities(result['titleNoFormatting']),
+                              util.textify_html(BeautifulSoup(result['content'])),
+                              result['unescapedUrl']))]
+        else:
+            messages = [(u'(%d) \x02%s\x02: %s'
+                           % (i + 1,
+                              util.decode_html_entities(result['titleNoFormatting']),
+                              result['unescapedUrl']))
+                        for i, result in enumerate(results)]
         
         bot.reply(user, channel, ((u'Google: ' + u' \u2014 '.join(messages)) \
                                    .encode(self.factory.encoding)))
@@ -58,6 +61,7 @@ class GoogleCommand(object):
         d.addCallback(self.reply_with_results, bot, user, channel, args)
         return d
 
+
 class ImFeelingLuckyCommand(GoogleCommand):
     """
     \x02%s\x02 \x1Fsearch_string\x1F - Perform a Google search on the given 
@@ -67,5 +71,95 @@ class ImFeelingLuckyCommand(GoogleCommand):
     max_results = 1
 
 
+class GoogleCalculatorCommand(object):
+    """
+    \x02%s\x02 \x1Fexpression\x1F - Ask Google to compute a mathematical 
+    expression, and return the result.
+    """
+    implements(IPlugin, ICommand)
+    name = 'gcalc'
+    
+    def reply_with_results(self, response, bot, user, channel, args):
+        soup = BeautifulSoup(response[1])
+        
+        try:
+            result = util.textify_html(soup.find('', 'r').b)
+        except AttributeError:
+            result = u'No result was returned!'
+        
+        bot.reply(user, channel, ((u'Google calc: %s' % result) \
+                                   .encode(self.factory.encoding)))
+    
+    def execute(self, bot, user, channel, args):
+        args = args.split(None, 1)
+        
+        if len(args) < 2:
+            bot.reply(user, channel, 'Please specify an expression.')
+            return
+        
+        d = self.factory.get_http('http://www.google.com/search?q=%s' % urllib.quote(args[1]))
+        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        return d
+
+
+class GoogleDefinitionCommand(object):
+    """
+    \x02%s\x02 \x1Fterm\x1F - Fetch the first set of definitions for the given 
+    term from Google.
+    """
+    implements(IPlugin, ICommand)
+    name = 'define'
+    
+    def reply_with_results(self, response, bot, user, channel, args):
+        # Using SoupStrainer to parse only <li> tags yields a nested tree of 
+        # <li> tags for some reason, so we just use "findAll" instead.
+        soup = BeautifulSoup(response[1])
+        lis = soup.findAll('li')
+        
+        results = []
+        result_url = ''
+        
+        for li in lis:
+            results.append(util.decode_html_entities(li.next).strip())
+            
+            # The last <li> in the first set of definitions has the associated 
+            # source linked after a <br>.
+            if li.find('br'):
+                result_url = urlparse.urlparse(li.find('a')['href']).query
+                
+                # urlparse.parse_qs() does not like Unicode strings very 
+                # much, so we perform an encode/decode here.
+                result_url = result_url.encode('utf-8')
+                result_url = urlparse.parse_qs(result_url)['q'][0]
+                result_url = result_url.decode('utf-8')
+                break
+        
+        if len(results) < 1:
+            bot.reply(user, channel, 'Google dict: No results found for \x02%s\x02.'
+                                      % args[1])
+            return
+        
+        result = ' / '.join(results)
+        if len(result) > 255:
+            result = '%s...' % result[0:255]
+        
+        bot.reply(user, channel, (u'Google dict: %s \u2014 %s'
+                                    % (result, result_url)) \
+                                  .encode(self.factory.encoding))
+    
+    def execute(self, bot, user, channel, args):
+        args = args.split(None, 1)
+        
+        if len(args) < 2:
+            bot.reply(user, channel, 'Please specify a term to look up.')
+            return
+        
+        d = self.factory.get_http('http://www.google.com/search?q=define:%s' % urllib.quote(args[1]))
+        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        return d
+
+
 google = GoogleCommand()
 lucky = ImFeelingLuckyCommand()
+gcalc = GoogleCalculatorCommand()
+define = GoogleDefinitionCommand()
