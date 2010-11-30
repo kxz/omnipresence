@@ -10,7 +10,8 @@ import urllib
 class TimeCommand(object):
     """
     \x02%s\x02 \x1Flocation\x1F - Look up the current date and time in a given 
-    location, courtesy of GeoNames <http://geonames.org/>.
+    location, courtesy of GeoNames <http://geonames.org/>.  Case-sensitive tz 
+    database names are also supported.
     """
     implements(IPlugin, ICommand)
     name = 'time'
