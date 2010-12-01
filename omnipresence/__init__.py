@@ -101,11 +101,9 @@ class IRCClient(irc.IRCClient):
 
         for handler in handlers:
             if hasattr(handler, event):
-                try:
-                    getattr(handler, event)(self, *args)
-                except:
-                    log.err(None, 'Handler "%s" encountered an error.'
-                                   % handler.name)
+                d = defer.maybeDeferred(getattr(handler, event), self, *args)
+                d.addErrback(log.err, 'Handler "%s" encountered an error.'
+                                       % handler.name)
 
     def run_commands(self, user, channel, message):
         # First, get rid of formatting codes in the message.
