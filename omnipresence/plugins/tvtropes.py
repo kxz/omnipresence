@@ -1,12 +1,15 @@
 import json
+import re
 import urllib
 
 from BeautifulSoup import BeautifulSoup
-from zope.interface import implements
 from twisted.plugin import IPlugin
-from omnipresence.iomnipresence import ICommand
+from zope.interface import implements
 
 from omnipresence import util
+from omnipresence.iomnipresence import ICommand, IHandler
+
+TROPE_LINK = re.compile(r'{{(.*?)}}')
 
 
 def strip_redirect(s):
@@ -14,14 +17,6 @@ def strip_redirect(s):
 
 
 class TVTropesSearch(object):
-    """
-    \x02%s\x02 \x1Fsearch_string\x1F - Search for a TV Tropes article with a 
-    title matching the given search string, or perform a full-text search if 
-    no such article exists.
-    """
-    implements(IPlugin, ICommand)
-    name = 'trope'
-    
     def reply_with_trope(self, response, bot, user, channel, args, info_text=''):
         soup = BeautifulSoup(response[1])
         title = util.textify_html(soup.find('title')).split(' - ', 1)[0]
@@ -72,13 +67,7 @@ class TVTropesSearch(object):
         d.addCallback(self.reply_with_google, bot, user, channel, args)
         d.addErrback(bot.reply_with_error, user, channel, args[0])
     
-    def execute(self, bot, user, channel, args):
-        args = args.split(None, 1)
-        
-        if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a search string.')
-            return
-        
+    def check_trope(self, bot, user, channel, args):
         # Force the first character to uppercase for {{}} search; otherwise, 
         # the markup won't be parsed as a link if the query is all-lowercase.
         preview_query = ('[=~%s~=] {{%s%s}}'
@@ -93,10 +82,30 @@ class TVTropesSearch(object):
         return d
 
 
-class RandomTrope(TVTropesSearch):
+class TVTropesSearchCommand(TVTropesSearch):
+    """
+    \x02%s\x02 \x1Fsearch_string\x1F - Search for a TV Tropes article with a 
+    title matching the given search string, or perform a full-text search if 
+    no such article exists.
+    """
+    implements(IPlugin, ICommand)
+    name = 'trope'
+    
+    def execute(self, bot, user, channel, args):
+        args = args.split(None, 1)
+        
+        if len(args) < 2:
+            bot.reply(user, channel, 'Please specify a search string.')
+            return
+        
+        return self.check_trope(bot, user, channel, args)
+
+
+class RandomTropeCommand(TVTropesSearch):
     """
     \x02%s\x02 - Get a random TV Tropes article.
     """
+    implements(IPlugin, ICommand)
     name = 'trope_random'
     
     def execute(self, bot, user, channel, args):
@@ -105,5 +114,23 @@ class RandomTrope(TVTropesSearch):
         return d
 
 
-trope = TVTropesSearch()
-trope_random = RandomTrope()
+class TVTropesLinkHandler(TVTropesSearch):
+    """
+    Reply to messages containing {{trope links}} with the trope URL.
+    """
+    implements(IPlugin, IHandler)
+    name = 'tvtropes'
+    
+    def privmsg(self, bot, user, channel, message):
+        tropes = TROPE_LINK.findall(message)
+        
+        for match in tropes:
+            if match.strip():
+                return self.check_trope(bot, user, channel, ['trope', match])
+    
+    action = privmsg
+
+
+trope = TVTropesSearchCommand()
+trope_random = RandomTropeCommand()
+trope_handler = TVTropesLinkHandler()
