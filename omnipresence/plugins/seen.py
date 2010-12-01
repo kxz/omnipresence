@@ -121,7 +121,7 @@ class Watcher(object):
         self.modeChanged(bot, bot.nickname, chan, set, modes, args)
     
     def msg(self, bot, channel, msg):
-        self.privmsg(bot.nickname, channel, msg)
+        self.privmsg(bot, bot.nickname, channel, msg)
     
     def notice(self, bot, user, msg):
         self.noticed(bot, bot.nickname, user, msg)

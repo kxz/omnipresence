@@ -477,7 +477,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         @rtype: tuple if C{defer} keyword argument is False,
           C{Deferred} otherwise
         """
-        h = httplib2.Http(self.http_cache_dir, 10)
+        h = httplib2.Http(self.http_cache_dir, 10.0)
         
         if 'headers' not in kwargs:
             kwargs['headers'] = {}
