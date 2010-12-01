@@ -467,12 +467,15 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     # configuration information.  Maybe yet another plugin infrastructure?
     def get_http(self, *args, **kwargs):
         """
-        Create and return a Twisted Deferred wrapping an httplib2 Http request, 
-        with any arguments passed in to the request() function.  The location 
-        of the cache directory and the default user-agent string are read in 
-        from the bot configuration file.
+        Make an httplib2 C{Http} request with the given arguments, 
+        using the cache directory and user-agent string specified in 
+        the bot configuration file.  By default, return this request 
+        wrapped in a Twisted C{Deferred}.  If the C{defer} keyword 
+        argument is passed and set to False, simply return the result 
+        of the request, without deferring the request to a thread.
         
-        @rtype: C{Deferred}
+        @rtype: tuple if C{defer} keyword argument is False,
+          C{Deferred} otherwise
         """
         h = httplib2.Http(self.http_cache_dir, 10)
         
@@ -481,4 +484,8 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         if not 'User-Agent' in kwargs['headers']:
             kwargs['headers']['User-Agent'] = self.http_user_agent
         
-        return threads.deferToThread(h.request, *args, **kwargs)
+        if 'defer' in kwargs and not kwargs['defer']:
+            del kwargs['defer']
+            return h.request(*args, **kwargs)
+        else:
+            return threads.deferToThread(h.request, *args, **kwargs)
