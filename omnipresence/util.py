@@ -64,6 +64,18 @@ def ago(then):
     else:
         return "%d weeks ago" % (delta.days / 7)
 
+def andify(seq, two_comma=False):
+    """Given a list, join its elements to form a list of the form "x 
+    and y" or "x, y, and z".  If "two_comma" is True, return "x, and y" 
+    for lists that are two elements long."""
+    if len(seq) > 2:
+        return ', '.join(seq[:-2] + [', and '.join(seq[-2:])])
+    
+    if two_comma:
+        return ', and '.join(seq)
+    
+    return ' and '.join(seq)
+
 def canonicalize(name):
     """Convert an IRC name to its "canonical" lowercase representation."""
     return name.lower().replace('[',  '{').replace(']',  '}') \
