@@ -78,7 +78,7 @@ class ChannelLogger(object):
         del self.handlers[util.canonicalize(channel)]
     
     def nickChanged(self, bot, nick):
-        self.userRenamed(bot, self.nickname, nick)
+        self.userRenamed(bot, bot.nickname, nick)
     
     def userJoined(self, bot, user, channel):
         nick, hostmask = user.split('!', 1)
