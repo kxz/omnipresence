@@ -71,6 +71,13 @@ class PeakCommand(object):
                                      'private messages.')
             return
         
+        if (requested_channel not in self.factory.handlers or
+            not filter(lambda x: isinstance(x, PeakHandler),
+                       self.factory.handlers[requested_channel])):
+            bot.reply(user, channel, 'Channel peaks are not being tracked in '
+                                     '%s.' % requested_channel)
+            return
+        
         record = ChannelPeak.select(ChannelPeak.q.channel
                                       ==util.canonicalize(requested_channel),
                                     orderBy=['-number_of_users',
