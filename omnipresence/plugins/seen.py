@@ -77,7 +77,7 @@ class Watcher(object):
         self._update_record(user, 'userLeft', channel=channel)
     
     def userQuit(self, bot, prefix, quitMessage):
-        user = user.split('!', 1)[0]
+        user = prefix.split('!', 1)[0]
         self._update_record(user, 'userQuit', data=quitMessage)
 
     def userKicked(self, bot, kickee, channel, kicker, msg):
