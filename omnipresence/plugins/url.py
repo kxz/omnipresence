@@ -19,6 +19,43 @@ from omnipresence.iomnipresence import IHandler
 
 URL_PATTERN = re.compile(r"""\b((https?://|www[.])[^\s()<>]+(?:\([\w\d]+\)|(?:[^-!"#$%&'()*+,./:;<=>?@[\\\]^_`{|}~\s]|/)))""")
 
+def get_html_title(headers, content):
+    soup_kwargs = {'parseOnlyThese': SoupStrainer('title')}
+    
+    # If the HTTP "Content-Type" header specifies an 
+    # encoding, try to use it to decode the document.
+    ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
+    if 'charset' in cparams:
+        soup_kwargs['fromEncoding'] = cparams['charset']
+    
+    soup = BeautifulSoup(content, **soup_kwargs)
+
+    title = u'No title found.'
+    
+    if soup.title:
+        title = soup.title.string.extract()
+        title = util.decode_html_entities(title)
+        title = u'\x02%s\x02' % u' '.join(title.split()).strip()
+
+    return title
+
+def get_text_title(headers, content):
+    return u'\x02%s\x02' % content.split('\n', 1)[0]
+
+def get_image_title(headers, content):
+    pbuffer = Image.open(StringIO.StringIO(content))
+    width, height = pbuffer.size
+    format = pbuffer.format
+    return (u'%s image (%d x %d pixels, %d bytes)'
+              % (format, width, height, len(content)))
+
+TITLE_PROCESSORS = {'text/html': get_html_title,
+                    'application/xhtml+xml': get_html_title,
+                    'text/plain': get_text_title,
+                    'image/png': get_image_title,
+                    'image/gif': get_image_title,
+                    'image/jpeg': get_image_title }
+
 
 class URLTitleFetcher(object):
     """
@@ -28,11 +65,12 @@ class URLTitleFetcher(object):
     """
     implements(IPlugin, IHandler)
     name = 'url'
+
     
     def registered(self):
         self.ignore_list = self.factory.config.getspacelist('url',
                                                             'ignore_messages_from')
-    
+   
     def reply_with_titles(self, results, bot, user, channel):
         for i, result in enumerate(results):
             success, response = result
@@ -44,34 +82,19 @@ class URLTitleFetcher(object):
                 ctype, cparams = cgi.parse_header(headers.get('content-type',
                                                               'Unknown'))
 
-                if ctype in ('text/html', 'application/xhtml+xml'):
-                    soup_kwargs = {'parseOnlyThese': SoupStrainer('title')}
-                    
-                    # If the HTTP "Content-Type" header specifies an 
-                    # encoding, try to use it to decode the document.
-                    if 'charset' in cparams:
-                        soup_kwargs['fromEncoding'] = cparams['charset']
-                    
-                    soup = BeautifulSoup(content, **soup_kwargs)
-                    
-                    if soup.title:
-                        title = soup.title.string.extract()
-                        title = util.decode_html_entities(title)
-                        title = u'\x02%s\x02' % u' '.join(title.split()).strip()
-                elif ctype == 'text/plain':
-                    title = u'\x02%s\x02' % content.split('\n', 1)[0]
-                elif ctype in ('image/png', 'image/gif', 'image/jpeg'):
-                    pbuffer = Image.open(StringIO.StringIO(content))
-                    width, height = pbuffer.size
-                    format = pbuffer.format
-                    title = (u'%s image (%d x %d pixels, %d bytes)'
-                               % (format, width, height, len(content)))
+                if ctype in TITLE_PROCESSORS:
+                    title = TITLE_PROCESSORS[ctype](headers, content)
                 else:
-                    title = (u'%s document (%d bytes)' % (ctype, len(content)))
+                    content_length = ((' (%s bytes)'
+                                        % headers['content-length'])
+                                      if 'content-length' in headers
+                                      else '')
+                    title = (u'%s document%s' % (ctype, content_length))
                 
-                title = (u'[%s] %s'
-                           % (urlparse.urlparse(headers['content-location']).hostname,
-                              title))
+                if 'content-location' in headers:
+                    title = (u'[%s] %s'
+                               % (urlparse.urlparse(headers['content-location']).hostname,
+                                  title))
             else:
                 if not isinstance(response.value, ServerNotFoundError):
                     log.err(response,
@@ -120,8 +143,19 @@ class URLTitleFetcher(object):
             raise ServerNotFoundError('Unable to find the server at %s'
                                        % hostname)
         
-        # The coast is clear.  Make the request.
-        return self.factory.get_http(url, defer=False)
+        # The provided URL is confirmed to not be on a private network.  
+        # First, probe the content type of the target document with a 
+        # HEAD request, and see if it's one for which we support title 
+        # snarfing.  If so, make a GET request and return its results 
+        # instead.  If not, just return the results of the HEAD request, 
+        # as we have no use for the content.
+        headers, content = self.factory.get_http(url, method='HEAD', defer=False)
+        ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
+
+        if ctype in TITLE_PROCESSORS:
+            return self.factory.get_http(url, defer=False)
+
+        return (headers, content)
     
     def privmsg(self, bot, user, channel, message):
         nick = user.split('!', 1)[0]
