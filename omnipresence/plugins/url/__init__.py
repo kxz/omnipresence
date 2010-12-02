@@ -1,60 +1,48 @@
 import cgi
 import re
 import socket
-import StringIO
 import struct
 import urllib
 import urlparse
 
-from BeautifulSoup import BeautifulSoup, SoupStrainer
 from httplib2 import ServerNotFoundError
-from PIL import Image
 from twisted.internet import defer, threads
-from twisted.plugin import IPlugin
+from twisted.plugin import getPlugins, IPlugin
 from twisted.python import failure, log
-from zope.interface import implements
+from zope.interface import implements, Interface, Attribute
 
-from omnipresence import util
+from omnipresence import plugins, util
 from omnipresence.iomnipresence import IHandler
 
 URL_PATTERN = re.compile(r"""\b((https?://|www[.])[^\s()<>]+(?:\([\w\d]+\)|(?:[^-!"#$%&'()*+,./:;<=>?@[\\\]^_`{|}~\s]|/)))""")
 
-def get_html_title(headers, content):
-    soup_kwargs = {'parseOnlyThese': SoupStrainer('title')}
-    
-    # If the HTTP "Content-Type" header specifies an 
-    # encoding, try to use it to decode the document.
-    ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
-    if 'charset' in cparams:
-        soup_kwargs['fromEncoding'] = cparams['charset']
-    
-    soup = BeautifulSoup(content, **soup_kwargs)
 
-    title = u'No title found.'
-    
-    if soup.title:
-        title = soup.title.string.extract()
-        title = util.decode_html_entities(title)
-        title = u'\x02%s\x02' % u' '.join(title.split()).strip()
+class ITitleProcessor(Interface):
+    """
+    Finds the title of a given Web document.
+    """
 
-    return title
+    supported_content_types = Attribute("""
+        @type supported_content_types: C{list} of C{str}
+        @ivar supported_content_types: The MIME content types that this 
+        title processor supports.
+        """)
 
-def get_text_title(headers, content):
-    return u'\x02%s\x02' % content.split('\n', 1)[0]
+    def process(self, headers, content):
+        """
+        Finds the title of the document specified by C{headers} and 
+        C{content}.
 
-def get_image_title(headers, content):
-    pbuffer = Image.open(StringIO.StringIO(content))
-    width, height = pbuffer.size
-    format = pbuffer.format
-    return (u'%s image (%d x %d pixels, %d bytes)'
-              % (format, width, height, len(content)))
+        @type headers: C{dict}
+        @param headers: A dictionary of HTTP response headers, as 
+        returned by the request() method of an httplib2.Http object.
 
-TITLE_PROCESSORS = {'text/html': get_html_title,
-                    'application/xhtml+xml': get_html_title,
-                    'text/plain': get_text_title,
-                    'image/png': get_image_title,
-                    'image/gif': get_image_title,
-                    'image/jpeg': get_image_title }
+        @type content: C{str}
+        @param content: The body of the HTTP response.
+
+        @rtype: C{str}
+        @return: The title of the given document.
+        """
 
 
 class URLTitleFetcher(object):
@@ -66,10 +54,15 @@ class URLTitleFetcher(object):
     implements(IPlugin, IHandler)
     name = 'url'
 
+    title_processors = {}
+
     
     def registered(self):
         self.ignore_list = self.factory.config.getspacelist('url',
                                                             'ignore_messages_from')
+        for title_processor in getPlugins(ITitleProcessor, plugins.url):
+            for content_type in title_processor.supported_content_types:
+                self.title_processors[content_type] = title_processor
    
     def reply_with_titles(self, results, bot, user, channel):
         for i, result in enumerate(results):
@@ -82,8 +75,9 @@ class URLTitleFetcher(object):
                 ctype, cparams = cgi.parse_header(headers.get('content-type',
                                                               'Unknown'))
 
-                if ctype in TITLE_PROCESSORS:
-                    title = TITLE_PROCESSORS[ctype](headers, content)
+                if ctype in self.title_processors:
+                    title = self.title_processors[ctype].process(headers,
+                                                                 content)
                 else:
                     content_length = ((' (%s bytes)'
                                         % headers['content-length'])
@@ -152,7 +146,7 @@ class URLTitleFetcher(object):
         headers, content = self.factory.get_http(url, method='HEAD', defer=False)
         ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
 
-        if ctype in TITLE_PROCESSORS:
+        if ctype in self.title_processors:
             return self.factory.get_http(url, defer=False)
 
         return (headers, content)
