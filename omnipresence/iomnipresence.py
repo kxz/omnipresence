@@ -38,7 +38,10 @@ class ICommand(Interface):
         @param args: The arguments passed with the command, including the 
         keyword used to invoke the command ("keyword arg1 arg2").
 
-        @rtype: C{None}
+        @rtype: C{None} or C{Deferred}
+        @return: A C{Deferred} can be used to indicate that the command 
+        will not immediately return a result; for instance, if it needs 
+        to make a Web request first.
         """
 
     name = Attribute("""
