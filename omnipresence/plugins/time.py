@@ -16,25 +16,26 @@ class TimeCommand(object):
     implements(IPlugin, ICommand)
     name = 'time'
     
-    def reply_with_time(self, response, bot, user, channel, args, canonical, lat, lng):
+    def reply_with_time(self, response, bot, prefix, channel,
+                        args, canonical, lat, lng):
         data = json.loads(response[1])
         
         if 'time' not in data:
-            bot.reply(user, channel,
+            bot.reply(prefix, channel,
                       'Time service: There is no time information for \x02%s\x02.'
                        % args[1])
             return
         
-        bot.reply(user, channel,
+        bot.reply(prefix, channel,
                   ('Time service: %s (%.2f, %.2f) %s'
                    % (canonical, lat, lng, data['time'])) \
                   .encode(self.factory.encoding))
     
-    def find_location(self, response, bot, user, channel, args):
+    def find_location(self, response, bot, prefix, channel, args):
         data = json.loads(response[1])
         
         if 'geonames' not in data or len(data['geonames']) < 1:
-            bot.reply(user, channel,
+            bot.reply(prefix, channel,
                       "Time service: Couldn't find the location \x02%s\x02."
                        % args[1])
             return
@@ -51,14 +52,15 @@ class TimeCommand(object):
         lng = details['lng']
         
         d = self.factory.get_http('http://ws.geonames.org/timezoneJSON?lat=%f&lng=%f' % (lat, lng))
-        d.addCallback(self.reply_with_time, bot, user, channel, args, canonical, lat, lng)
-        d.addErrback(bot.reply_with_error, user, channel, args[0])
+        d.addCallback(self.reply_with_time, bot, prefix, channel,
+                      args, canonical, lat, lng)
+        d.addErrback(bot.reply_with_error, prefix, channel, args[0])
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a location.')
+            bot.reply(prefix, channel, 'Please specify a location.')
             return
         
         if args[1] in pytz.all_timezones:
@@ -66,12 +68,12 @@ class TimeCommand(object):
                     .replace(tzinfo=pytz.utc) \
                     .astimezone(pytz.timezone(args[1])) \
                     .strftime('%Y-%m-%d %H:%M')
-            bot.reply(user, channel, 'Time service: %s (tz database) %s'
-                                      % (args[1], time))
+            bot.reply(prefix, channel, 'Time service: %s (tz database) %s'
+                                        % (args[1], time))
             return
         
         d = self.factory.get_http('http://ws.geonames.org/searchJSON?maxRows=1&style=FULL&q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.find_location, bot, user, channel, args)
+        d.addCallback(self.find_location, bot, prefix, channel, args)
         return d
 
 timecommand = TimeCommand()

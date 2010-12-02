@@ -105,7 +105,7 @@ class IRCClient(irc.IRCClient):
                 d.addErrback(log.err, 'Handler "%s" encountered an error.'
                                        % handler.name)
 
-    def run_commands(self, user, channel, message):
+    def run_commands(self, prefix, channel, message):
         # First, get rid of formatting codes in the message.
         message = util.remove_control_codes(message)
         
@@ -114,13 +114,13 @@ class IRCClient(irc.IRCClient):
         # `self.factory.config` on every message, because the 
         # "current_nickname" default may change while the bot is being run.
         defaults = {'current_nickname': self.nickname}
-        prefixes = self.factory.config.getspacelist('core',
-                                                    'command_prefixes',
-                                                    False, defaults)
+        command_prefixes = self.factory.config.getspacelist('core',
+                                                            'command_prefixes',
+                                                            False, defaults)
 
-        for prefix in prefixes:
-            if message.lower().startswith(prefix.lower()):
-                message = message[len(prefix):].strip()
+        for command_prefix in command_prefixes:
+            if message.lower().startswith(command_prefix.lower()):
+                message = message[len(command_prefix):].strip()
                 break
         else:
             # The message doesn't start with any of the given command prefixes.  
@@ -136,14 +136,14 @@ class IRCClient(irc.IRCClient):
         keyword = args[0].lower()
         if keyword in self.factory.commands:
             log.msg('Command from %s on channel %s: %s'
-                     % (user, channel, message))
+                     % (prefix, channel, message))
             d = defer.maybeDeferred(self.factory.commands[keyword].execute,
-                                    self, user, channel, message)
-            d.addErrback(self.reply_with_error, user, channel, keyword)
+                                    self, prefix, channel, message)
+            d.addErrback(self.reply_with_error, prefix, channel, keyword)
 
-    def reply(self, user, channel, message):
-        nick = user.split('!', 1)[0]
-        log.msg('Reply for %s on channel %s: %s' % (user, channel, message))
+    def reply(self, prefix, channel, message):
+        nick = prefix.split('!', 1)[0]
+        log.msg('Reply for %s on channel %s: %s' % (nick, channel, message))
         
         if channel == self.nickname:
             self.notice(nick, message)
@@ -151,9 +151,10 @@ class IRCClient(irc.IRCClient):
         
         self.msg(channel, '\x0314%s: %s' % (nick, message))
 
-    def reply_with_error(self, failure, user, channel, keyword):
-        self.reply(user, channel, 'Command \x02%s\x02 encountered an error: %s.'
-                                   % (keyword, failure.getErrorMessage()))
+    def reply_with_error(self, failure, prefix, channel, keyword):
+        self.reply(prefix, channel, 'Command \x02%s\x02 encountered an error: '
+                                    '%s.' % (keyword,
+                                             failure.getErrorMessage()))
         log.err(failure, 'Command "%s" encountered an error.' % keyword)
 
     # Inherited from twisted.internet.protocol.BaseProtocol
@@ -179,12 +180,12 @@ class IRCClient(irc.IRCClient):
         self.ping_timer = task.LoopingCall(self.ping_server, servername)
         self.ping_timer.start(60, False)
 
-    def privmsg(self, user, channel, message):
+    def privmsg(self, prefix, channel, message):
         if channel[0] not in irc.CHANNEL_PREFIXES:
-            log.msg('Message from %s for %s: %s' % (user, channel, message))
+            log.msg('Message from %s for %s: %s' % (prefix, channel, message))
 
-        self.call_handlers('privmsg', channel, [user, channel, message])
-        self.run_commands(user, channel, message)
+        self.call_handlers('privmsg', channel, [prefix, channel, message])
+        self.run_commands(prefix, channel, message)
         
     def joined(self, prefix, channel):
         self.call_handlers('joined', channel, [prefix, channel])
@@ -193,15 +194,15 @@ class IRCClient(irc.IRCClient):
     def left(self, prefix, channel):
         self.call_handlers('left', channel, [prefix, channel])
     
-    def noticed(self, user, channel, message):
+    def noticed(self, prefix, channel, message):
         if channel[0] not in irc.CHANNEL_PREFIXES:
-            log.msg('Notice from %s for %s: %s' % (user, channel, message))
+            log.msg('Notice from %s for %s: %s' % (prefix, channel, message))
 
-        self.call_handlers('noticed', channel, [user, channel, message])
+        self.call_handlers('noticed', channel, [prefix, channel, message])
     
-    def modeChanged(self, user, channel, set, modes, args):
+    def modeChanged(self, prefix, channel, set, modes, args):
         self.call_handlers('modeChanged', channel,
-                           [user, channel, set, modes, args])
+                           [prefix, channel, set, modes, args])
     
     def signedOn(self):
         log.msg('Successfully signed on to server.')
@@ -218,29 +219,29 @@ class IRCClient(irc.IRCClient):
     def nickChanged(self, nick):
         self.call_handlers('nickChanged', None, [nick])
     
-    def userJoined(self, user, channel):
-        self.call_handlers('userJoined', channel, [user, channel])
-        self.channel_names[channel].add(user.split('!', 1)[0])
+    def userJoined(self, prefix, channel):
+        self.call_handlers('userJoined', channel, [prefix, channel])
+        self.channel_names[channel].add(prefix.split('!', 1)[0])
     
-    def userLeft(self, user, channel):
-        self.call_handlers('userLeft', channel, [user, channel])
-        self.channel_names[channel].discard(user.split('!', 1)[0])
+    def userLeft(self, prefix, channel):
+        self.call_handlers('userLeft', channel, [prefix, channel])
+        self.channel_names[channel].discard(prefix.split('!', 1)[0])
     
-    def userQuit(self, user, quitMessage):
-        self.call_handlers('userQuit', None, [user, quitMessage])
+    def userQuit(self, prefix, quitMessage):
+        self.call_handlers('userQuit', None, [prefix, quitMessage])
         for channel in self.channel_names:
-            self.channel_names[channel].discard(user.split('!', 1)[0])
+            self.channel_names[channel].discard(prefix.split('!', 1)[0])
 
     def userKicked(self, kickee, channel, kicker, message):
         self.call_handlers('userKicked', channel,
                            [kickee, channel, kicker, message])
         self.channel_names[channel].discard(kickee)
 
-    def action(self, user, channel, data):
-        self.call_handlers('action', channel, [user, channel, data])
+    def action(self, prefix, channel, data):
+        self.call_handlers('action', channel, [prefix, channel, data])
 
-    def topicUpdated(self, user, channel, newTopic):
-        self.call_handlers('topicUpdated', channel, [user, channel, newTopic])
+    def topicUpdated(self, nick, channel, newTopic):
+        self.call_handlers('topicUpdated', channel, [nick, channel, newTopic])
     
     def userRenamed(self, oldname, newname):
         self.call_handlers('userRenamed', None, [oldname, newname])
@@ -257,7 +258,8 @@ class IRCClient(irc.IRCClient):
         # If joins are suspended, add this one to the queue; otherwise, just go 
         # ahead and join the channel immediately.
         if self.suspended_joins is not None:
-            log.msg('Joins suspended; adding channel %s to join queue.' % channel)
+            log.msg('Joins suspended; adding channel %s to join queue.'
+                     % channel)
             self.suspended_joins.add(channel)
             return
 
@@ -268,10 +270,10 @@ class IRCClient(irc.IRCClient):
         self.channel_names[channel].clear()
         irc.IRCClient.leave(self, channel, reason)
     
-    def kick(self, channel, user, reason=None):
-        self.call_handlers('kick', channel, [channel, user, reason])
-        irc.IRCClient.kick(self, channel, user, reason)
-        self.channel_names[channel].discard(user)
+    def kick(self, channel, nick, reason=None):
+        self.call_handlers('kick', channel, [channel, nick, reason])
+        irc.IRCClient.kick(self, channel, nick, reason)
+        self.channel_names[channel].discard(nick)
 
     def topic(self, channel, topic=None):
         self.call_handlers('topic', channel, [channel, topic])
@@ -284,13 +286,13 @@ class IRCClient(irc.IRCClient):
     
     # def say(...) is not necessary, as it simply delegates to msg().
     
-    def msg(self, user, message):
-        self.call_handlers('msg', user, [user, message])
-        irc.IRCClient.msg(self, user, message)
+    def msg(self, nick, message):
+        self.call_handlers('msg', nick, [nick, message])
+        irc.IRCClient.msg(self, nick, message)
 
-    def notice(self, user, message):
-        self.call_handlers('notice', user, [user, message])
-        irc.IRCClient.notice(self, user, message)
+    def notice(self, nick, message):
+        self.call_handlers('notice', nick, [nick, message])
+        irc.IRCClient.notice(self, nick, message)
     
     def setNick(self, nickname):
         oldnick = self.nickname
@@ -335,7 +337,7 @@ class IRCClient(irc.IRCClient):
 
     # IRC methods not defined by t.w.p.irc.IRCClient
 
-    def irc_PONG(self, user, secs):
+    def irc_PONG(self, prefix, secs):
         self.ping_count = 0
     
     def names(self, *channels):
@@ -355,7 +357,8 @@ class IRCClient(irc.IRCClient):
         # Liberally strip out all user mode prefixes such as @%+.  Some
         # networks support more prefixes, so this removes any prefixes with
         # characters not valid in nicknames.
-        names = map(lambda x: re.sub(r'^[^A-Za-z0-9\-\[\]\\`^{}]+', '', x), names)
+        names = map(lambda x: re.sub(r'^[^A-Za-z0-9\-\[\]\\`^{}]+', '', x),
+                    names)
         self.channel_names[channel].update(names)
 
     def endNames(self, channel):
@@ -378,20 +381,24 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     encoding = 'utf-8'
     
     http_cache_dir = None
-    http_user_agent = '%s/%s (bot; +%s)' % (VERSION_NAME, VERSION_NUM, SOURCE_URL)
+    http_user_agent = ('%s/%s (bot; +%s)'
+                        % (VERSION_NAME, VERSION_NUM, SOURCE_URL))
 
     def __init__(self, config):
         self.config = config
-        self.encoding = self.config.getdefault('core', 'encoding', self.encoding)
+        self.encoding = self.config.getdefault('core', 'encoding',
+                                               self.encoding)
         
         self.http_cache_dir = self.config.getdefault('core', 'http_cache_dir',
                                                      self.http_cache_dir)
-        self.http_user_agent = self.config.getdefault('core', 'http_user_agent',
+        self.http_user_agent = self.config.getdefault('core',
+                                                      'http_user_agent',
                                                       self.http_user_agent)
 
         # Set up the bot's SQLObject connection instance.
         sqlobject_uri = self.config.get('core', 'database')
-        sqlobject.sqlhub.processConnection = sqlobject.connectionForURI(sqlobject_uri)
+        sqlobject.sqlhub.processConnection = \
+          sqlobject.connectionForURI(sqlobject_uri)
 
         # Load handler plug-ins through twisted.plugin, then map handlers to 
         # channels based on the specified configuration options.

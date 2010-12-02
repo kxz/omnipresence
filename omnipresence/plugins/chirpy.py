@@ -31,7 +31,7 @@ class ChirpyCommand(object):
         
         self.table = ChirpyQuote
 
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)[1:]
         
         if args:
@@ -50,12 +50,12 @@ class ChirpyCommand(object):
         if quotes.count() > 0:
             quote = random.choice(list(quotes))
             quote_text = quote.body.replace('\n', ' ')
-            bot.reply(user, channel, 'QDB: (#%d, %+d/%d) %s' % (quote.id,
-                                                                quote.rating,
-                                                                quote.votes,
-                                                                quote_text))
+            bot.reply(prefix, channel, 'QDB: (#%d, %+d/%d) %s' % (quote.id,
+                                                                  quote.rating,
+                                                                  quote.votes,
+                                                                  quote_text))
         else:
-            bot.reply(user, channel, "QDB: Couldn't find any quotes!")
+            bot.reply(prefix, channel, "QDB: Couldn't find any quotes!")
 
 
 chirpycommand = ChirpyCommand()

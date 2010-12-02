@@ -39,9 +39,9 @@ class ChannelLogger(object):
     def connectionLost(self, bot, reason):
         self.quit(bot, reason.getErrorMessage() if reason else None)
         
-    def privmsg(self, bot, user, channel, message):
-        user = user.split('!', 1)[0]
-        self.log(channel, '<%s> %s', (user, message))
+    def privmsg(self, bot, prefix, channel, message):
+        nick = prefix.split('!', 1)[0]
+        self.log(channel, '<%s> %s', (nick, message))
         
     def joined(self, bot, prefix, channel):
         handler = logging.handlers.WatchedFileHandler(
@@ -58,39 +58,39 @@ class ChannelLogger(object):
     
     def left(self, bot, prefix, channel):
         self.log(channel, '*** %s <%s> has left %s',
-                 (bot.nickname, channel))
+                 (bot.nickname, self.hostmask, channel))
         log.msg('Stopping logging for channel %s.' % channel)
         del self.handlers[util.canonicalize(channel)]
     
-    def noticed(self, bot, user, channel, message):
-        user = user.split('!', 1)[0]
-        self.log(channel, '-%s- %s', (user, message))
+    def noticed(self, bot, prefix, channel, message):
+        nick = prefix.split('!', 1)[0]
+        self.log(channel, '-%s- %s', (nick, message))
     
-    def modeChanged(self, bot, user, channel, set, modes, args):
-        user = user.split('!', 1)[0]
+    def modeChanged(self, bot, prefix, channel, set, modes, args):
+        nick = prefix.split('!', 1)[0]
         flag = '+' if set else '-'
         self.log(channel, '*** %s sets mode: %s%s %s',
-                 (user, flag, modes, ' '.join(args)))
+                 (nick, flag, modes, ' '.join(args)))
     
     def kickedFrom(self, bot, channel, kicker, message):
-        self.userKicked(bot, self.nickname, channel, kicker, message)
+        self.userKicked(bot, bot.nickname, channel, kicker, message)
         log.msg('Stopping logging for channel %s.' % channel)
         del self.handlers[util.canonicalize(channel)]
     
     def nickChanged(self, bot, nick):
         self.userRenamed(bot, bot.nickname, nick)
     
-    def userJoined(self, bot, user, channel):
-        nick, hostmask = user.split('!', 1)
+    def userJoined(self, bot, prefix, channel):
+        nick, hostmask = prefix.split('!', 1)
         self.log(channel, '*** %s <%s> has joined %s',
                  (nick, hostmask, channel))
     
-    def userLeft(self, bot, user, channel):
-        nick, hostmask = user.split('!', 1)
+    def userLeft(self, bot, prefix, channel):
+        nick, hostmask = prefix.split('!', 1)
         self.log(channel, '*** %s <%s> has left %s', (nick, hostmask, channel))
     
-    def userQuit(self, bot, user, quitMessage):
-        nick, hostmask = user.split('!', 1)
+    def userQuit(self, bot, prefix, quitMessage):
+        nick, hostmask = prefix.split('!', 1)
         for channel in bot.channel_names:
             if nick in bot.channel_names[channel]:
                 if quitMessage:
@@ -101,22 +101,18 @@ class ChannelLogger(object):
                              (nick, hostmask))
 
     def userKicked(self, bot, kickee, channel, kicker, message):
-        kickee = kickee.split('!', 1)[0]
-        kicker = kicker.split('!', 1)[0]
-        
         if message:
             self.log(channel, '*** %s was kicked by %s (%s)',
                      (kickee, kicker, message))
         else:
             self.log(channel, '*** %s was kicked by %s', (kickee, kicker))
 
-    def action(self, bot, user, channel, data):
-        user = user.split('!', 1)[0]
-        self.log(channel, '* %s %s', (user, data))
+    def action(self, bot, prefix, channel, data):
+        nick = prefix.split('!', 1)[0]
+        self.log(channel, '* %s %s', (nick, data))
 
-    def topicUpdated(self, bot, user, channel, newTopic):
-        user = user.split('!', 1)[0]
-        self.log(channel, '*** %s changes topic to %s', (user, newTopic))
+    def topicUpdated(self, bot, nick, channel, newTopic):
+        self.log(channel, '*** %s changes topic to %s', (nick, newTopic))
     
     def userRenamed(self, bot, oldname, newname):
         for channel in bot.channel_names:
@@ -124,8 +120,8 @@ class ChannelLogger(object):
                 self.log(channel, '*** %s is now known as %s',
                          (oldname, newname))
 
-    def kick(self, bot, channel, user, reason):
-        self.userKicked(bot, user, channel, bot.nickname, reason)
+    def kick(self, bot, channel, nick, reason):
+        self.userKicked(bot, nick, channel, bot.nickname, reason)
 
     def topic(self, bot, channel, topic):
         if topic is not None:

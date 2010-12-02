@@ -22,14 +22,14 @@ class GoogleCommand(object):
     # absolute maximum for API requests is 4.
     max_results = 3
     
-    def reply_with_results(self, response, bot, user, channel, args):
+    def reply_with_results(self, response, bot, prefix, channel, args):
         data = json.loads(response[1])
         
         if ('responseData' not in data or
             'results' not in data['responseData'] or
             len(data['responseData']['results']) < 1):
-            bot.reply(user, channel, 'Google: No results found for \x02%s\x02.'
-                                      % args[1])
+            bot.reply(prefix, channel,
+                      'Google: No results found for \x02%s\x02.' % args[1])
             return
         
         results = data['responseData']['results'][:self.max_results]
@@ -47,18 +47,19 @@ class GoogleCommand(object):
                               result['unescapedUrl']))
                         for i, result in enumerate(results)]
         
-        bot.reply(user, channel, ((u'Google: ' + u' \u2014 '.join(messages)) \
-                                   .encode(self.factory.encoding)))
+        bot.reply(prefix, channel,
+                  ((u'Google: ' + u' \u2014 '.join(messages)) \
+                   .encode(self.factory.encoding)))
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a search string.')
+            bot.reply(prefix, channel, 'Please specify a search string.')
             return
         
         d = self.factory.get_http('http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
         return d
 
 
@@ -79,7 +80,7 @@ class GoogleCalculatorCommand(object):
     implements(IPlugin, ICommand)
     name = 'gcalc'
     
-    def reply_with_results(self, response, bot, user, channel, args):
+    def reply_with_results(self, response, bot, prefix, channel, args):
         soup = BeautifulSoup(response[1])
         
         try:
@@ -87,18 +88,18 @@ class GoogleCalculatorCommand(object):
         except AttributeError:
             result = u'No result was returned!'
         
-        bot.reply(user, channel, ((u'Google calc: %s' % result) \
-                                   .encode(self.factory.encoding)))
+        bot.reply(prefix, channel, ((u'Google calc: %s' % result) \
+                                    .encode(self.factory.encoding)))
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify an expression.')
+            bot.reply(prefix, channel, 'Please specify an expression.')
             return
         
         d = self.factory.get_http('http://www.google.com/search?q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
         return d
 
 
@@ -110,7 +111,7 @@ class GoogleDefinitionCommand(object):
     implements(IPlugin, ICommand)
     name = 'define'
     
-    def reply_with_results(self, response, bot, user, channel, args):
+    def reply_with_results(self, response, bot, prefix, channel, args):
         # Using SoupStrainer to parse only <li> tags yields a nested tree of 
         # <li> tags for some reason, so we just use "findAll" instead.
         soup = BeautifulSoup(response[1])
@@ -135,27 +136,28 @@ class GoogleDefinitionCommand(object):
                 break
         
         if len(results) < 1:
-            bot.reply(user, channel, 'Google dict: No results found for \x02%s\x02.'
-                                      % args[1])
+            bot.reply(prefix, channel, 'Google dict: No results found for '
+                                       '\x02%s\x02.' % args[1])
             return
         
         result = ' / '.join(results)
         if len(result) > 255:
             result = '%s...' % result[0:255]
         
-        bot.reply(user, channel, (u'Google dict: %s \u2014 %s'
-                                    % (result, result_url)) \
-                                  .encode(self.factory.encoding))
+        bot.reply(prefix, channel, (u'Google dict: %s \u2014 %s'
+                                      % (result, result_url)) \
+                                    .encode(self.factory.encoding))
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a term to look up.')
+            bot.reply(prefix, channel, 'Please specify a term to look up.')
             return
         
-        d = self.factory.get_http('http://www.google.com/search?q=define:%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        d = self.factory.get_http('http://www.google.com/search?q=define:%s'
+                                   % urllib.quote(args[1]))
+        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
         return d
 
 

@@ -13,7 +13,7 @@ class WWWJDICCommand(object):
     implements(IPlugin, ICommand)
     name = 'wwwjdic'
     
-    def reply_with_results(self, response, bot, user, channel, args):
+    def reply_with_results(self, response, bot, prefix, channel, args):
         soup = BeautifulSoup(response[1], parseOnlyThese=SoupStrainer('pre'))
         
         if soup.pre:
@@ -25,19 +25,20 @@ class WWWJDICCommand(object):
             result = result.replace('/', '', 1)
             result = result.replace('/', '; ')
             result = result.encode(self.factory.encoding)
-            bot.reply(user, channel, 'WWWJDIC: %s' % result)
+            bot.reply(prefix, channel, 'WWWJDIC: %s' % result)
         else:
-            bot.reply(user, channel, 'WWWJDIC: No results found for \x02%s\x02.' % args[1])
+            bot.reply(prefix, channel, 'WWWJDIC: No results found for '
+                                       '\x02%s\x02.' % args[1])
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a search term.')
+            bot.reply(prefix, channel, 'Please specify a search term.')
             return
         
         d = self.factory.get_http('http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi?1ZUJ%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
         return d
 
 wwwjdiccommand = WWWJDICCommand()

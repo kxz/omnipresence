@@ -22,18 +22,18 @@ class LastFmCommand(object):
     def registered(self):
         self.apikey = self.factory.config.get('lastfm', 'apikey')
     
-    def reply_with_results(self, response, bot, user, channel, args):
+    def reply_with_results(self, response, bot, prefix, channel, args):
         data = json.loads(response[1])
         
         if ('error' in data):
-            bot.reply(user, channel, 'Last.fm: API returned error: %s.'
-                                      % data['message'])
+            bot.reply(prefix, channel, 'Last.fm: API returned error: %s.'
+                                        % data['message'])
             return
         
         if ('results' not in data or 'artistmatches' not in data['results'] or
             not isinstance(data['results']['artistmatches'], dict)):
-            bot.reply(user, channel, 'Last.fm: No results found for \x02%s\x02.'
-                                      % args[1])
+            bot.reply(prefix, channel, 'Last.fm: No results found for '
+                                       '\x02%s\x02.' % args[1])
             return
         
         results = data['results']['artistmatches']['artist']
@@ -53,14 +53,15 @@ class LastFmCommand(object):
             messages.append(u'%s\x02%s\x02%s: %s' % (number, result['name'],
                                                      listeners, result['url']))
         
-        bot.reply(user, channel, ((u'Last.fm: ' + u' \u2014 '.join(messages)) \
-                                     .encode(self.factory.encoding)))
+        bot.reply(prefix, channel,
+                  ((u'Last.fm: ' + u' \u2014 '.join(messages)) \
+                   .encode(self.factory.encoding)))
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a search string.')
+            bot.reply(prefix, channel, 'Please specify a search string.')
             return
         
         params = urllib.urlencode({'method': 'artist.search',
@@ -71,7 +72,7 @@ class LastFmCommand(object):
         
         d = self.factory.get_http('http://ws.audioscrobbler.com/2.0/?%s'
                                    % params)
-        d.addCallback(self.reply_with_results, bot, user, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
         return d
 
 

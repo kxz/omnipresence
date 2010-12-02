@@ -15,22 +15,22 @@ class AutoVoicer(object):
     def joined(self, bot, prefix, channel):
         self.moderated[channel] = False
 
-    def modeChanged(self, bot, user, channel, set, modes, args):
+    def modeChanged(self, bot, prefix, channel, set, modes, args):
         if 'm' in modes:
             if set:
                 log.msg('%s enabled channel moderation on %s.'
-                         % (user, channel))
+                         % (nick, channel))
                 self.moderated[channel] = True
             else:
                 log.msg('%s disabled channel moderation on %s.'
-                         % (user, channel))
+                         % (nick, channel))
                 self.moderated[channel] = False
 
-    def userJoined(self, bot, user, channel):
+    def userJoined(self, bot, prefix, channel):
         if not self.moderated[channel]:
-            user = user.split('!', 1)[0]
-            log.msg('Attempting to voice %s on channel %s.' % (user, channel))
-            bot.mode(channel, True, 'v', user=user)
+            nick = prefix.split('!', 1)[0]
+            log.msg('Attempting to voice %s on channel %s.' % (nick, channel))
+            bot.mode(channel, True, 'v', user=nick)
             
 
 autovoice = AutoVoicer()

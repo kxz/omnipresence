@@ -7,12 +7,18 @@ import urlparse
 
 from httplib2 import ServerNotFoundError
 from twisted.internet import defer, threads
-from twisted.plugin import getPlugins, IPlugin
+from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import failure, log
 from zope.interface import implements, Interface, Attribute
 
 from omnipresence import plugins, util
 from omnipresence.iomnipresence import IHandler
+
+
+# Make twisted.plugin.getPlugins() look for plug-ins in this module.
+__path__.extend(pluginPackagePaths(__name__))
+__all__ = []
+
 
 URL_PATTERN = re.compile(r"""\b((https?://|www[.])[^\s()<>]+(?:\([\w\d]+\)|(?:[^-!"#$%&'()*+,./:;<=>?@[\\\]^_`{|}~\s]|/)))""")
 
@@ -64,7 +70,7 @@ class URLTitleFetcher(object):
             for content_type in title_processor.supported_content_types:
                 self.title_processors[content_type] = title_processor
    
-    def reply_with_titles(self, results, bot, user, channel):
+    def reply_with_titles(self, results, bot, prefix, channel):
         for i, result in enumerate(results):
             success, response = result
             
@@ -151,8 +157,8 @@ class URLTitleFetcher(object):
 
         return (headers, content)
     
-    def privmsg(self, bot, user, channel, message):
-        nick = user.split('!', 1)[0]
+    def privmsg(self, bot, prefix, channel, message):
+        nick = prefix.split('!', 1)[0]
         
         if nick in self.ignore_list:
             return
@@ -163,7 +169,7 @@ class URLTitleFetcher(object):
         for match in urls:
             url = match[0]
             log.msg('Saw URL %s from %s in channel %s.'
-                    % (url, user, channel))
+                    % (url, prefix, channel))
             
             # Add "http://" to URLs that were only matched through 
             # starting with "www." and lack a protocol.
@@ -179,7 +185,7 @@ class URLTitleFetcher(object):
             fetchers.append(threads.deferToThread(self.get_url, url))
         
         l = defer.DeferredList(fetchers, consumeErrors=True)
-        l.addBoth(self.reply_with_titles, bot, user, channel)
+        l.addBoth(self.reply_with_titles, bot, prefix, channel)
         return l
     
     action = privmsg

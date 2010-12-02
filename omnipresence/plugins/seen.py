@@ -42,9 +42,9 @@ class Watcher(object):
                               action=action, actor=actor, channel=channel,
                               data=data)
     
-    def privmsg(self, bot, user, channel, message):
-        user = user.split('!', 1)[0]
-        self._update_record(user, 'privmsg', channel=channel, data=message)
+    def privmsg(self, bot, prefix, channel, message):
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'privmsg', channel=channel, data=message)
 
     def joined(self, bot, prefix, channel):
         self.userJoined(bot, prefix, channel)
@@ -52,15 +52,15 @@ class Watcher(object):
     def left(self, bot, prefix, channel):
         self.userLeft(bot, prefix, channel)
     
-    def noticed(self, bot, user, channel, msg):
-        user = user.split('!', 1)[0]
-        self._update_record(user, 'noticed', channel=channel, data=msg)
+    def noticed(self, bot, prefix, channel, msg):
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'noticed', channel=channel, data=msg)
     
-    def modeChanged(self, bot, user, channel, set, modes, args):
-        user = user.split('!', 1)[0]
+    def modeChanged(self, bot, prefix, channel, set, modes, args):
+        nick = prefix.split('!', 1)[0]
         flags = (('+' if set else '-') +
                  modes + (' ' + ' '.join(args) if args else ''))
-        self._update_record(user, 'modeChanged', channel=channel, data=flags)
+        self._update_record(nick, 'modeChanged', channel=channel, data=flags)
     
     def kickedFrom(self, bot, channel, kicker, message):
         self.userKicked(bot, bot.nickname, channel, kicker, message)
@@ -68,17 +68,17 @@ class Watcher(object):
     def nickChanged(self, bot, nick):
         self.userRenamed(bot, bot.nickname, nick)
     
-    def userJoined(self, bot, user, channel):
-        user = user.split('!', 1)[0]
-        self._update_record(user, 'userJoined', channel=channel)
+    def userJoined(self, bot, prefix, channel):
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'userJoined', channel=channel)
 
-    def userLeft(self, bot, user, channel):
-        user = user.split('!', 1)[0]
-        self._update_record(user, 'userLeft', channel=channel)
+    def userLeft(self, bot, prefix, channel):
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'userLeft', channel=channel)
     
     def userQuit(self, bot, prefix, quitMessage):
-        user = prefix.split('!', 1)[0]
-        self._update_record(user, 'userQuit', data=quitMessage)
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'userQuit', data=quitMessage)
 
     def userKicked(self, bot, kickee, channel, kicker, msg):
         kickee = kickee.split('!', 1)[0]
@@ -88,21 +88,21 @@ class Watcher(object):
         self._update_record(kicker, 'userKickedBy', actor=kickee,
                             channel=channel, data=msg)
     
-    def action(self, bot, user, channel, data):
-        user = user.split('!', 1)[0]
-        self._update_record(user, 'action', channel=channel, data=data)
+    def action(self, bot, prefix, channel, data):
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'action', channel=channel, data=data)
  
-    def topicUpdated(self, bot, user, channel, newTopic):
-        user = user.split('!', 1)[0]
-        self._update_record(user, 'topicUpdated', channel=channel,
+    def topicUpdated(self, bot, prefix, channel, newTopic):
+        nick = prefix.split('!', 1)[0]
+        self._update_record(nick, 'topicUpdated', channel=channel,
                             data=newTopic)
     
     def userRenamed(self, bot, oldname, newname):
         self._update_record(oldname, 'userRenamed', data=newname)
         self._update_record(newname, 'userRenamedFrom', data=oldname)
 
-    def kick(self, bot, channel, user, reason):
-        self.userKicked(bot, user, channel, bot.nickname, reason)
+    def kick(self, bot, channel, nick, reason):
+        self.userKicked(bot, nick, channel, bot.nickname, reason)
 
     def topic(self, bot, channel, topic):
         if topic is not None:
@@ -123,8 +123,8 @@ class Watcher(object):
     def msg(self, bot, channel, msg):
         self.privmsg(bot, bot.nickname, channel, msg)
     
-    def notice(self, bot, user, msg):
-        self.noticed(bot, bot.nickname, user, msg)
+    def notice(self, bot, nick, msg):
+        self.noticed(bot, bot.nickname, nick, msg)
     
     def setNick(self, bot, nickname):
         self.userRenamed(bot, bot.nickname, nickname)
@@ -147,30 +147,30 @@ class SeenCommand(object):
     implements(IPlugin, ICommand)
     name = 'seen'
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a nickname to look up.')
+            bot.reply(prefix, channel, 'Please specify a nickname to look up.')
             return
         
         nick = args[1]
         canonicalized_nick = util.canonicalize(nick)
         
         if canonicalized_nick == util.canonicalize(bot.nickname):
-            bot.reply(user, channel,
+            bot.reply(prefix, channel,
                       '%s is right here responding to your queries!'
                        % bot.nickname)
             return
         
-        if canonicalized_nick == util.canonicalize(user.split('!', 1)[0]):
-            bot.reply(user, channel,
+        if canonicalized_nick == util.canonicalize(prefix.split('!', 1)[0]):
+            bot.reply(prefix, channel,
                       'I hope you know the answer to that question already!')
             return
         
         if '*' in nick:
             if len(nick.replace('*', '')) < 3:
-                bot.reply(user, channel,
+                bot.reply(prefix, channel,
                           'Searches for seen users require at least three '
                           'non-wildcard characters.')
                 return
@@ -183,19 +183,19 @@ class SeenCommand(object):
                        for record in records]
             
             if len(matches) < 1:
-                bot.reply(user, channel,
+                bot.reply(prefix, channel,
                           'No users with nicks matching the pattern '
                           '\x02%s\x02 have been seen.' % nick)
                 return
             
-            bot.reply(user, channel, 'Found %s.' % ', '.join(matches))
+            bot.reply(prefix, channel, 'Found %s.' % ', '.join(matches))
             return
         
         try:
             record = SeenUser.byCanonicalizedNick(canonicalized_nick)
         except sqlobject.main.SQLObjectNotFound:
-            bot.reply(user, channel, 'No user with the nick \x02%s\x02 has '
-                                     'been seen recently.' % nick)
+            bot.reply(prefix, channel, 'No user with the nick \x02%s\x02 has '
+                                       'been seen recently.' % nick)
             return
         
         if record.action in ('privmsg', 'noticed'):
@@ -234,10 +234,11 @@ class SeenCommand(object):
         else:
             message = ''
         
-        bot.reply(user, channel, ('%s was last seen %s%s.'
-                                   % (record.nick,
-                                      util.ago(record.lastActivity),
-                                      message)).encode(self.factory.encoding))
+        bot.reply(prefix, channel, ('%s was last seen %s%s.'
+                                     % (record.nick,
+                                        util.ago(record.lastActivity),
+                                        message)) \
+                                    .encode(self.factory.encoding))
             
 
 seen_h = Watcher()

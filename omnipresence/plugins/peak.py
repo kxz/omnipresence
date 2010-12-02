@@ -21,7 +21,7 @@ class PeakHandler(object):
     def registered(self):
         ChannelPeak.createTable(ifNotExists=True)
     
-    def _add_record(self, bot, user, channel):
+    def _add_record(self, bot, prefix, channel):
         canonicalized_channel = util.canonicalize(channel)
         
         if canonicalized_channel not in bot.channel_names:
@@ -29,9 +29,9 @@ class PeakHandler(object):
         
         number_of_users = len(bot.channel_names[canonicalized_channel])
         
-        if user is None:
+        if prefix is None:
             # We were called via endNames, so assume the bot just joined.
-            user = bot.nickname
+            prefix = bot.nickname
         else:
             # userJoined is invoked before the bot updates its channel_names
             # records, so we must add 1 to the size of the set here.
@@ -39,13 +39,13 @@ class PeakHandler(object):
         
         ChannelPeak(channel=canonicalized_channel,
                     number_of_users=number_of_users,
-                    joiner=user.split('!', 1)[0])
+                    joiner=prefix.split('!', 1)[0])
     
     def endNames(self, bot, channel):
         self._add_record(bot, None, channel)
     
-    def userJoined(self, bot, user, channel):
-        self._add_record(bot, user, channel)
+    def userJoined(self, bot, prefix, channel):
+        self._add_record(bot, prefix, channel)
 
 
 class PeakCommand(object):
@@ -57,7 +57,7 @@ class PeakCommand(object):
     implements(IPlugin, ICommand)
     name = 'peak'
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -66,16 +66,16 @@ class PeakCommand(object):
             requested_channel = args[1]
         
         if channel == bot.nickname and requested_channel == channel:
-            bot.reply(user, channel, 'You must specify a channel name to look '
-                                     'up channel peak information through '
-                                     'private messages.')
+            bot.reply(prefix, channel, 'You must specify a channel name to '
+                                       'look up channel peak information '
+                                       'through private messages.')
             return
         
         if (requested_channel not in self.factory.handlers or
             not filter(lambda x: isinstance(x, PeakHandler),
                        self.factory.handlers[requested_channel])):
-            bot.reply(user, channel, 'Channel peaks are not being tracked in '
-                                     '%s.' % requested_channel)
+            bot.reply(prefix, channel, 'Channel peaks are not being tracked '
+                                       'in %s.' % requested_channel)
             return
         
         record = ChannelPeak.select(ChannelPeak.q.channel
@@ -84,16 +84,16 @@ class PeakCommand(object):
                                              '-timestamp'])
 
         if record.count() < 1:
-            bot.reply(user, channel, 'There are no channel peak records for '
-                                     '%s.' % requested_channel)
+            bot.reply(prefix, channel, 'There are no channel peak records for '
+                                       '%s.' % requested_channel)
             return
 
-        bot.reply(user, channel, 'The most recent channel peak for %s was %d '
-                                 'users, after %s joined %s.'
-                                  % (requested_channel,
-                                     record[0].number_of_users,
-                                     record[0].joiner,
-                                     util.ago(record[0].timestamp)))
+        bot.reply(prefix, channel, 'The most recent channel peak for %s was '
+                                   '%d users, after %s joined %s.'
+                                    % (requested_channel,
+                                       record[0].number_of_users,
+                                       record[0].joiner,
+                                       util.ago(record[0].timestamp)))
             
 
 peakcommand = PeakCommand()

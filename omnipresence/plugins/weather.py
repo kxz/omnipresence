@@ -13,13 +13,12 @@ class WeatherCommand(object):
     implements(IPlugin, ICommand)
     name = 'weather'
     
-    def reply_with_weather(self, response, bot, user, channel, args):
+    def reply_with_weather(self, response, bot, prefix, channel, args):
         data = json.loads(response[1])
         
         if 'weatherObservation' not in data:
-            bot.reply(user, channel,
-                      'Weather service: There is no weather information for \x02%s\x02.'
-                       % args[1])
+            bot.reply(prefix, channel, 'Weather service: There is no weather '
+                                       'information for \x02%s\x02.' % args[1])
             return
         
         observation = data['weatherObservation']
@@ -36,17 +35,17 @@ class WeatherCommand(object):
                              int(observation['windSpeed'])))
         weather += ', %d%% humidity' % observation['humidity']
         
-        bot.reply(user, channel,
+        bot.reply(prefix, channel,
                   ('Weather service: %s [%s] (%.2f, %.2f) %s as of %s UTC'
                     % (observation['stationName'], observation['ICAO'],
                        observation['lat'], observation['lng'], weather,
                        observation['datetime'])).encode(self.factory.encoding))
     
-    def find_location(self, response, bot, user, channel, args):
+    def find_location(self, response, bot, prefix, channel, args):
         data = json.loads(response[1])
         
         if 'geonames' not in data or len(data['geonames']) < 1:
-            bot.reply(user, channel,
+            bot.reply(prefix, channel,
                       "Weather service: Couldn't find the location \x02%s\x02."
                        % args[1])
             return
@@ -55,18 +54,18 @@ class WeatherCommand(object):
         lng = data['geonames'][0]['lng']
         
         d = self.factory.get_http('http://ws.geonames.org/findNearByWeatherJSON?lat=%f&lng=%f' % (lat, lng))
-        d.addCallback(self.reply_with_weather, bot, user, channel, args)
-        d.addErrback(bot.reply_with_error, user, channel, args[0])
+        d.addCallback(self.reply_with_weather, bot, prefix, channel, args)
+        d.addErrback(bot.reply_with_error, prefix, channel, args[0])
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a location.')
+            bot.reply(prefix, channel, 'Please specify a location.')
             return
         
         d = self.factory.get_http('http://ws.geonames.org/searchJSON?maxRows=1&style=FULL&q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.find_location, bot, user, channel, args)
+        d.addCallback(self.find_location, bot, prefix, channel, args)
         return d
 
 weathercommand = WeatherCommand()

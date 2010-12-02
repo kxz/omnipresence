@@ -14,8 +14,8 @@ class NickTracer(object):
     traces = {}
     
     def endNames(self, bot, channel):
-        for user in bot.channel_names[channel]:
-            self.userJoined(bot, user, channel)
+        for name in bot.channel_names[channel]:
+            self.userJoined(bot, name, channel)
     
     def userRenamed(self, bot, oldname, newname):
         c_oldname = util.canonicalize(oldname)
@@ -25,15 +25,15 @@ class NickTracer(object):
         self.traces[c_newname].append((newname, datetime.datetime.now()))
         del self.traces[c_oldname]
     
-    def userJoined(self, bot, user, channel):
-        user = user.split('!', 1)[0]
-        c_user = util.canonicalize(user)
+    def userJoined(self, bot, prefix, channel):
+        nick = prefix.split('!', 1)[0]
+        c_nick = util.canonicalize(nick)
         
         # Make sure that the user isn't already in self.traces, in 
         # case said user is already in another channel where nick 
         # tracing is enabled.
-        if c_user not in self.traces:
-            self.traces[c_user] = [(user, datetime.datetime.now())]
+        if c_nick not in self.traces:
+            self.traces[c_nick] = [(nick, datetime.datetime.now())]
 
     def joined(self, bot, prefix, channel):
         self.userJoined(bot, bot.nickname, channel)
@@ -41,18 +41,18 @@ class NickTracer(object):
     def userKicked(self, bot, kickee, channel, kicker, msg):
         self.userLeft(bot, kickee, channel)
 
-    def userLeft(self, bot, user, channel):
-        user = user.split('!', 1)[0]
+    def userLeft(self, bot, prefix, channel):
+        nick = prefix.split('!', 1)[0]
         
         # Is the leaving user left in any other channels?  If not, 
         # delete that user's record.
-        if not filter(lambda x: x[0] != channel and user in x[1],
+        if not filter(lambda x: x[0] != channel and nick in x[1],
                       bot.channel_names.iteritems()):
-            del self.traces[util.canonicalize(user)]
+            del self.traces[util.canonicalize(nick)]
     
-    def userQuit(self, bot, user, quitMessage):
-        user = util.canonicalize(user.split('!', 1)[0])
-        del self.traces[user]
+    def userQuit(self, bot, prefix, quitMessage):
+        c_nick = util.canonicalize(prefix.split('!', 1)[0])
+        del self.traces[c_nick]
 
 
 class TraceCommand(object):
@@ -64,7 +64,7 @@ class TraceCommand(object):
     implements(IPlugin, ICommand)
     name = 'trace'
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         # Try to latch on to a NickTracer instance.
         tracer = []
         
@@ -73,8 +73,8 @@ class TraceCommand(object):
                             self.factory.handlers[channel])
         
         if not tracer:
-            bot.reply(user, channel, 'User nicknames are not being tracked in '
-                                     '%s.' % channel)
+            bot.reply(prefix, channel, 'User nicknames are not being tracked '
+                                       'in %s.' % channel)
             return
         
         tracer = tracer[0]
@@ -82,29 +82,29 @@ class TraceCommand(object):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a nickname to look up.')
+            bot.reply(prefix, channel, 'Please specify a nickname to look up.')
             return
         
         nick = args[1]
         canonicalized_nick = util.canonicalize(nick)
         
         if canonicalized_nick == util.canonicalize(bot.nickname):
-            bot.reply(user, channel,
+            bot.reply(prefix, channel,
                       '%s is right here responding to your queries!'
                        % bot.nickname)
             return
         
         if canonicalized_nick not in tracer.traces:
-            bot.reply(user, channel, 'No user with the nick %s is currently '
-                                     'visible.' % nick)
+            bot.reply(prefix, channel, 'No user with the nick %s is currently '
+                                       'visible.' % nick)
             return
         
         trace = tracer.traces[canonicalized_nick]
         
         if len(trace) == 1:
-            bot.reply(user, channel, '%s has not changed nick since first '
-                                     'being seen %s.'
-                                      % (trace[0][0], util.ago(trace[0][1])))
+            bot.reply(prefix, channel, '%s has not changed nick since first '
+                                       'being seen %s.'
+                                        % (trace[0][0], util.ago(trace[0][1])))
             return
         
         messages = [
@@ -129,7 +129,7 @@ class TraceCommand(object):
             trace_message += ' ' + util.andify(trace_messages)
             messages.append(trace_message)
         
-        bot.reply(user, channel, util.andify(messages, True) + '.')
+        bot.reply(prefix, channel, util.andify(messages, True) + '.')
             
 
 trace_h = NickTracer()

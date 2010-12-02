@@ -42,16 +42,16 @@ class NickServHandler(object):
             bot.msg(self.mask.split('!', 1)[0],
                     'ghost %s %s' % (self.configured_nick, self.password))
 
-    def noticed(self, bot, user, channel, message):
+    def noticed(self, bot, prefix, channel, message):
         # Make sure that this is a private notice coming from NickServ.
-        if not (channel == bot.nickname and user == self.mask):
+        if not (channel == bot.nickname and prefix == self.mask):
             return
 
         if self.identify_re.search(message):
             # We're being asked to identify for this nick by NickServ, so send 
             # it our password.
             log.msg('Received NickServ authentication request; sending password.')
-            bot.msg(user.split('!', 1)[0], 'identify %s' % self.password)
+            bot.msg(prefix.split('!', 1)[0], 'identify %s' % self.password)
             return
 
         if self.identified_re.search(message):

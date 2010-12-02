@@ -47,7 +47,7 @@ class WikipediaSearch(object):
         d = self.factory.get_http('http://en.wikipedia.org/w/api.php?action=query&meta=siteinfo&siprop=interwikimap&format=json')
         d.addCallback(self.load_interwiki)
     
-    def reply_with_summary(self, response, bot, user, channel,
+    def reply_with_summary(self, response, bot, prefix, channel,
                            args, language, title, info_text=''):
         data = json.loads(response[1])
 
@@ -63,26 +63,26 @@ class WikipediaSearch(object):
             if summary:
                 break
         else:
-            self.reply_without_summary(None, bot, user, channel, args,
+            self.reply_without_summary(None, bot, prefix, channel, args,
                                        language, title, info_text)
             return
 
-        bot.reply(user, channel, (u'Wikipedia%s: \x02%s\x02: %s \u2014 %s'
-                                    % (info_text, title, summary,
-                                       wikipedia_url(language, title))) \
-                                  .encode(self.factory.encoding))
+        bot.reply(prefix, channel, (u'Wikipedia%s: \x02%s\x02: %s \u2014 %s'
+                                      % (info_text, title, summary,
+                                         wikipedia_url(language, title))) \
+                                    .encode(self.factory.encoding))
 
-    def reply_without_summary(self, failure, bot, user, channel,
+    def reply_without_summary(self, failure, bot, prefix, channel,
                               args, language, title, info_text=''):
         if failure is not None:
             log.err(failure, 'Wikipedia summary fetching failed.')
 
-        bot.reply(user, channel, (u'Wikipedia%s: \x02%s\x02: %s'
-                                    % (info_text, title,
-                                       wikipedia_url(language, title))) \
-                                  .encode(self.factory.encoding))
+        bot.reply(prefix, channel, (u'Wikipedia%s: \x02%s\x02: %s'
+                                      % (info_text, title,
+                                         wikipedia_url(language, title))) \
+                                    .encode(self.factory.encoding))
 
-    def get_summary(self, bot, user, channel,
+    def get_summary(self, bot, prefix, channel,
                     args, language, title, info_text=''):
         params = urllib.urlencode({'action': 'parse',
                                    'prop': 'text',
@@ -90,31 +90,31 @@ class WikipediaSearch(object):
                                    'format': 'json'})
         d = self.factory.get_http('http://%s.wikipedia.org/w/api.php?%s'
                                    % (language, params))
-        d.addCallback(self.reply_with_summary, bot, user, channel, args,
+        d.addCallback(self.reply_with_summary, bot, prefix, channel, args,
                       language, title, info_text)
-        d.addErrback(self.reply_without_summary, bot, user, channel, args,
+        d.addErrback(self.reply_without_summary, bot, prefix, channel, args,
                      language, title, info_text)
 
-    def _fulltext_search(self, response, bot, user,
+    def _fulltext_search(self, response, bot, prefix,
                          channel, args, language, title):
         data = json.loads(response[1])
 
         if 'error' in data:
-            bot.reply(user, channel, 'Wikipedia: API encountered an error: %s.'
-                                      % (data['error']['info']))
+            bot.reply(prefix, channel, 'Wikipedia: API encountered an error: '
+                                       '%s.' % (data['error']['info']))
             return
 
         results = data['query']['search']
 
         if len(results) < 1:
-            bot.reply(user, channel, ('Wikipedia (full-text): No results '
-                                      'found for \x02%s\x02.' % args[1]))
+            bot.reply(prefix, channel, ('Wikipedia (full-text): No results '
+                                        'found for \x02%s\x02.' % args[1]))
             return
 
-        self.get_summary(bot, user, channel, args, language,
+        self.get_summary(bot, prefix, channel, args, language,
                          results[0]['title'], info_text=' (full-text)')
 
-    def fulltext_search(self, bot, user, channel, args, language, title):
+    def fulltext_search(self, bot, prefix, channel, args, language, title):
         params = urllib.urlencode({'action': 'query',
                                    'list': 'search',
                                    'srsearch': title,
@@ -122,10 +122,10 @@ class WikipediaSearch(object):
                                    'format': 'json'})
         d = self.factory.get_http('http://%s.wikipedia.org/w/api.php?%s'
                                    % (language, params))
-        d.addCallback(self._fulltext_search, bot, user, channel, args,
+        d.addCallback(self._fulltext_search, bot, prefix, channel, args,
                       language, title)
 
-    def exact_search(self, response, bot, user,
+    def exact_search(self, response, bot, prefix,
                      channel, args, language, title):
         if response is not None:
             data = json.loads(response[1])
@@ -133,13 +133,14 @@ class WikipediaSearch(object):
             if not data:
                 # Blank query following a language code, which yielded 
                 # an empty list.  Return the URL of the main page.
-                bot.reply(user, channel, 'Wikipedia: http://%s.wikipedia.org/'
-                                          % language)
+                bot.reply(prefix, channel, 'Wikipedia: http://%s.wikipedia.org/'
+                                            % language)
                 return
 
             if 'error' in data:
-                bot.reply(user, channel, 'Wikipedia: API encountered an error: %s.'
-                                          % (data['error']['info']))
+                bot.reply(prefix, channel, 'Wikipedia: API encountered an '
+                                           'error: %s.'
+                                            % (data['error']['info']))
                 return
 
             if 'interwiki' in data['query']:
@@ -151,29 +152,29 @@ class WikipediaSearch(object):
                 if language not in self.languages:
                     if language not in self.interwiki:
                         # Something changed on us.  Bail to full-text.
-                        self.fulltext_search(bot, user, channel, args,
+                        self.fulltext_search(bot, prefix, channel, args,
                                              language, args[1])
                         return
 
                     # This is a valid non-Wikipedia interwiki article.
                     url = self.interwiki[language].replace('$1',
                                                            urllib.quote(title))
-                    bot.reply(user, channel,
+                    bot.reply(prefix, channel,
                               (u'Wikipedia (interwiki): %s' % url) \
                                .encode(self.factory.encoding))
             elif 'pages' in data['query']:
                 if data['query']['pages'].keys()[0] == '-1':
                     # Try a full-text search instead.
-                    self.fulltext_search(bot, user, channel, args, language,
+                    self.fulltext_search(bot, prefix, channel, args, language,
                                          args[1])
                     return
 
-                self.get_summary(bot, user, channel, args, language,
+                self.get_summary(bot, prefix, channel, args, language,
                                  data['query']['pages'].values()[0]['title'])
                 return
             else:
                 # Nothing works?  Do a full-text search.
-                self.fulltext_search(bot, user, channel, args, language,
+                self.fulltext_search(bot, prefix, channel, args, language,
                                      args[1])
                 return
 
@@ -183,14 +184,14 @@ class WikipediaSearch(object):
                                    'format': 'json'})
         d = self.factory.get_http('http://%s.wikipedia.org/w/api.php?%s'
                                    % (language, params))
-        d.addCallback(self.exact_search, bot, user, channel, args, language,
+        d.addCallback(self.exact_search, bot, prefix, channel, args, language,
                       title)
 
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
-            bot.reply(user, channel, 'Please specify a search string.')
+            bot.reply(prefix, channel, 'Please specify a search string.')
             return
         
         language = 'en'
@@ -206,11 +207,11 @@ class WikipediaSearch(object):
         title = title.strip()
 
         if len(title) < 1:
-            bot.reply(user, channel, 'Wikipedia: http://%s.wikipedia.org/'
-                                      % language)
+            bot.reply(prefix, channel, 'Wikipedia: http://%s.wikipedia.org/'
+                                        % language)
             return
 
-        self.exact_search(None, bot, user, channel, args, language, title)
+        self.exact_search(None, bot, prefix, channel, args, language, title)
 
 
 class RandomWikipediaArticle(WikipediaSearch):
@@ -221,24 +222,26 @@ class RandomWikipediaArticle(WikipediaSearch):
     """
     name = 'wikipedia_random'
     
-    def get_random(self, response, bot, user, channel, args, language):
+    def get_random(self, response, bot, prefix, channel, args, language):
         data = json.loads(response[1])
         
         if 'error' in data:
-            bot.reply(user, channel, 'Wikipedia (random): API encountered an error: %s.'
-                                      % (data['error']['info']))
+            bot.reply(prefix, channel, 'Wikipedia (random): API encountered '
+                                       'an error: %s.'
+                                        % (data['error']['info']))
             return
         
         results = data['query']['random']
         
         if len(results) < 1:
-            bot.reply(user, channel, 'Wikipedia (random): No articles found.')
+            bot.reply(prefix, channel,
+                      'Wikipedia (random): No articles found.')
             return
         
-        self.get_summary(bot, user, channel, args, language,
+        self.get_summary(bot, prefix, channel, args, language,
                          results[0]['title'], info_text=' (random)')
     
-    def execute(self, bot, user, channel, args):
+    def execute(self, bot, prefix, channel, args):
         args = args.split(None, 1)
         
         language = 'en'
@@ -246,7 +249,7 @@ class RandomWikipediaArticle(WikipediaSearch):
         if len(args) > 1:
             language = args[1].rstrip(':')
             if language not in self.languages:
-                bot.reply(user, channel,
+                bot.reply(prefix, channel,
                           'The language code \x02%s\x02 is invalid.'
                            % language)
                 return
@@ -257,7 +260,7 @@ class RandomWikipediaArticle(WikipediaSearch):
                                    'format': 'json'})
         d = self.factory.get_http('http://%s.wikipedia.org/w/api.php?%s'
                                    % (language, params))
-        d.addCallback(self.get_random, bot, user, channel, args, language)
+        d.addCallback(self.get_random, bot, prefix, channel, args, language)
         return d
 
 
