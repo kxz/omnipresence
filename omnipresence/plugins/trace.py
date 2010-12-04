@@ -1,4 +1,5 @@
 import datetime
+import itertools
 
 from twisted.plugin import IPlugin
 from zope.interface import implements
@@ -67,8 +68,13 @@ class TraceCommand(object):
     def execute(self, bot, prefix, channel, args):
         # Try to latch on to a NickTracer instance.
         tracer = []
-        
-        if channel in self.factory.handlers:
+
+        if channel == bot.nickname:
+            tracer = [filter(lambda x: isinstance(x, NickTracer),
+                             handlers) for handlers
+                                       in self.factory.handlers.itervalues()]
+            tracer = list(itertools.chain(*tracer))
+        elif channel in self.factory.handlers:
             tracer = filter(lambda x: isinstance(x, NickTracer),
                             self.factory.handlers[channel])
         
