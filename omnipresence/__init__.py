@@ -12,7 +12,7 @@ from omnipresence import iomnipresence, plugins, util
 
 
 VERSION_NAME = 'Omnipresence'
-VERSION_NUM = '2.0.0alpha1'
+VERSION_NUM = '2.0.0alpha2'
 VERSION_ENV = platform.platform()
 SOURCE_URL = 'http://repo.or.cz/w/omnipresence.git'
 
