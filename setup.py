@@ -23,7 +23,7 @@ if VERSION is None:
 
 setup(name='Omnipresence',
       version=VERSION,
-      packages=['omnipresence', 'twisted.plugins'],
+      packages=find_packages() + ['twisted.plugins'],
       package_data={'twisted': 'plugins/omnipresence_plugin.py'},
       zip_safe=False,
 
