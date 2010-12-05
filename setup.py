@@ -25,6 +25,7 @@ setup(name='Omnipresence',
       version=VERSION,
       packages=['omnipresence', 'twisted.plugins'],
       package_data={'twisted': 'plugins/omnipresence_plugin.py'},
+      zip_safe=False,
 
       install_requires=['Twisted>=8.2.0',
                         'pyOpenSSL',
