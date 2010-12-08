@@ -86,7 +86,7 @@ class NickServHandler(object):
         if bot.nickname != self.configured_nick:
             bot.setNick(self.configured_nick)
             if self.change_when_available:
-                reactor.callLater(60, self.reset_nick)
+                reactor.callLater(60, self.reset_nick, bot)
 
 
 nickservhandler = NickServHandler()
