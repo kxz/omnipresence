@@ -128,16 +128,9 @@ class ChannelLogger(object):
             self.topicUpdated(bot, bot.nickname, channel, topic)
     
     def mode(self, bot, chan, set, modes, limit, user, mask):
-        args = []
-        
-        if limit is not None:
-            args.append(limit)
-        elif user is not None:
-            args.append(user)
-        elif mask is not None:
-            args.append(mask)
-        
-        self.modeChanged(bot, bot.nickname, chan, set, modes, args)
+        # Mode changes get echoed back to us by the server, which
+        # triggers modeChanged above, so we don't log them here.
+        pass
     
     def msg(self, bot, user, message):
         self.privmsg(bot, bot.nickname, user, message)
