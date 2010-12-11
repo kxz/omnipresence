@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import cgi
 import re
 import socket
@@ -20,7 +21,30 @@ __path__.extend(pluginPackagePaths(__name__))
 __all__ = []
 
 
-URL_PATTERN = re.compile(r"""\b((https?://|www[.])[^\s()<>]+(?:\([\w\d]+\)|(?:[^-!"#$%&'()*+,./:;<=>?@[\\\]^_`{|}~\s]|/)))""")
+# With acknowledgement to John Gruber.
+# <http://daringfireball.net/2010/07/improved_regex_for_matching_urls>
+URL_PATTERN = re.compile(ur"""
+\b
+(                                       # Capture 0: Entire matched URL
+  (                                     # Capture 1: STARTS WITH
+    https?://                           # http or https protocol
+    |                                   #   or
+    www\d{0,3}[.]                       # "www.", "www1." ... "www999."
+    |                                   #   or
+    [a-z0-9.\-]+[.][a-z]{2,4}/          # domain-ish string followed by a slash
+  )
+  (?:                                   # FOLLOWED BY ONE OR MORE
+    [^\s()<>]+                          # run of non-space, non-()<>
+    |                                   #   or
+    \(([^\s()<>]+|(\([^\s()<>]+\)))*\)  # balanced parens, up to 2 levels
+  )+
+  (?:                                   # ENDS WITH
+    \(([^\s()<>]+|(\([^\s()<>]+\)))*\)  # balanced parens, up to 2 levels
+    |                                   #   or
+    [^\s`!()\[\]{};:'".,<>?«»“”‘’]      # not space or one of these punct chars
+  )
+)
+""", re.IGNORECASE | re.VERBOSE)
 
 
 class ITitleProcessor(Interface):
@@ -107,12 +131,12 @@ class URLTitleFetcher(object):
                 title = title[:64] + u'...' + title[-64:]
             
             if len(results) > 1:
-                bot.msg(channel, '\x0314URL (%d/%d): %s'
-                                  % (i + 1, len(results),
-                                     title.encode(self.factory.encoding)))
+                message = u'URL (%d/%d): %s' % (i + 1, len(results), title)
             else:
-                bot.msg(channel, '\x0314URL: %s'
-                                  % title.encode(self.factory.encoding))
+                message = u'URL: %s' % title
+            
+            log.msg('URL reply on channel %s: %s' % (channel, message))
+            bot.msg(channel, '\x0314' + message.encode(self.factory.encoding))
     
     def get_url(self, url):
         hostname = urlparse.urlparse(url).hostname
@@ -173,7 +197,7 @@ class URLTitleFetcher(object):
             
             # Add "http://" to URLs that were only matched through 
             # starting with "www." and lack a protocol.
-            if match[1] == 'www.':
+            if match[1] not in ('http://', 'https://'):
                 url = 'http://' + url
             
             # Strip the fragment portion of the URL, if present.
