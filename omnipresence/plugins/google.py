@@ -36,10 +36,14 @@ class GoogleCommand(object):
         
         if len(results) == 1:
             result = results[0]
+            
+            content = util.textify_html(BeautifulSoup(result['content']))
+            if len(content) > 128:
+                content = content[:128] + '...'
+            
             messages = [(u'\x02%s\x02: %s \u2014 %s'
                            % (util.decode_html_entities(result['titleNoFormatting']),
-                              util.textify_html(BeautifulSoup(result['content'])),
-                              result['unescapedUrl']))]
+                              content, result['unescapedUrl']))]
         else:
             messages = [(u'(%d) \x02%s\x02: %s'
                            % (i + 1,
@@ -142,7 +146,7 @@ class GoogleDefinitionCommand(object):
         
         result = ' / '.join(results)
         if len(result) > 255:
-            result = '%s...' % result[0:255]
+            result = result[:255] + '...'
         
         bot.reply(prefix, channel, (u'Google dict: %s \u2014 %s'
                                       % (result, result_url)) \
