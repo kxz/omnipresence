@@ -188,6 +188,7 @@ class IRCClient(irc.IRCClient):
         self.run_commands(prefix, channel, message)
         
     def joined(self, prefix, channel):
+        log.msg('Successfully joined channel %s.' % channel)
         self.call_handlers('joined', channel, [prefix, channel])
         self.channel_names[channel] = set()
     
@@ -218,6 +219,7 @@ class IRCClient(irc.IRCClient):
     
     def nickChanged(self, nick):
         self.call_handlers('nickChanged', None, [nick])
+        irc.IRCClient.nickChanged(self, nick)
     
     def userJoined(self, prefix, channel):
         self.call_handlers('userJoined', channel, [prefix, channel])

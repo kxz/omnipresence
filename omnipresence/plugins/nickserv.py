@@ -4,6 +4,7 @@ from omnipresence.iomnipresence import IHandler
 
 from twisted.internet import reactor
 from twisted.python import log
+from twisted.words.protocols import irc
 
 import re
 
@@ -11,8 +12,9 @@ class NickServHandler(object):
     implements(IPlugin, IHandler)
     name = 'nickserv'
 
+    nick_change_call = None
     signed_on = False
-    nick_in_use = False
+    reset_at_signon = False
 
     def registered(self):
         # Grab some options from the configuration file.
@@ -21,7 +23,6 @@ class NickServHandler(object):
 
         self.suspend_joins = self.factory.config.getboolean('nickserv', 'suspend_joins')
         self.kill_ghosts = self.factory.config.getboolean('nickserv', 'kill_ghosts')
-        self.change_when_available = self.factory.config.getboolean('nickserv', 'change_when_available')
 
         self.mask = self.factory.config.get('nickserv', 'mask')
         self.identify_re = re.compile(self.factory.config.get('nickserv', 'identify_re'))
@@ -36,15 +37,12 @@ class NickServHandler(object):
 
     def signedOn(self, bot):
         self.signed_on = True
-
-        if self.nick_in_use and self.kill_ghosts:
-            log.msg('Asking NickServ to kill ghost with configured nick.')
-            bot.msg(self.mask.split('!', 1)[0],
-                    'ghost %s %s' % (self.configured_nick, self.password))
+        if self.reset_at_signon:
+            self.reset_nick(bot)
 
     def noticed(self, bot, prefix, channel, message):
         # Make sure that this is a private notice coming from NickServ.
-        if not (channel == bot.nickname and prefix == self.mask):
+        if channel[0] in irc.CHANNEL_PREFIXES or prefix != self.mask:
             return
 
         if self.identify_re.search(message):
@@ -65,28 +63,32 @@ class NickServHandler(object):
             # We've gotten the ghost out of the way, so change to our usual 
             # nick and wait for an authentication request.
             log.msg('Successfully killed ghost; changing nick.')
-            self.reset_nick(bot)
+
+            if self.nick_change_call:
+                self.nick_change_call.cancel()
+
+            bot.setNick(self.configured_nick)
             return
 
     def irc_ERR_NICKNAMEINUSE(self, bot):
         # The bot's usual nick is in use by someone else.  If ghost-killing is 
         # enabled, ask NickServ to ghost the other user after we've finished 
-        # signing on.  If polling for nick availability is enabled, try to 
-        # reset our nick.
+        # signing on.
         log.msg('Nick in use by another user.')
-        if self.kill_ghosts:
-            if self.signed_on:
-                self.reset_nick(bot)
-            else:
-                self.nick_in_use = True
-        elif self.change_when_available:
+        if self.signed_on:
             self.reset_nick(bot)
+        else:
+            self.reset_at_signon = True
 
     def reset_nick(self, bot):
-        if bot.nickname != self.configured_nick:
-            bot.setNick(self.configured_nick)
-            if self.change_when_available:
-                reactor.callLater(60, self.reset_nick, bot)
+        if self.kill_ghosts:
+            log.msg('Asking NickServ to kill ghost with configured nick.')
+            bot.msg(self.mask.split('!', 1)[0],
+                    'ghost %s %s' % (self.configured_nick, self.password))
+       
+        log.msg('Changing to configured nick in 10 seconds.')
+        self.nick_change_call = reactor.callLater(10, bot.setNick,
+                                                  self.configured_nick)
 
 
 nickservhandler = NickServHandler()
