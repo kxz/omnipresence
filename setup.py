@@ -4,25 +4,22 @@ from subprocess import Popen, PIPE
 
 from setuptools import setup, find_packages
 
-# With thanks to Douglas Creager <https://gist.github.com/300803>.
-def call_git_describe(abbrev=4):
+# With thanks to Douglas Creager <https://gist.github.com/300803>;
+# command invocation ported from Git to Mercurial.
+def get_version_number():
     try:
-        p = Popen(['git', 'describe', '--abbrev=%d' % abbrev],
+        p = Popen(['hg', 'log', '-r', '.', '--template',
+                   '{latesttag}-{latesttagdistance}-{node|short}'],
                   stdout=PIPE, stderr=PIPE)
         p.stderr.close()
         line = p.stdout.readlines()[0]
         return line.strip()
     except:
-        return None
+        return '2.0.0alpha2'
 
-
-VERSION = call_git_describe()
-
-if VERSION is None:
-    VERSION = '2.0.0alpha2'
 
 setup(name='Omnipresence',
-      version=VERSION,
+      version=get_version_number(),
       packages=find_packages() + ['twisted.plugins'],
       package_data={'twisted': 'plugins/omnipresence_plugin.py'},
       zip_safe=False,
