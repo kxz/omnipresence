@@ -101,7 +101,7 @@ class URLTitleFetcher(object):
             title = u'No title found.'
             
             if success:
-                headers, content = response
+                hostname, headers, content = response
                 ctype, cparams = cgi.parse_header(headers.get('content-type',
                                                               'Unknown'))
 
@@ -114,11 +114,19 @@ class URLTitleFetcher(object):
                                       if 'content-length' in headers
                                       else '')
                     title = (u'%s document%s' % (ctype, content_length))
+
+                hostname_tag = hostname
                 
+                # When a redirect lands us at a different hostname than the one
+                # in the URL, append the new hostname to the tag.
                 if 'content-location' in headers:
-                    title = (u'[%s] %s'
-                               % (urlparse.urlparse(headers['content-location']).hostname,
-                                  title))
+                    content_hostname = urlparse.urlparse(headers['content-location']).hostname
+                    if (content_hostname is not None and
+                        hostname != content_hostname):
+                        hostname_tag = u'%s -> %s' % (hostname,
+                                                      content_hostname)
+
+                title = u'[%s] %s' % (hostname_tag, title)
             else:
                 if not isinstance(response.value, ServerNotFoundError):
                     log.err(response,
@@ -177,9 +185,9 @@ class URLTitleFetcher(object):
         ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
 
         if ctype in self.title_processors:
-            return self.factory.get_http(url, defer=False)
+            headers, content = self.factory.get_http(url, defer=False)
 
-        return (headers, content)
+        return (hostname, headers, content)
     
     def privmsg(self, bot, prefix, channel, message):
         nick = prefix.split('!', 1)[0]
