@@ -207,6 +207,15 @@ class IRCClient(irc.IRCClient):
     
     def signedOn(self):
         log.msg('Successfully signed on to server.')
+
+        # Resetting the connection delay when a successful connection is
+        # made, instead of at IRC sign-on, overlooks situations such as
+        # host bans where the server accepts a connection and then
+        # immediately disconnects the client.  In these cases, the delay
+        # should continue to increase, especially if the problem is that
+        # there are too many connections!
+        self.factory.resetDelay()
+
         self.call_handlers('signedOn', None)
         for channel in self.factory.config.options('channels'):
             # Skip over "@", which has a special meaning to the bot.
@@ -457,8 +466,6 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         log.msg('Attempting to connect to server.')
 
     def buildProtocol(self, addr):
-        self.resetDelay()
-
         p = self.protocol()
         p.factory = self
 
