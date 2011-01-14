@@ -22,9 +22,13 @@ class NickTracer(object):
         c_oldname = util.canonicalize(oldname)
         c_newname = util.canonicalize(newname)
         
-        self.traces[c_newname] = self.traces[c_oldname]
-        self.traces[c_newname].append((newname, datetime.datetime.now()))
-        del self.traces[c_oldname]
+        if c_oldname not in self.traces:
+            self.traces[c_oldname] = [(oldname, datetime.datetime.now())]
+        
+        if c_oldname != c_newname:
+            self.traces[c_newname] = self.traces[c_oldname]
+            self.traces[c_newname].append((newname, datetime.datetime.now()))
+            del self.traces[c_oldname]
     
     def userJoined(self, bot, prefix, channel):
         nick = prefix.split('!', 1)[0]
