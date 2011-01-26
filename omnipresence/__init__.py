@@ -128,6 +128,10 @@ class IRCClient(irc.IRCClient):
             # bail out.
             if channel != self.nickname:
                 return
+            
+            # Strip excess leading and trailing whitespace for
+            # unprefixed commands sent through private messages.
+            message = message.strip()
 
         args = message.split()
         if len(args) < 1:
