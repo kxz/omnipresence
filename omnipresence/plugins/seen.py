@@ -17,7 +17,7 @@ class SeenUser(sqlobject.SQLObject):
     action = sqlobject.StringCol(length=16, notNone=True)
     actor = sqlobject.StringCol(length=64)
     channel = sqlobject.StringCol(length=64)
-    data = sqlobject.UnicodeCol()
+    data = sqlobject.StringCol()
 
 
 class Watcher(object):
