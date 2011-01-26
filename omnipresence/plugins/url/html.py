@@ -4,7 +4,7 @@ from BeautifulSoup import BeautifulSoup, SoupStrainer
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
+from omnipresence import html
 from omnipresence.plugins.url import ITitleProcessor
 
 class HTMLTitleProcessor(object):
@@ -27,7 +27,7 @@ class HTMLTitleProcessor(object):
         
         if soup.title:
             title = soup.title.string.extract()
-            title = util.decode_html_entities(title)
+            title = html.decode_html_entities(title)
             title = u'\x02%s\x02' % u' '.join(title.split()).strip()
 
         return title

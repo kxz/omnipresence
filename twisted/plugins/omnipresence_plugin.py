@@ -9,7 +9,7 @@ from twisted.plugin import IPlugin
 import os
 
 from omnipresence import IRCClientFactory
-from omnipresence.util import OmnipresenceConfigParser
+from omnipresence.config import OmnipresenceConfigParser
 
 
 class Options(usage.Options):

@@ -6,7 +6,7 @@ from BeautifulSoup import BeautifulSoup
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
+from omnipresence import html
 from omnipresence.iomnipresence import ICommand, IHandler
 
 TROPE_LINK = re.compile(r'{{(.*?)}}')
@@ -20,7 +20,7 @@ class TVTropesSearch(object):
     def reply_with_trope(self, response, bot, prefix, channel,
                          args, info_text=''):
         soup = BeautifulSoup(response[1])
-        title = util.textify_html(soup.find('title')).split(' - ', 1)[0]
+        title = html.textify_html(soup.find('title')).split(' - ', 1)[0]
         
         bot.reply(prefix, channel, (u'TV Tropes%s: \x02%s\x02: %s'
                                       % (info_text, title,
@@ -39,7 +39,7 @@ class TVTropesSearch(object):
         
         result = data['responseData']['results'][0]
         bot.reply(prefix, channel, (u'TV Tropes (full-text): \x02%s\x02: %s'
-                                      % (util.decode_html_entities(result['titleNoFormatting']).split(' - ', 1)[0],
+                                      % (html.decode_html_entities(result['titleNoFormatting']).split(' - ', 1)[0],
                                          result['unescapedUrl'])) \
                                     .encode(self.factory.encoding))
     

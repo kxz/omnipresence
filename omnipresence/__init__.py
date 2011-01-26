@@ -8,7 +8,7 @@ import platform
 import sqlobject
 import re
 
-from omnipresence import iomnipresence, plugins, util
+from omnipresence import iomnipresence, plugins, ircutil
 
 
 VERSION_NAME = 'Omnipresence'
@@ -80,10 +80,10 @@ class IRCClient(irc.IRCClient):
                 for channel in self.factory.handlers:
                     if (channel in self.channel_names and
                       args[0].split('!', 1)[0] in self.channel_names[channel]):
-                        handlers.update(self.factory.handlers[util.canonicalize(channel)])
+                        handlers.update(self.factory.handlers[ircutil.canonicalize(channel)])
             else:
                 for channel in self.factory.handlers:
-                    handlers.update(self.factory.handlers[util.canonicalize(channel)])
+                    handlers.update(self.factory.handlers[ircutil.canonicalize(channel)])
         else:
             # If the channel doesn't start with an IRC channel prefix, treat 
             # the event as a private one.  Some networks send notices to "AUTH" 
@@ -92,7 +92,7 @@ class IRCClient(irc.IRCClient):
                 channel = '@'
     
             try:
-                handlers = self.factory.handlers[util.canonicalize(channel)]
+                handlers = self.factory.handlers[ircutil.canonicalize(channel)]
             except KeyError:
                 # How'd we get in this channel?
                 log.err(None, 'Received event for non-configured channel "%s".'
@@ -107,7 +107,7 @@ class IRCClient(irc.IRCClient):
 
     def run_commands(self, prefix, channel, message):
         # First, get rid of formatting codes in the message.
-        message = util.remove_control_codes(message)
+        message = ircutil.remove_control_codes(message)
         
         # Second, see if the message matches any of the command prefixes 
         # specified in the configuration file.  We read directly from 
@@ -429,7 +429,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             # beginning of any channel name that's not special (i.e. "@").
             if channel[0] not in irc.CHANNEL_PREFIXES and channel != '@':
                 channel = '#' + channel
-            channel = util.canonicalize(channel)
+            channel = ircutil.canonicalize(channel)
             self.handlers[channel] = []
             for handler_name in handler_names:
                 if handler_name: # ignore empty lists and list items

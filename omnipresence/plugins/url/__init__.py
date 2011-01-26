@@ -12,7 +12,7 @@ from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import failure, log
 from zope.interface import implements, Interface, Attribute
 
-from omnipresence import plugins, util
+from omnipresence import plugins
 from omnipresence.iomnipresence import IHandler
 
 

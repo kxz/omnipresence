@@ -4,7 +4,7 @@ import itertools
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
+from omnipresence import ircutil, util
 from omnipresence.iomnipresence import ICommand, IHandler
 
 
@@ -19,8 +19,8 @@ class NickTracer(object):
             self.userJoined(bot, name, channel)
     
     def userRenamed(self, bot, oldname, newname):
-        c_oldname = util.canonicalize(oldname)
-        c_newname = util.canonicalize(newname)
+        c_oldname = ircutil.canonicalize(oldname)
+        c_newname = ircutil.canonicalize(newname)
         
         if c_oldname not in self.traces:
             self.traces[c_oldname] = [(oldname, datetime.datetime.now())]
@@ -32,7 +32,7 @@ class NickTracer(object):
     
     def userJoined(self, bot, prefix, channel):
         nick = prefix.split('!', 1)[0]
-        c_nick = util.canonicalize(nick)
+        c_nick = ircutil.canonicalize(nick)
         
         # Make sure that the user isn't already in self.traces, in 
         # case said user is already in another channel where nick 
@@ -53,10 +53,10 @@ class NickTracer(object):
         # delete that user's record.
         if not filter(lambda x: x[0] != channel and nick in x[1],
                       bot.channel_names.iteritems()):
-            del self.traces[util.canonicalize(nick)]
+            del self.traces[ircutil.canonicalize(nick)]
     
     def userQuit(self, bot, prefix, quitMessage):
-        c_nick = util.canonicalize(prefix.split('!', 1)[0])
+        c_nick = ircutil.canonicalize(prefix.split('!', 1)[0])
         del self.traces[c_nick]
 
 
@@ -96,9 +96,9 @@ class TraceCommand(object):
             return
         
         nick = args[1]
-        canonicalized_nick = util.canonicalize(nick)
+        canonicalized_nick = ircutil.canonicalize(nick)
         
-        if canonicalized_nick == util.canonicalize(bot.nickname):
+        if canonicalized_nick == ircutil.canonicalize(bot.nickname):
             bot.reply(prefix, channel,
                       '%s is right here responding to your queries!'
                        % bot.nickname)

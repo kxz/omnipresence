@@ -2,7 +2,6 @@ from twisted.plugin import IPlugin
 from twisted.python import log
 from zope.interface import implements
 
-from omnipresence import util
 from omnipresence.iomnipresence import IHandler
 
 

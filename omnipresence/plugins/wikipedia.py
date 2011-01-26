@@ -7,7 +7,7 @@ from twisted.plugin import IPlugin
 from twisted.python import log
 from omnipresence.iomnipresence import ICommand
 
-from omnipresence import util
+from omnipresence import html
 
 
 def wikipedia_url(language, title):
@@ -55,7 +55,7 @@ class WikipediaSearch(object):
         soup = BeautifulSoup(data['parse']['text']['*']).findAll('p',
                                                                  recursive=False)
         for p in soup:
-            summary = util.textify_html(p)
+            summary = html.textify_html(p)
 
             if len(summary) > 128:
                 summary = summary[:128] + '...'

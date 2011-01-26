@@ -1,40 +1,5 @@
-from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup, NavigableString
-from ConfigParser import SafeConfigParser
+"""General utility functions used within Omnipresence."""
 import datetime
-import re
-
-# Common IRC formatting control codes
-# <http://forum.egghelp.org/viewtopic.php?p=94834>
-# <http://www.mirc.com/help/colors.html>
-#
-# \x02: Bold
-# \x03: Color (optionally followed by fg,bg each from 0 or 00 to 99)
-# \x0F: Normal (default formatting)
-# \x16: Reverse video (sometimes rendered as italics)
-# \x1F: Underline
-CONTROL_CODES = re.compile(r'(\x02|\x03([0-9]?[0-9](,[0-9]?[0-9])?)?)|\x0F|\x16|\x1F')
-
-HTML_HEX_REFS = re.compile(r'&#x([0-9a-fA-F]+);')
-
-
-class OmnipresenceConfigParser(SafeConfigParser):
-    """An extension of ConfigParser with Omnipresence-specific methods."""
-    # Option names need to be parsed case-sensitively, as they are used to 
-    # determine things like modules to import.
-    optionxform = str
-
-    def getdefault(self, section, option, default):
-        """Get the value of the specified option in the specified section, or 
-        return the given default if this option does not exist."""
-        if self.has_option(section, option):
-            return self.get(section, option)
-
-        return default
-
-    def getspacelist(self, *args, **kwargs):
-        """Get the value of the specified option converted to a list, split 
-        on whitespace."""
-        return self.get(*args, **kwargs).split()
 
 
 def ago(then):
@@ -75,37 +40,3 @@ def andify(seq, two_comma=False):
         return ', and '.join(seq)
     
     return ' and '.join(seq)
-
-def canonicalize(name):
-    """Convert an IRC name to its "canonical" lowercase representation."""
-    return name.lower().replace('[',  '{').replace(']',  '}') \
-                       .replace('\\', '|').replace('^',  '~')
-
-def decode_html_entities(s):
-    """Convert HTML entities in a string to their Unicode character 
-    equivalents."""
-    s = BeautifulStoneSoup(s,
-                           convertEntities=BeautifulStoneSoup.HTML_ENTITIES) \
-                          .contents[0]
-    # BeautifulStoneSoup doesn't parse hexadecimal character references
-    s = HTML_HEX_REFS.sub(lambda x: unichr(int(x.group(1), 16)), s)
-    return s
-
-def remove_control_codes(s):
-    """Remove IRC formatting control codes from a string."""
-    return CONTROL_CODES.sub('', s)
-
-def textify_html(soup):
-    """Convert a BeautifulSoup element's contents to plain text."""
-    result = u''
-    
-    for k in soup.contents:
-        if isinstance(k, NavigableString):
-            result += decode_html_entities(k)
-        elif hasattr(k, 'name'):  # is another soup element
-            if k.name == u'sup':
-                result += u'^'
-            
-            result += textify_html(k)
-    
-    return result

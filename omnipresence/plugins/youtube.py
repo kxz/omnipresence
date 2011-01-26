@@ -5,8 +5,6 @@ from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
 
-from omnipresence import util
-
 
 class YouTubeCommand(object):
     """

@@ -4,7 +4,7 @@ from omnipresence.iomnipresence import ICommand, IHandler
 
 import sqlobject
 
-from omnipresence import util
+from omnipresence import ircutil, util
 
 
 class ChannelPeak(sqlobject.SQLObject):
@@ -22,7 +22,7 @@ class PeakHandler(object):
         ChannelPeak.createTable(ifNotExists=True)
     
     def _add_record(self, bot, prefix, channel):
-        canonicalized_channel = util.canonicalize(channel)
+        canonicalized_channel = ircutil.canonicalize(channel)
         
         if canonicalized_channel not in bot.channel_names:
             return
@@ -79,7 +79,7 @@ class PeakCommand(object):
             return
         
         record = ChannelPeak.select(ChannelPeak.q.channel
-                                      ==util.canonicalize(requested_channel),
+                                      ==ircutil.canonicalize(requested_channel),
                                     orderBy=['-number_of_users',
                                              '-timestamp'])
 

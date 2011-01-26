@@ -7,7 +7,7 @@ from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
 
-from omnipresence import util
+from omnipresence import html
 
 
 class GoogleCommand(object):
@@ -37,17 +37,17 @@ class GoogleCommand(object):
         if len(results) == 1:
             result = results[0]
             
-            content = util.textify_html(BeautifulSoup(result['content']))
+            content = html.textify_html(BeautifulSoup(result['content']))
             if len(content) > 128:
                 content = content[:128] + '...'
             
             messages = [(u'\x02%s\x02: %s \u2014 %s'
-                           % (util.decode_html_entities(result['titleNoFormatting']),
+                           % (html.decode_html_entities(result['titleNoFormatting']),
                               content, result['unescapedUrl']))]
         else:
             messages = [(u'(%d) \x02%s\x02: %s'
                            % (i + 1,
-                              util.decode_html_entities(result['titleNoFormatting']),
+                              html.decode_html_entities(result['titleNoFormatting']),
                               result['unescapedUrl']))
                         for i, result in enumerate(results)]
         
@@ -88,7 +88,7 @@ class GoogleCalculatorCommand(object):
         soup = BeautifulSoup(response[1])
         
         try:
-            result = util.textify_html(soup.find('', 'r').b)
+            result = html.textify_html(soup.find('', 'r').b)
         except AttributeError:
             result = u'No result was returned!'
         
@@ -125,7 +125,7 @@ class GoogleDefinitionCommand(object):
         result_url = ''
         
         for li in lis:
-            results.append(util.decode_html_entities(li.next).strip())
+            results.append(html.decode_html_entities(li.next).strip())
             
             # The last <li> in the first set of definitions has the associated 
             # source linked after a <br>.

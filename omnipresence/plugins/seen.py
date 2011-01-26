@@ -4,7 +4,7 @@ import sqlobject
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
+from omnipresence import ircutil, util
 from omnipresence.iomnipresence import ICommand, IHandler
 
 
@@ -28,7 +28,7 @@ class Watcher(object):
         SeenUser.createTable(ifNotExists=True)
     
     def _update_record(self, nick, action, actor=None, channel=None, data=None):
-        canonicalized_nick = util.canonicalize(nick)
+        canonicalized_nick = ircutil.canonicalize(nick)
         
         try:
             record = SeenUser.byCanonicalizedNick(canonicalized_nick)
@@ -155,15 +155,15 @@ class SeenCommand(object):
             return
         
         nick = args[1]
-        canonicalized_nick = util.canonicalize(nick)
+        canonicalized_nick = ircutil.canonicalize(nick)
         
-        if canonicalized_nick == util.canonicalize(bot.nickname):
+        if canonicalized_nick == ircutil.canonicalize(bot.nickname):
             bot.reply(prefix, channel,
                       '%s is right here responding to your queries!'
                        % bot.nickname)
             return
         
-        if canonicalized_nick == util.canonicalize(prefix.split('!', 1)[0]):
+        if canonicalized_nick == ircutil.canonicalize(prefix.split('!', 1)[0]):
             bot.reply(prefix, channel,
                       'I hope you know the answer to that question already!')
             return
