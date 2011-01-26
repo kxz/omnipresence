@@ -1,6 +1,7 @@
 from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
+from omnipresence import util
 
 from BeautifulSoup import BeautifulSoup, SoupStrainer
 import urllib
@@ -13,7 +14,7 @@ class WWWJDICCommand(object):
     implements(IPlugin, ICommand)
     name = 'wwwjdic'
     
-    def reply_with_results(self, response, bot, prefix, channel, args):
+    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
         soup = BeautifulSoup(response[1], parseOnlyThese=SoupStrainer('pre'))
         
         if soup.pre:
@@ -25,12 +26,13 @@ class WWWJDICCommand(object):
             result = result.replace('/', '', 1)
             result = result.replace('/', '; ')
             result = result.encode(self.factory.encoding)
-            bot.reply(prefix, channel, 'WWWJDIC: %s' % result)
+            bot.reply(reply_target, channel, 'WWWJDIC: %s' % result)
         else:
             bot.reply(prefix, channel, 'WWWJDIC: No results found for '
                                        '\x02%s\x02.' % args[1])
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -38,7 +40,7 @@ class WWWJDICCommand(object):
             return
         
         d = self.factory.get_http('http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi?1ZUJ%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
 
 wwwjdiccommand = WWWJDICCommand()

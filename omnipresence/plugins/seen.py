@@ -148,6 +148,7 @@ class SeenCommand(object):
     name = 'seen'
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -188,14 +189,15 @@ class SeenCommand(object):
                           '\x02%s\x02 have been seen.' % nick)
                 return
             
-            bot.reply(prefix, channel, 'Found %s.' % ', '.join(matches))
+            bot.reply(reply_target, channel, 'Found %s.' % ', '.join(matches))
             return
         
         try:
             record = SeenUser.byCanonicalizedNick(canonicalized_nick)
         except sqlobject.main.SQLObjectNotFound:
-            bot.reply(prefix, channel, 'No user with the nick \x02%s\x02 has '
-                                       'been seen recently.' % nick)
+            bot.reply(reply_target, channel, 'No user with the nick '
+                                             '\x02%s\x02 has been seen '
+                                             'recently.' % nick)
             return
         
         if record.action in ('privmsg', 'noticed'):
@@ -234,11 +236,11 @@ class SeenCommand(object):
         else:
             message = ''
         
-        bot.reply(prefix, channel, ('%s was last seen %s%s.'
-                                     % (record.nick,
-                                        util.ago(record.lastActivity),
-                                        message)) \
-                                    .encode(self.factory.encoding))
+        bot.reply(reply_target, channel, ('%s was last seen %s%s.'
+                                           % (record.nick,
+                                              util.ago(record.lastActivity),
+                                              message)) \
+                                          .encode(self.factory.encoding))
             
 
 seen_h = Watcher()

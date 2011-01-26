@@ -1,6 +1,8 @@
 """General utility functions used within Omnipresence."""
 import datetime
 
+from twisted.words.protocols import irc
+
 
 def ago(then):
     """Given a datetime object, return a string giving an approximate relative 
@@ -40,3 +42,20 @@ def andify(seq, two_comma=False):
         return ', and '.join(seq)
     
     return ' and '.join(seq)
+
+def redirect_command(args, prefix, channel):
+    """Find the actual command string and reply target for a command
+    invocation supporting reply redirection of the form ">nickname" at
+    the end of the argument list, and return them as a tuple of the
+    form (args, reply_target)."""
+    if '>' in args:
+        (args, reply_target) = args.rsplit('>', 1)
+        
+        # If the command invocation comes via private message, ignore
+        # any redirection requests.
+        if channel[0] not in irc.CHANNEL_PREFIXES:
+            reply_target = prefix
+    else:
+        reply_target = prefix
+    
+    return (args.strip(), reply_target.strip())

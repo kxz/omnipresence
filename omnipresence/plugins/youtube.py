@@ -4,6 +4,7 @@ import urllib
 from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
+from omnipresence import util
 
 
 class YouTubeCommand(object):
@@ -17,7 +18,7 @@ class YouTubeCommand(object):
     # The maximum number of results to return at any one time.
     max_results = 3
     
-    def reply_with_results(self, response, bot, prefix, channel, args):
+    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if 'feed' not in data or 'entry' not in data['feed']:
@@ -38,10 +39,11 @@ class YouTubeCommand(object):
                                  result['yt$statistics']['viewCount'],
                                  result['link'][0]['href'].split('&', 1)[0]))
         
-        bot.reply(prefix, channel, ((u'YouTube: ' + u' \u2014 '.join(messages)) \
-                                       .encode(self.factory.encoding)))
+        bot.reply(reply_target, channel, ((u'YouTube: ' + u' \u2014 '.join(messages)) \
+                                             .encode(self.factory.encoding)))
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -56,7 +58,7 @@ class YouTubeCommand(object):
         
         d = self.factory.get_http('http://gdata.youtube.com/feeds/api/videos?%s'
                                    % params)
-        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
 
 

@@ -7,7 +7,7 @@ from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
 
-from omnipresence import html
+from omnipresence import html, util
 
 
 class GoogleCommand(object):
@@ -22,7 +22,7 @@ class GoogleCommand(object):
     # absolute maximum for API requests is 4.
     max_results = 3
     
-    def reply_with_results(self, response, bot, prefix, channel, args):
+    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if ('responseData' not in data or
@@ -51,11 +51,12 @@ class GoogleCommand(object):
                               result['unescapedUrl']))
                         for i, result in enumerate(results)]
         
-        bot.reply(prefix, channel,
+        bot.reply(reply_target, channel,
                   ((u'Google: ' + u' \u2014 '.join(messages)) \
                    .encode(self.factory.encoding)))
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -63,7 +64,7 @@ class GoogleCommand(object):
             return
         
         d = self.factory.get_http('http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
 
 
@@ -84,7 +85,7 @@ class GoogleCalculatorCommand(object):
     implements(IPlugin, ICommand)
     name = 'gcalc'
     
-    def reply_with_results(self, response, bot, prefix, channel, args):
+    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
         soup = BeautifulSoup(response[1])
         
         try:
@@ -92,10 +93,11 @@ class GoogleCalculatorCommand(object):
         except AttributeError:
             result = u'No result was returned!'
         
-        bot.reply(prefix, channel, ((u'Google calc: %s' % result) \
-                                    .encode(self.factory.encoding)))
+        bot.reply(reply_target, channel, ((u'Google calc: %s' % result) \
+                                          .encode(self.factory.encoding)))
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -103,7 +105,7 @@ class GoogleCalculatorCommand(object):
             return
         
         d = self.factory.get_http('http://www.google.com/search?q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
 
 
@@ -115,7 +117,7 @@ class GoogleDefinitionCommand(object):
     implements(IPlugin, ICommand)
     name = 'define'
     
-    def reply_with_results(self, response, bot, prefix, channel, args):
+    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
         # Using SoupStrainer to parse only <li> tags yields a nested tree of 
         # <li> tags for some reason, so we just use "findAll" instead.
         soup = BeautifulSoup(response[1])
@@ -148,11 +150,12 @@ class GoogleDefinitionCommand(object):
         if len(result) > 255:
             result = result[:255] + '...'
         
-        bot.reply(prefix, channel, (u'Google dict: %s \u2014 %s'
-                                      % (result, result_url)) \
-                                    .encode(self.factory.encoding))
+        bot.reply(reply_target, channel, (u'Google dict: %s \u2014 %s'
+                                            % (result, result_url)) \
+                                          .encode(self.factory.encoding))
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -161,7 +164,7 @@ class GoogleDefinitionCommand(object):
         
         d = self.factory.get_http('http://www.google.com/search?q=define:%s'
                                    % urllib.quote(args[1]))
-        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
 
 

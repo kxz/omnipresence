@@ -4,6 +4,7 @@ import urllib
 from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
+from omnipresence import util
 
 
 class LastFmCommand(object):
@@ -20,7 +21,7 @@ class LastFmCommand(object):
     def registered(self):
         self.apikey = self.factory.config.get('lastfm', 'apikey')
     
-    def reply_with_results(self, response, bot, prefix, channel, args):
+    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if ('error' in data):
@@ -51,11 +52,12 @@ class LastFmCommand(object):
             messages.append(u'%s\x02%s\x02%s: %s' % (number, result['name'],
                                                      listeners, result['url']))
         
-        bot.reply(prefix, channel,
+        bot.reply(reply_target, channel,
                   ((u'Last.fm: ' + u' \u2014 '.join(messages)) \
                    .encode(self.factory.encoding)))
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -70,7 +72,7 @@ class LastFmCommand(object):
         
         d = self.factory.get_http('http://ws.audioscrobbler.com/2.0/?%s'
                                    % params)
-        d.addCallback(self.reply_with_results, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
 
 

@@ -6,7 +6,7 @@ from BeautifulSoup import BeautifulSoup
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import html
+from omnipresence import html, util
 from omnipresence.iomnipresence import ICommand, IHandler
 
 TROPE_LINK = re.compile(r'{{(.*?)}}')
@@ -17,17 +17,17 @@ def strip_redirect(s):
 
 
 class TVTropesSearch(object):
-    def reply_with_trope(self, response, bot, prefix, channel,
+    def reply_with_trope(self, response, bot, prefix, reply_target, channel,
                          args, info_text=''):
         soup = BeautifulSoup(response[1])
         title = html.textify_html(soup.find('title')).split(' - ', 1)[0]
         
-        bot.reply(prefix, channel, (u'TV Tropes%s: \x02%s\x02: %s'
-                                      % (info_text, title,
-                                         strip_redirect(response[0]['content-location']))) \
-                                    .encode(self.factory.encoding))
+        bot.reply(reply_target, channel, (u'TV Tropes%s: \x02%s\x02: %s'
+                                            % (info_text, title,
+                                               strip_redirect(response[0]['content-location']))) \
+                                          .encode(self.factory.encoding))
     
-    def reply_with_google(self, response, bot, prefix, channel, args):
+    def reply_with_google(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if ('responseData' not in data or
@@ -38,12 +38,12 @@ class TVTropesSearch(object):
             return
         
         result = data['responseData']['results'][0]
-        bot.reply(prefix, channel, (u'TV Tropes (full-text): \x02%s\x02: %s'
-                                      % (html.decode_html_entities(result['titleNoFormatting']).split(' - ', 1)[0],
-                                         result['unescapedUrl'])) \
-                                    .encode(self.factory.encoding))
+        bot.reply(reply_target, channel, (u'TV Tropes (full-text): \x02%s\x02: %s'
+                                            % (html.decode_html_entities(result['titleNoFormatting']).split(' - ', 1)[0],
+                                               result['unescapedUrl'])) \
+                                          .encode(self.factory.encoding))
     
-    def find_trope(self, response, bot, prefix, channel, args):
+    def find_trope(self, response, bot, prefix, reply_target, channel, args):
         soup = BeautifulSoup(response[1])
         
         while soup.find('a', 'twikilink'):
@@ -55,7 +55,7 @@ class TVTropesSearch(object):
                 continue
             
             d = self.factory.get_http(result)
-            d.addCallback(self.reply_with_trope, bot, prefix, channel, args)
+            d.addCallback(self.reply_with_trope, bot, prefix, reply_target, channel, args)
             d.addErrback(bot.reply_with_error, prefix, channel, args[0])
             return            
         
@@ -65,10 +65,10 @@ class TVTropesSearch(object):
                                    'v': '1.0'})
         
         d = self.factory.get_http('http://ajax.googleapis.com/ajax/services/search/web?' + params)
-        d.addCallback(self.reply_with_google, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_google, bot, prefix, reply_target, channel, args)
         d.addErrback(bot.reply_with_error, prefix, channel, args[0])
     
-    def check_trope(self, bot, prefix, channel, args):
+    def check_trope(self, bot, prefix, reply_target, channel, args):
         # Force the first character to uppercase for {{}} search; otherwise, 
         # the markup won't be parsed as a link if the query is all-lowercase.
         preview_query = ('[=~%s~=] {{%s%s}}'
@@ -79,7 +79,7 @@ class TVTropesSearch(object):
                                   'POST', body=urllib.urlencode(params),
                                   headers={'Content-type':
                                            'application/x-www-form-urlencoded'})
-        d.addCallback(self.find_trope, bot, prefix, channel, args)
+        d.addCallback(self.find_trope, bot, prefix, reply_target, channel, args)
         return d
 
 
@@ -93,13 +93,14 @@ class TVTropesSearchCommand(TVTropesSearch):
     name = 'trope'
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
             bot.reply(prefix, channel, 'Please specify a search string.')
             return
         
-        return self.check_trope(bot, prefix, channel, args)
+        return self.check_trope(bot, prefix, reply_target, channel, args)
 
 
 class RandomTropeCommand(TVTropesSearch):
@@ -110,9 +111,10 @@ class RandomTropeCommand(TVTropesSearch):
     name = 'trope_random'
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         d = self.factory.get_http('http://tvtropes.org/pmwiki/randomitem.php')
-        d.addCallback(self.reply_with_trope, bot, prefix, channel,
-                      args, ' (random)')
+        d.addCallback(self.reply_with_trope, bot, prefix, reply_target,
+                      channel, args, ' (random)')
         return d
 
 

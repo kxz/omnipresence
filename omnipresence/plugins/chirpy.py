@@ -1,10 +1,12 @@
-from zope.interface import implements
-from twisted.plugin import IPlugin
-from omnipresence.iomnipresence import ICommand
-
 import random
 import re
+
 import sqlobject
+from twisted.plugin import IPlugin
+from zope.interface import implements
+
+from omnipresence import util
+from omnipresence.iomnipresence import ICommand
 
 ID_SYNTAX = re.compile(r'^#([0-9]+)$')
 
@@ -32,6 +34,7 @@ class ChirpyCommand(object):
         self.table = ChirpyQuote
 
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)[1:]
         
         if args:
@@ -50,10 +53,9 @@ class ChirpyCommand(object):
         if quotes.count() > 0:
             quote = random.choice(list(quotes))
             quote_text = quote.body.replace('\n', ' ')
-            bot.reply(prefix, channel, 'QDB: (#%d, %+d/%d) %s' % (quote.id,
-                                                                  quote.rating,
-                                                                  quote.votes,
-                                                                  quote_text))
+            bot.reply(reply_target, channel, 'QDB: (#%d, %+d/%d) %s'
+                                              % (quote.id, quote.rating,
+                                                 quote.votes, quote_text))
         else:
             bot.reply(prefix, channel, "QDB: Couldn't find any quotes!")
 

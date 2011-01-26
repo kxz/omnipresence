@@ -89,6 +89,7 @@ class TraceCommand(object):
         
         tracer = tracer[0]
         
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -112,9 +113,10 @@ class TraceCommand(object):
         trace = tracer.traces[canonicalized_nick]
         
         if len(trace) == 1:
-            bot.reply(prefix, channel, '%s has not changed nick since first '
-                                       'being seen %s.'
-                                        % (trace[0][0], util.ago(trace[0][1])))
+            bot.reply(reply_target, channel, '%s has not changed nick since '
+                                             'first being seen %s.'
+                                              % (trace[0][0],
+                                                 util.ago(trace[0][1])))
             return
         
         messages = [
@@ -139,7 +141,7 @@ class TraceCommand(object):
             trace_message += ' ' + util.andify(trace_messages)
             messages.append(trace_message)
         
-        bot.reply(prefix, channel, util.andify(messages, True) + '.')
+        bot.reply(reply_target, channel, util.andify(messages, True) + '.')
             
 
 trace_h = NickTracer()

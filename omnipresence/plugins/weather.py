@@ -1,6 +1,7 @@
 from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
+from omnipresence import util
 
 import json
 import urllib
@@ -13,7 +14,7 @@ class WeatherCommand(object):
     implements(IPlugin, ICommand)
     name = 'weather'
     
-    def reply_with_weather(self, response, bot, prefix, channel, args):
+    def reply_with_weather(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if 'weatherObservation' not in data:
@@ -35,13 +36,13 @@ class WeatherCommand(object):
                              int(observation['windSpeed'])))
         weather += ', %d%% humidity' % observation['humidity']
         
-        bot.reply(prefix, channel,
+        bot.reply(reply_target, channel,
                   ('Weather service: %s [%s] (%.2f, %.2f) %s as of %s UTC'
                     % (observation['stationName'], observation['ICAO'],
                        observation['lat'], observation['lng'], weather,
                        observation['datetime'])).encode(self.factory.encoding))
     
-    def find_location(self, response, bot, prefix, channel, args):
+    def find_location(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if 'geonames' not in data or len(data['geonames']) < 1:
@@ -54,10 +55,11 @@ class WeatherCommand(object):
         lng = data['geonames'][0]['lng']
         
         d = self.factory.get_http('http://ws.geonames.org/findNearByWeatherJSON?lat=%f&lng=%f' % (lat, lng))
-        d.addCallback(self.reply_with_weather, bot, prefix, channel, args)
+        d.addCallback(self.reply_with_weather, bot, prefix, reply_target, channel, args)
         d.addErrback(bot.reply_with_error, prefix, channel, args[0])
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -65,7 +67,7 @@ class WeatherCommand(object):
             return
         
         d = self.factory.get_http('http://ws.geonames.org/searchJSON?maxRows=1&style=FULL&q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.find_location, bot, prefix, channel, args)
+        d.addCallback(self.find_location, bot, prefix, reply_target, channel, args)
         return d
 
 weathercommand = WeatherCommand()

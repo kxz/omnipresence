@@ -1,6 +1,7 @@
 from zope.interface import implements
 from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
+from omnipresence import util
 
 import datetime
 import json
@@ -16,7 +17,7 @@ class TimeCommand(object):
     implements(IPlugin, ICommand)
     name = 'time'
     
-    def reply_with_time(self, response, bot, prefix, channel,
+    def reply_with_time(self, response, bot, prefix, reply_target, channel,
                         args, canonical, lat, lng):
         data = json.loads(response[1])
         
@@ -26,12 +27,12 @@ class TimeCommand(object):
                        % args[1])
             return
         
-        bot.reply(prefix, channel,
+        bot.reply(reply_target, channel,
                   ('Time service: %s (%.2f, %.2f) %s'
                    % (canonical, lat, lng, data['time'])) \
                   .encode(self.factory.encoding))
     
-    def find_location(self, response, bot, prefix, channel, args):
+    def find_location(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         
         if 'geonames' not in data or len(data['geonames']) < 1:
@@ -52,11 +53,12 @@ class TimeCommand(object):
         lng = details['lng']
         
         d = self.factory.get_http('http://ws.geonames.org/timezoneJSON?lat=%f&lng=%f' % (lat, lng))
-        d.addCallback(self.reply_with_time, bot, prefix, channel,
+        d.addCallback(self.reply_with_time, bot, prefix, reply_target, channel,
                       args, canonical, lat, lng)
         d.addErrback(bot.reply_with_error, prefix, channel, args[0])
     
     def execute(self, bot, prefix, channel, args):
+        (args, reply_target) = util.redirect_command(args, prefix, channel)
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -68,12 +70,12 @@ class TimeCommand(object):
                     .replace(tzinfo=pytz.utc) \
                     .astimezone(pytz.timezone(args[1])) \
                     .strftime('%Y-%m-%d %H:%M')
-            bot.reply(prefix, channel, 'Time service: %s (tz database) %s'
-                                        % (args[1], time))
+            bot.reply(reply_target, channel, 'Time service: %s (tz database) '
+                                             '%s' % (args[1], time))
             return
         
         d = self.factory.get_http('http://ws.geonames.org/searchJSON?maxRows=1&style=FULL&q=%s' % urllib.quote(args[1]))
-        d.addCallback(self.find_location, bot, prefix, channel, args)
+        d.addCallback(self.find_location, bot, prefix, reply_target, channel, args)
         return d
 
 timecommand = TimeCommand()
