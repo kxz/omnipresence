@@ -1,6 +1,7 @@
 syntax: glob
 
 *.py[co]
+dropin.cache
 
 # Packages
 *.egg
