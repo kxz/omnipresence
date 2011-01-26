@@ -10,7 +10,8 @@ from omnipresence import ircutil, util
 class ChannelPeak(sqlobject.SQLObject):
     channel = sqlobject.StringCol(notNone=True, length=64)
     number_of_users = sqlobject.IntCol(notNone=True)
-    timestamp = sqlobject.TimestampCol(notNone=True, default=sqlobject.sqlbuilder.func.NOW())
+    timestamp = sqlobject.DateTimeCol(notNone=True,
+                                      default=sqlobject.DateTimeCol.now)
     joiner = sqlobject.StringCol(notNone=True, length=64)
 
 

@@ -12,8 +12,8 @@ class SeenUser(sqlobject.SQLObject):
     canonicalizedNick = sqlobject.StringCol(length=64, unique=True,
                                             alternateID=True, notNone=True)
     nick = sqlobject.StringCol(length=64, notNone=True)
-    lastActivity = sqlobject.TimestampCol(notNone=True,
-                                          default=sqlobject.sqlbuilder.func.NOW())
+    lastActivity = sqlobject.DateTimeCol(notNone=True,
+                                         default=sqlobject.DateTimeCol.now)
     action = sqlobject.StringCol(length=16, notNone=True)
     actor = sqlobject.StringCol(length=64)
     channel = sqlobject.StringCol(length=64)
