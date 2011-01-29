@@ -1,0 +1,16 @@
+Omnipresence is an IRC utility bot built on Twisted.  Most of its functionality
+is provided through plugins for commands and channel-specific event handlers,
+with some other sugar thrown in for flavor.
+
+To install Omnipresence, use "setup.py install" or easy_install.  Omnipresence
+core depends on Twisted 8.2.0 or later, SQLObject, and httplib2.  Many plugins
+have additional dependencies on BeautifulSoup, pytz, or PIL; see the provided
+sample configuration file (docs/omnipresence.sample.cfg) for further details.
+
+To run Omnipresence, use twistd:
+
+  # Run twistd in the foreground and log to stdout:
+  $ twistd -no omnipresence omnipresence.cfg
+
+  # Daemonize twistd, logging to "messages" and using the PID file "pid":
+  $ twistd -l messages --pidfile pid omnipresence omnipresence.cfg
