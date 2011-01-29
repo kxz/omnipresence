@@ -68,9 +68,8 @@ class ChannelLogger(object):
     
     def modeChanged(self, bot, prefix, channel, set, modes, args):
         nick = prefix.split('!', 1)[0]
-        flag = '+' if set else '-'
-        self.log(channel, '*** %s sets mode: %s%s %s',
-                 (nick, flag, modes, ' '.join(args)))
+        self.log(channel, '*** %s sets mode: %s',
+                 (nick, ircutil.mode_string(set, modes, args)))
     
     def kickedFrom(self, bot, channel, kicker, message):
         self.userKicked(bot, bot.nickname, channel, kicker, message)

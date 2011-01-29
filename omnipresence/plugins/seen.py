@@ -58,9 +58,8 @@ class Watcher(object):
     
     def modeChanged(self, bot, prefix, channel, set, modes, args):
         nick = prefix.split('!', 1)[0]
-        flags = (('+' if set else '-') +
-                 modes + (' ' + ' '.join(args) if args else ''))
-        self._update_record(nick, 'modeChanged', channel=channel, data=flags)
+        data = ircutil.mode_string(set, modes, args)
+        self._update_record(nick, 'modeChanged', channel=channel, data=data)
     
     def kickedFrom(self, bot, channel, kicker, message):
         self.userKicked(bot, bot.nickname, channel, kicker, message)
