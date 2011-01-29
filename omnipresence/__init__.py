@@ -8,11 +8,11 @@ import platform
 import sqlobject
 import re
 
-from omnipresence import iomnipresence, plugins, ircutil
+from omnipresence import iomnipresence, plugins, ircutil, version
 
 
 VERSION_NAME = 'Omnipresence'
-VERSION_NUM = '2.0.0alpha2'
+VERSION_NUM = version.VERSION_NUMBER
 VERSION_ENV = platform.platform()
 SOURCE_URL = 'https://bitbucket.org/kxz/omnipresence'
 
