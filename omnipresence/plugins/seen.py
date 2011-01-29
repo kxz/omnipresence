@@ -33,6 +33,7 @@ class Watcher(object):
         try:
             record = SeenUser.byCanonicalizedNick(canonicalized_nick)
             record.nick = nick
+            record.lastActivity = sqlobject.DateTimeCol.now()
             record.action = action
             record.actor = actor
             record.channel = channel
