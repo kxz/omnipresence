@@ -504,9 +504,13 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         if not 'User-Agent' in kwargs['headers']:
             kwargs['headers']['User-Agent'] = self.http_user_agent
         
-        if 'defer' in kwargs and not kwargs['defer']:
+        if 'defer' in kwargs:
+            defer = kwargs['defer']
             del kwargs['defer']
-            return h.request(*args, **kwargs)
         else:
-            del kwargs['defer']
+            defer = False
+        
+        if defer:
             return threads.deferToThread(h.request, *args, **kwargs)
+
+        return h.request(*args, **kwargs)
