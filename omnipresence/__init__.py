@@ -508,7 +508,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             defer = kwargs['defer']
             del kwargs['defer']
         else:
-            defer = False
+            defer = True
         
         if defer:
             return threads.deferToThread(h.request, *args, **kwargs)
