@@ -3,7 +3,7 @@ import sys
 import urllib
 
 from BeautifulSoup import BeautifulSoup
-from twisted.internet import defer, threads
+from twisted.internet import threads
 from twisted.plugin import IPlugin
 from twisted.python import log
 from zope.interface import implements
