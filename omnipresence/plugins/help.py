@@ -31,7 +31,9 @@ class HelpCommand(object):
             keywords.sort()
             help_text = (
                 'Available commands: \x02%s\x02. For further help, use '
-                '\x02%s\x02 \x1Fkeyword\x1F. %s' % (
+                '\x02%s\x02 \x1Fkeyword\x1F. To redirect a command reply '
+                'to another user, use \x1Fcommand\x1F \x02>\x02 \x1Fnick\x1F. '
+                '%s' % (
                     '\x02, \x02'.join(keywords), args[0],
                     self.factory.config.getdefault('help', 'list_suffix', '')))
 
