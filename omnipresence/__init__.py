@@ -126,7 +126,7 @@ class IRCClient(irc.IRCClient):
             # The message doesn't start with any of the given command prefixes.  
             # Continue command parsing if this is a private message; otherwise, 
             # bail out.
-            if channel not in irc.CHANNEL_PREFIXES:
+            if channel[0] not in irc.CHANNEL_PREFIXES:
                 return
             
             # Strip excess leading and trailing whitespace for
