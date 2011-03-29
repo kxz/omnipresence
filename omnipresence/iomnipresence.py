@@ -20,16 +20,22 @@ class ICommand(Interface):
     A command that is invoked in response to specially-formatted IRC messages.
     """
 
-    def execute(self, bot, prefix, channel, args):
+    def execute(self, bot, prefix, reply_target, channel, args):
         """
         Invoked when a command message is seen.
 
         @type bot: C{IRCClient}
-        @param bot: The bot protocol instance.  Use this to provide replies 
-        through bot.msg and other bot methods.
+        @param bot: The bot protocol instance.  Use this to provide 
+        replies through bot.msg and other bot methods.
 
         @type prefix: C{str}
         @param prefix: The prefix of the user that invoked this command.
+        
+        @type reply_target: C{str}
+        @param reply_target: The target of command output redirection
+        suggested by the invoking user with "> target", or C{prefix} if
+        no such redirection is specified.  This is not necessarily a
+        valid prefix or nickname, as it is user specified!
 
         @type channel: C{str}
         @param channel: The channel on which the command was invoked.

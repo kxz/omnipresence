@@ -11,7 +11,7 @@ class HelpCommand(object):
     implements(IPlugin, ICommand)
     name = 'help'
     
-    def execute(self, bot, prefix, channel, args):
+    def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split()
         
         if len(args) > 1 and args[1]:
@@ -35,6 +35,6 @@ class HelpCommand(object):
                     '\x02, \x02'.join(keywords), args[0],
                     self.factory.config.getdefault('help', 'list_suffix', '')))
 
-        bot.reply(prefix, channel, help_text)
+        bot.reply(reply_target, channel, help_text)
 
 helpcommand = HelpCommand()

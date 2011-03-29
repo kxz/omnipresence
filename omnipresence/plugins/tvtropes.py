@@ -116,8 +116,7 @@ class TVTropesSearchCommand(TVTropesSearch):
     implements(IPlugin, ICommand)
     name = 'trope'
     
-    def execute(self, bot, prefix, channel, args):
-        (args, reply_target) = util.redirect_command(args, prefix, channel)
+    def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:
@@ -134,8 +133,7 @@ class RandomTropeCommand(TVTropesSearch):
     implements(IPlugin, ICommand)
     name = 'trope_random'
     
-    def execute(self, bot, prefix, channel, args):
-        (args, reply_target) = util.redirect_command(args, prefix, channel)
+    def execute(self, bot, prefix, reply_target, channel, args):
         d = self.factory.get_http('http://tvtropes.org/pmwiki/randomitem.php')
         d.addCallback(self.reply_with_trope, bot, prefix, reply_target,
                       channel, args, ' (random)')

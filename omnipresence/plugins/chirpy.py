@@ -33,8 +33,7 @@ class ChirpyCommand(object):
         
         self.table = ChirpyQuote
 
-    def execute(self, bot, prefix, channel, args):
-        (args, reply_target) = util.redirect_command(args, prefix, channel)
+    def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)[1:]
         
         if args:

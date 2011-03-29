@@ -58,8 +58,7 @@ class PeakCommand(object):
     implements(IPlugin, ICommand)
     name = 'peak'
     
-    def execute(self, bot, prefix, channel, args):
-        (args, reply_target) = util.redirect_command(args, prefix, channel)
+    def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
         
         if len(args) < 2:

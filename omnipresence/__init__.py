@@ -126,7 +126,7 @@ class IRCClient(irc.IRCClient):
             # The message doesn't start with any of the given command prefixes.  
             # Continue command parsing if this is a private message; otherwise, 
             # bail out.
-            if channel != self.nickname:
+            if channel not in irc.CHANNEL_PREFIXES:
                 return
             
             # Strip excess leading and trailing whitespace for
@@ -134,16 +134,31 @@ class IRCClient(irc.IRCClient):
             message = message.strip()
 
         args = message.split()
-        if len(args) < 1:
+        if not args:
             return
 
         keyword = args[0].lower()
-        if keyword in self.factory.commands:
+        if keyword not in self.factory.commands:
+            return
+
+        # Handle command redirection in the form of "args > nickname",
+        # as long as the command is invoked in a public channel.
+        reply_target = prefix
+        if '>' in message and channel[0] in irc.CHANNEL_PREFIXES:
+            (message, reply_target) = message.rsplit('>', 1)
+            message = message.strip()
+            reply_target = reply_target.strip()
+        
+        if reply_target != prefix:
+            log.msg('Command from %s directed at %s on channel %s: %s'
+                     % (prefix, reply_target, channel, message))
+        else:
             log.msg('Command from %s on channel %s: %s'
                      % (prefix, channel, message))
-            d = defer.maybeDeferred(self.factory.commands[keyword].execute,
-                                    self, prefix, channel, message)
-            d.addErrback(self.reply_with_error, prefix, channel, keyword)
+        
+        d = defer.maybeDeferred(self.factory.commands[keyword].execute,
+                                self, prefix, reply_target, channel, message)
+        d.addErrback(self.reply_with_error, prefix, channel, keyword)
 
     def reply(self, prefix, channel, message):
         nick = prefix.split('!', 1)[0]
