@@ -45,3 +45,12 @@ def andify(seq, two_comma=False):
         return ', and '.join(seq)
     
     return ' and '.join(seq)
+
+# <http://stackoverflow.com/questions/1809531/-/1820949>
+def truncate_unicode(s, char_limit, byte_limit, encoding='utf-8'):
+    """Truncate a Unicode string so that it fits both within the
+    specified character limit and, when encoded in the given encoding,
+    the specified byte limit.  Return the truncated string as a byte
+    string."""
+    encoded = s[:char_limit].encode(encoding)[:byte_limit]
+    return encoded.decode(encoding, 'ignore').encode(encoding)
