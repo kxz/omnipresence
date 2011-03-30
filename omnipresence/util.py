@@ -4,9 +4,12 @@ import datetime
 from twisted.words.protocols import irc
 
 
-def ago(then, now=datetime.datetime.now()):
+def ago(then, now=None):
     """Given a datetime object, return a string giving an approximate relative 
     time, such as "5 days ago"."""
+    if not now:
+        now = datetime.datetime.now()
+    
     delta = now - then
     
     if delta.days == 0:
