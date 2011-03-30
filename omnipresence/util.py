@@ -1,8 +1,14 @@
 """General utility functions used within Omnipresence."""
 import datetime
+import re
 
 from twisted.words.protocols import irc
 
+
+DURATION_RE = re.compile('^(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$',
+                         re.IGNORECASE | re.VERBOSE)
+
+DURATION_GROUPS = ['weeks', 'days', 'hours', 'minutes', 'seconds']
 
 def ago(then, now=None):
     """Given a datetime object, return a string giving an approximate relative 
@@ -45,6 +51,40 @@ def andify(seq, two_comma=False):
         return ', and '.join(seq)
     
     return ' and '.join(seq)
+
+def duration_to_timedelta(duration):
+    """Convert a duration of the form "?w?d?h?m?s" into a timedelta
+    object, where individual components are optional."""
+    match = DURATION_RE.match(duration)
+
+    if match:
+        kwargs = dict(((DURATION_GROUPS[i], int(value, 10))
+                       for (i, value) in enumerate(match.groups('0'))))
+        return datetime.timedelta(**kwargs)
+    
+    return datetime.timedelta(0)
+
+def readable_duration(duration):
+    """Convert a duration of the form "?w?d?h?m?s" to a readable string
+    representation of the form "2 weeks, 5 days, and 20 hours"."""
+    match = DURATION_RE.match(duration)
+
+    if match:
+        components = []
+        for (i, value) in enumerate(match.groups()):
+            if value:
+                unit = DURATION_GROUPS[i]
+                value = int(value, 10)
+                
+                if value == 1:
+                    # Thankfully, all of these words are simple plurals.
+                    components.append(unit[:-1])
+                else:
+                    components.append('%d %s' % (value, unit))
+        
+        return andify(components)
+    
+    return 'instant'
 
 # <http://stackoverflow.com/questions/1809531/-/1820949>
 def truncate_unicode(s, char_limit, byte_limit, encoding='utf-8'):
