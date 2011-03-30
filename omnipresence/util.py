@@ -1,8 +1,15 @@
 """General utility functions used within Omnipresence."""
 import datetime
+import re
 
 from twisted.words.protocols import irc
 
+
+DURATION_RE = re.compile("""^(?:(?P<weeks>\d+)w)?
+                             (?:(?P<days>\d+)d)?
+                             (?:(?P<hours>\d+)h)?
+                             (?:(?P<minutes>\d+)m)?
+                             (?:(?P<seconds>\d+)s)?$""", re.VERBOSE)
 
 def ago(then, now=None):
     """Given a datetime object, return a string giving an approximate relative 
@@ -45,3 +52,16 @@ def andify(seq, two_comma=False):
         return ', and '.join(seq)
     
     return ' and '.join(seq)
+
+def duration_to_timedelta(duration):
+    """Convert a duration of the form "?w?d?h?m?s" into a timedelta
+    object, where individual components are optional."""
+    match = DURATION_RE.match(duration)
+
+    if match:
+        kwargs = match.groupdict('0')
+        kwargs = dict(((key, int(value, 10))
+                       for (key, value) in kwargs.iteritems()))
+        return datetime.timedelta(**kwargs)
+    
+    return datetime.timedelta(0)
