@@ -238,8 +238,7 @@ class SeenCommand(object):
         bot.reply(reply_target, channel, ('%s was last seen %s%s.'
                                            % (record.nick,
                                               util.ago(record.lastActivity),
-                                              message)) \
-                                          .encode(self.factory.encoding))
+                                              message)))
             
 
 seen_h = Watcher()
