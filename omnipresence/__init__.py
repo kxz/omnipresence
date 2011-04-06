@@ -1,12 +1,12 @@
+import platform
+import re
+
+import httplib2
+import sqlobject
 from twisted.internet import defer, protocol, task, threads
 from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols import irc
-
-import httplib2
-import platform
-import sqlobject
-import re
 
 from omnipresence import iomnipresence, plugins, ircutil, version
 
@@ -161,14 +161,20 @@ class IRCClient(irc.IRCClient):
         d.addErrback(self.reply_with_error, prefix, channel, keyword)
 
     def reply(self, prefix, channel, message):
-        nick = prefix.split('!', 1)[0]
-        log.msg('Reply for %s on channel %s: %s' % (nick, channel, message))
-        
-        if channel == self.nickname:
-            self.notice(nick, message)
-            return
-        
-        self.msg(channel, '\x0314%s: %s' % (nick, message))
+        if prefix:
+            nick = prefix.split('!', 1)[0].strip()
+            log.msg('Reply for %s on channel %s: %s'
+                     % (nick, channel, message))
+            
+            if channel == self.nickname:
+                self.notice(nick, message)
+                return
+            
+            message = '%s: %s' % (nick, message)
+        else:
+            log.msg('Undirected reply for channel %s: %s' % (channel, message))
+
+        self.msg(channel, '\x0314%s' % message)
 
     def reply_with_error(self, failure, prefix, channel, keyword):
         self.reply(prefix, channel, 'Command \x02%s\x02 encountered an error: '

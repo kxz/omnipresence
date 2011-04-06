@@ -56,8 +56,7 @@ class TVTropesSearch(object):
             match = match.strip()
             if match:
                 d = threads.deferToThread(self.search, match)
-                d.addCallback(self.reply_without_target, bot,
-                              prefix, channel, match)
+                d.addCallback(self.reply, bot, prefix, None, channel, [match])
                 return d
     
     action = privmsg
@@ -144,19 +143,6 @@ class TVTropesSearch(object):
         bot.reply(reply_target, channel, (u'TV Tropes%s: \x02%s\x02: %s'
                                             % (info_text, title, url)) \
                                           .encode(self.factory.encoding))
-    
-    def reply_without_target(self, trope, bot, prefix, channel, match):
-        if not trope:
-            bot.msg(channel, '\x0314TV Tropes: No results found for '
-                             '\x02%s\x02.' % match)
-            return
-        
-        (title, url, info_text) = trope
-        (title, url) = get_real_title_and_url(title, url)
-        
-        bot.msg(channel, (u'\x0314TV Tropes%s: \x02%s\x02: %s'
-                            % (info_text, title, url)) \
-                          .encode(self.factory.encoding))
 
 
 class RandomTrope(TVTropesSearch):

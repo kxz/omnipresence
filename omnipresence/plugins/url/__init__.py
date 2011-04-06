@@ -143,8 +143,7 @@ class URLTitleFetcher(object):
             else:
                 message = u'URL: %s' % title
             
-            log.msg('URL reply on channel %s: %s' % (channel, message))
-            bot.msg(channel, '\x0314' + message.encode(self.factory.encoding))
+            bot.reply(None, channel, message.encode(self.factory.encoding))
     
     def get_url(self, url):
         hostname = urlparse.urlparse(url).hostname
