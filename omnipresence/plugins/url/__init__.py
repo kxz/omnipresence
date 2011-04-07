@@ -208,7 +208,7 @@ class URLTitleFetcher(object):
                 url = 'http://' + url
             
             # Strip the fragment portion of the URL, if present.
-            url = url.split('#', 1)[0]
+            (url, tag) = urllib.splittag(url)
             
             # The number of blocking calls required for this makes 
             # working with Deferreds a nightmare, so we just defer the 
