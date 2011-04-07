@@ -11,15 +11,12 @@ from omnipresence import html, util
 from omnipresence.iomnipresence import ICommand, IHandler
 
 TROPE_LINK = re.compile(r'{{(.*?)}}')
-INVALID_TROPE_TITLE_CHARACTERS = re.compile(r'[^@A-Za-z0-9\-./]+')
+INVALID_TROPE_TITLE_CHARACTERS = re.compile(r'[^@A-Za-z0-9\-./ ]+')
 
-
-def strip_redirect(s):
-    return s.split('?from=', 1)[0]
 
 def get_real_title_and_url(title, url):
-    title = title.split(' - ', 1)[0]
-    url = strip_redirect(url)
+    title = title.rsplit(' - ', 1)[0]
+    (url, query) = urllib.splitquery(url)
     
     # If no page title was returned (which does happen quite often), use
     # the last component of the URL instead.
