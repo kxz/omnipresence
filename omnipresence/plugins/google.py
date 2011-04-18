@@ -208,7 +208,7 @@ class GoogleTranslateCommand(object):
             return
         
         translation = data['data']['translations'][0]
-        translated_text = translation['translatedText']
+        translated_text = html.textify_html(BeautifulSoup(translation['translatedText']))
         
         if 'source' in params:
             source_name = self.languages[params['source']] 
