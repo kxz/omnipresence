@@ -95,6 +95,7 @@ class PeakWatcher(object):
             if not util.duration_to_timedelta(lookup_duration):
                 bot.reply(prefix, channel, 'Invalid duration \x02%s\x02.'
                                             % lookup_duration)
+                return
         
         if channel == bot.nickname and requested_channel == channel:
             bot.reply(prefix, channel, 'You must specify a channel name to '
