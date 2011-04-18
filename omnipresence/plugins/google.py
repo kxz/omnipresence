@@ -3,11 +3,16 @@ import urllib
 import urlparse
 
 from BeautifulSoup import BeautifulSoup
-from zope.interface import implements
 from twisted.plugin import IPlugin
-from omnipresence.iomnipresence import ICommand
+from zope.interface import implements
 
 from omnipresence import html, util
+from omnipresence.iomnipresence import ICommand
+
+
+# TODO: Make this configurable and update GoogleTranslateCommand's
+# docstring on the fly.
+DEFAULT_TARGET_LANGUAGE = 'en'
 
 
 class GoogleCommand(object):
@@ -165,7 +170,109 @@ class GoogleDefinitionCommand(object):
         return d
 
 
+class GoogleTranslateCommand(object):
+    """
+    \x02%s\x02 [\x1Fsource_language\x1F\x02:\x02]\x1Fsource_text\x1F
+    [\x1Ftarget_language\x1F\x02:\x02] - Translate text using Google
+    Translate. If no source language is specified, the API will attempt
+    to automatically detect one. The destination language, if not
+    specified, defaults to \x02en\x02.
+    """
+    implements(IPlugin, ICommand)
+    name = 'translate'
+    
+    languages = {}
+    
+    def registered(self):
+        self.apikey = self.factory.config.get('google', 'apikey')
+        
+        params = {'key': self.apikey, 'target': DEFAULT_TARGET_LANGUAGE}
+        d = self.factory.get_http('https://www.googleapis.com/language/translate/v2/languages?%s' % urllib.urlencode(params))
+        d.addCallback(self.load_languages)
+        
+    def load_languages(self, response):
+        data = json.loads(response[1])
+        for i in data['data']['languages']:
+            self.languages[i['language']] = i['name']
+    
+    def reply(self, response, bot, prefix, reply_target, channel,
+              params, args):
+        data = json.loads(response[1])
+        
+        if 'error' in data:
+            bot.reply(prefix, channel,
+                      (('Google Translate: API returned error code \x02%d\x02: '
+                       '\x02%s\x02.' % (data['error']['code'],
+                                        data['error']['message'])) \
+                       .encode(self.factory.encoding)))
+            return
+        
+        translation = data['data']['translations'][0]
+        translated_text = translation['translatedText']
+        
+        if 'source' in params:
+            source_name = self.languages[params['source']] 
+        else:
+            source_name = '%s (auto-detected)' % self.languages[translation['detectedSourceLanguage']]
+        
+        target_name = self.languages[params['target']]
+        
+        bot.reply(reply_target, channel,
+                  ((u'Google translation from %s to %s: %s'
+                      % (source_name, target_name, translated_text)) \
+                   .encode(self.factory.encoding)))
+    
+    def execute(self, bot, prefix, reply_target, channel, args):
+        args = args.split(None, 1)
+        
+        if len(args) < 2:
+            bot.reply(prefix, channel, 'Please specify a string to translate.')
+            return
+        
+        params = {'key': self.apikey,
+                  'target': DEFAULT_TARGET_LANGUAGE,
+                  'q': args[1]}
+        
+        try:
+            params['q'] = params['q'].decode(self.factory.encoding)
+        except UnicodeDecodeError:
+            bot.reply(prefix, channel, 'Strings to be translated must use the'
+                                       '"%s" character encoding. Check your '
+                                       'client settings and try again.'
+                                        % self.factory.encoding)
+            return
+        
+        for language in self.languages:
+            if params['q'].startswith(language + ':'):
+                params['q'] = params['q'].split(':', 1)[1]
+                params['source'] = language
+                break
+        
+        print params['q']
+        
+        for language in self.languages:
+            if params['q'].endswith(' ' + language + ':'):
+                params['q'] = params['q'].rsplit(' ', 1)[0]
+                params['target'] = language
+                break
+        
+        print params['q']
+        
+        params['q'] = params['q'].strip()
+        if not params['q']:
+            bot.reply(prefix, channel, 'Please specify a string to translate.')
+            return
+        
+        params['q'] = params['q'].encode('utf-8')
+        
+        d = self.factory.get_http('https://www.googleapis.com/language/translate/v2?%s' % urllib.urlencode(params))
+        d.addCallback(self.reply, bot, prefix, reply_target, channel,
+                      params, args)
+        return d
+
+
 google = GoogleCommand()
 lucky = ImFeelingLuckyCommand()
 gcalc = GoogleCalculatorCommand()
 define = GoogleDefinitionCommand()
+translate = GoogleTranslateCommand()
