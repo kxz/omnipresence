@@ -236,7 +236,7 @@ class GoogleTranslateCommand(object):
         try:
             params['q'] = params['q'].decode(self.factory.encoding)
         except UnicodeDecodeError:
-            bot.reply(prefix, channel, 'Strings to be translated must use the'
+            bot.reply(prefix, channel, 'Strings to be translated must use the '
                                        '"%s" character encoding. Check your '
                                        'client settings and try again.'
                                         % self.factory.encoding)
