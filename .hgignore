@@ -3,6 +3,8 @@ syntax: glob
 *.py[co]
 dropin.cache
 
+docs/_build
+
 # Packages
 *.egg
 *.egg-info

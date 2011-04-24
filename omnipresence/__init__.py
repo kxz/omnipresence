@@ -18,6 +18,29 @@ SOURCE_URL = 'https://bitbucket.org/kxz/omnipresence'
 
 
 class IRCClient(irc.IRCClient):
+    """Omnipresence's core IRC client protocol class.  Common parameters
+    for callbacks and class methods include:
+    
+    *prefix*
+        A full ``nick!user@host`` mask.
+    *channel* or *nick*
+        An IRC channel, for commands directed at an entire channel; or
+        specific nickname, for commands directed at a single user.
+        Despite their names, parameters with either name will usually
+        take both channels and nicks as values.  To distinguish between
+        the two in a callback, use the Twisted constant
+        :py:const:`CHANNEL_PREFIXES`::
+
+            from twisted.words.protocols.irc import CHANNEL_PREFIXES
+
+            class Handler(object):
+                # ...
+                def callback(self, prefix, channel):
+                    if channel[0] in irc.CHANNEL_PREFIXES:
+                        # addressed to a channel
+                    else:
+                        # addressed to the bot specifically
+        """
     # Instance variables handled by t.w.p.irc.IRCClient.
     versionName = VERSION_NAME
     versionNum = VERSION_NUM
@@ -47,8 +70,10 @@ class IRCClient(irc.IRCClient):
         self.ping_count += 1
 
     def suspend_joins(self):
-        # If suspended_joins is not None, then we've already suspended joins 
-        # for this client, and we shouldn't clobber the queue.
+        """Suspend all channel joins until :py:meth:`resume_joins` is
+        called."""
+        # If suspended_joins is not None, then we've already suspended
+        # joins for this client, and we shouldn't clobber the queue.
         if self.suspended_joins is not None:
             return
 
@@ -56,6 +81,9 @@ class IRCClient(irc.IRCClient):
         self.suspended_joins = set()
 
     def resume_joins(self):
+        """Resume immediate joining of channels after suspending it with
+        :py:meth:`suspend_joins`, and perform any channel joins that
+        have been queued in the interim."""
         if self.suspended_joins is None:
             return
 
@@ -161,6 +189,19 @@ class IRCClient(irc.IRCClient):
         d.addErrback(self.reply_with_error, prefix, channel, keyword)
 
     def reply(self, prefix, channel, message):
+        """Send a reply to a user.  The method used depends on the
+        values of *prefix* and *channel*:
+
+        * If *prefix* is specified and *channel* starts with an IRC
+          channel prefix (such as ``#`` or ``+``), send the reply
+          publicly to the given channel, addressed to the nickname
+          specified by *prefix*.
+        * If *prefix* is specified and *channel* is the bot's nickname,
+          send the reply as a private notice to the nickname specified
+          by *prefix*.
+        * If *prefix* is not specified, send the reply publicly to the
+          channel given by *channel*, with no nickname addressing.
+        """
         if prefix:
             nick = prefix.split('!', 1)[0].strip()
             log.msg('Reply for %s on channel %s: %s'
@@ -177,6 +218,16 @@ class IRCClient(irc.IRCClient):
         self.msg(channel, '\x0314%s' % message)
 
     def reply_with_error(self, failure, prefix, channel, keyword):
+        """Call :py:meth:`reply` with information on an error that
+        occurred during an invocation of the command with the given
+        *keyword*.  *failure* should be an instance of
+        :py:class:`twisted.python.failure.Failure`.
+
+        .. note:: This method is automatically called whenever an
+           unhandled exception occurs in a command's
+           :py:meth:`~omnipresence.iomnipresence.ICommand.execute`
+           method, and usually does not need to be invoked manually.
+        """
         self.reply(prefix, channel, 'Command \x02%s\x02 encountered an error: '
                                     '%s.' % (keyword,
                                              failure.getErrorMessage()))
@@ -185,6 +236,8 @@ class IRCClient(irc.IRCClient):
     # Inherited from twisted.internet.protocol.BaseProtocol
 
     def connectionMade(self):
+        """Called when a connection has been successfully made to the
+        IRC server."""
         self.call_handlers('connectionMade', None)
         irc.IRCClient.connectionMade(self)
         log.msg('Connected to server.')
@@ -192,6 +245,8 @@ class IRCClient(irc.IRCClient):
     # Inherited from twisted.internet.protocol.Protocol
 
     def connectionLost(self, reason):
+        """Called when the connection to the IRC server has been lost
+        or disconnected."""
         self.call_handlers('connectionLost', None, [reason])
         irc.IRCClient.connectionLost(self, reason)
         log.msg('Disconnected from server.')
@@ -199,13 +254,15 @@ class IRCClient(irc.IRCClient):
     # Inherited from twisted.words.protocols.irc.IRCClient
 
     def myInfo(self, servername, version, umodes, cmodes):
-        # Once myInfo is called, we know which server we are connected to, so 
-        # we can start performing keep-alive pings.
+        """Called with information about the IRC server at logon."""
+        # Once myInfo is called, we know which server we are connected
+        # to, so we can start performing keep-alive pings.
         self.ping_count = 0
         self.ping_timer = task.LoopingCall(self.ping_server, servername)
         self.ping_timer.start(60, False)
 
     def privmsg(self, prefix, channel, message):
+        """Called when we receive a message from another user."""
         if channel[0] not in irc.CHANNEL_PREFIXES:
             log.msg('Message from %s for %s: %s' % (prefix, channel, message))
 
@@ -213,24 +270,34 @@ class IRCClient(irc.IRCClient):
         self.run_commands(prefix, channel, message)
         
     def joined(self, prefix, channel):
+        """Called when the bot successfully joins the given *channel*.
+        Use this to perform channel-specific initialization."""
         log.msg('Successfully joined channel %s.' % channel)
         self.call_handlers('joined', channel, [prefix, channel])
         self.channel_names[channel] = set()
     
     def left(self, prefix, channel):
+        """Called when the bot leaves the given *channel*."""
         self.call_handlers('left', channel, [prefix, channel])
     
     def noticed(self, prefix, channel, message):
+        """Called when we receive a notice from another user.  Behaves
+        largely the same as :py:meth:`privmsg`."""
         if channel[0] not in irc.CHANNEL_PREFIXES:
             log.msg('Notice from %s for %s: %s' % (prefix, channel, message))
 
         self.call_handlers('noticed', channel, [prefix, channel, message])
     
     def modeChanged(self, prefix, channel, set, modes, args):
+        """Called when a channel's mode is changed.  See `the Twisted
+        documentation
+        <http://twistedmatrix.com/documents/current/api/twisted.words.protocols.irc.IRCClient.html#modeChanged>`_
+        for information on this method's parameters."""
         self.call_handlers('modeChanged', channel,
                            [prefix, channel, set, modes, args])
     
     def signedOn(self):
+        """Called after successfully signing on to the server."""
         log.msg('Successfully signed on to server.')
 
         # Resetting the connection delay when a successful connection is
@@ -248,38 +315,49 @@ class IRCClient(irc.IRCClient):
                 self.join(channel)
 
     def kickedFrom(self, channel, kicker, message):
+        """Called when the bot is kicked from the given *channel*."""
         self.call_handlers('kickedFrom', channel, [channel, kicker, message])
         self.channel_names[channel].clear()
     
     def nickChanged(self, nick):
+        """Called when the bot's nickname is changed."""
         self.call_handlers('nickChanged', None, [nick])
         irc.IRCClient.nickChanged(self, nick)
     
     def userJoined(self, prefix, channel):
+        """Called when another user joins the given *channel*."""
         self.call_handlers('userJoined', channel, [prefix, channel])
         self.channel_names[channel].add(prefix.split('!', 1)[0])
     
     def userLeft(self, prefix, channel):
+        """Called when another user leaves the given *channel*."""
         self.call_handlers('userLeft', channel, [prefix, channel])
         self.channel_names[channel].discard(prefix.split('!', 1)[0])
     
     def userQuit(self, prefix, quitMessage):
+        """Called when another user has quit the IRC server."""
         self.call_handlers('userQuit', None, [prefix, quitMessage])
         for channel in self.channel_names:
             self.channel_names[channel].discard(prefix.split('!', 1)[0])
 
     def userKicked(self, kickee, channel, kicker, message):
+        """Called when another user kicks a third party from the given
+        *channel*."""
         self.call_handlers('userKicked', channel,
                            [kickee, channel, kicker, message])
         self.channel_names[channel].discard(kickee)
 
     def action(self, prefix, channel, data):
+        """Called when a ``/me`` action is performed in the given
+        *channel*."""
         self.call_handlers('action', channel, [prefix, channel, data])
 
     def topicUpdated(self, nick, channel, newTopic):
+        """Called when the topic of the given *channel* is changed."""
         self.call_handlers('topicUpdated', channel, [nick, channel, newTopic])
     
     def userRenamed(self, oldname, newname):
+        """Called when another user changes nick."""
         self.call_handlers('userRenamed', None, [oldname, newname])
         for channel in self.channel_names:
             if oldname in self.channel_names[channel]:
@@ -291,8 +369,11 @@ class IRCClient(irc.IRCClient):
         irc.IRCClient.join(self, channel)
 
     def join(self, channel):
-        # If joins are suspended, add this one to the queue; otherwise, just go 
-        # ahead and join the channel immediately.
+        """Join the given *channel*.  If joins have been suspended with
+        :py:meth:`suspend_joins`, add the channel to the join queue and
+        actually join it when :py:meth:`resume_joins` is called."""
+        # If joins are suspended, add this one to the queue; otherwise,
+        # just go ahead and join the channel immediately.
         if self.suspended_joins is not None:
             log.msg('Joins suspended; adding channel %s to join queue.'
                      % channel)
@@ -302,20 +383,30 @@ class IRCClient(irc.IRCClient):
         self._join(channel)
 
     def leave(self, channel, reason=None):
+        """Leave the given *channel*."""
         self.call_handlers('leave', channel, [channel, reason])
         self.channel_names[channel].clear()
         irc.IRCClient.leave(self, channel, reason)
     
     def kick(self, channel, nick, reason=None):
+        """Kick the the given *nick* from the given *channel*."""
         self.call_handlers('kick', channel, [channel, nick, reason])
         irc.IRCClient.kick(self, channel, nick, reason)
         self.channel_names[channel].discard(nick)
 
     def topic(self, channel, topic=None):
+        """Change the topic of *channel* if a *topic* is provided;
+        otherwise, ask the IRC server for the current channel topic,
+        which will be provided through the :py:meth:`topicUpdated`
+        callback."""
         self.call_handlers('topic', channel, [channel, topic])
         irc.IRCClient.topic(self, channel, topic)
     
     def mode(self, chan, set, modes, limit=None, user=None, mask=None):
+        """Change the mode of the given *channel*.  See `the Twisted
+        documentation
+        <http://twistedmatrix.com/documents/current/api/twisted.words.protocols.irc.IRCClient.html#mode>`_
+        for information on this method's parameters."""
         self.call_handlers('mode', chan,
                            [chan, set, modes, limit, user, mask])
         irc.IRCClient.mode(self, chan, set, modes, limit, user, mask)
@@ -323,14 +414,19 @@ class IRCClient(irc.IRCClient):
     # def say(...) is not necessary, as it simply delegates to msg().
     
     def msg(self, nick, message):
+        """Send a message to the nickname or channel specified by
+        *nick*."""
         self.call_handlers('msg', nick, [nick, message])
         irc.IRCClient.msg(self, nick, message)
 
     def notice(self, nick, message):
+        """Send a notice to the nickname or channel specified by
+        *nick*."""
         self.call_handlers('notice', nick, [nick, message])
         irc.IRCClient.notice(self, nick, message)
     
     def setNick(self, nickname):
+        """Change the bot's nickname."""
         oldnick = self.nickname
         self.call_handlers('setNick', None, [nickname])
         irc.IRCClient.setNick(self, nickname)
@@ -340,15 +436,19 @@ class IRCClient(irc.IRCClient):
                 self.channel_names[channel].add(nickname)
     
     def quit(self, message=''):
+        """Quit from the IRC server."""
         self.call_handlers('quit', None, [message])
         irc.IRCClient.quit(self, message)
         self.channel_names = {}
     
     def me(self, channel, action):
+        """Perform an action in the given *channel*."""
         self.call_handlers('me', channel, [channel, action])
         irc.IRCClient.me(self, channel, action)
 
     def irc_ERR_NICKNAMEINUSE(self, prefix, params):
+        """Called when the bot attempts to use a nickname that is
+        already taken by another user."""
         self.call_handlers('irc_ERR_NICKNAMEINUSE', self.nickname)
         irc.IRCClient.irc_ERR_NICKNAMEINUSE(self, prefix, params)
 
@@ -377,6 +477,9 @@ class IRCClient(irc.IRCClient):
         self.ping_count = 0
     
     def names(self, *channels):
+        """Ask the IRC server for a list of nicknames in the given
+        channels.  Plugins generally should not need to call this
+        method, as it is automatically invoked on join."""
         for ch in channels:
             self.sendLine("NAMES " + ch)
 
@@ -402,6 +505,7 @@ class IRCClient(irc.IRCClient):
 
 
 class IRCClientFactory(protocol.ReconnectingClientFactory):
+    """Creates :py:class:`.IRCClient` instances."""
     protocol = IRCClient
 
     # Stores the handler instances for each channel that we are connected to.  
@@ -507,16 +611,21 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     # Not really sure where this belongs, since there are dependencies on 
     # configuration information.  Maybe yet another plugin infrastructure?
     def get_http(self, *args, **kwargs):
-        """
-        Make an httplib2 C{Http} request with the given arguments, 
-        using the cache directory and user-agent string specified in 
-        the bot configuration file.  By default, return this request 
-        wrapped in a Twisted C{Deferred}.  If the C{defer} keyword 
-        argument is passed and set to False, simply return the result 
-        of the request, without deferring the request to a thread.
+        """Make an :py:mod:`httplib2` :py:class:`~httplib2.Http` request
+        with the given arguments, using the cache directory and
+        user-agent string specified in the bot configuration file.
         
-        @rtype: tuple if C{defer} keyword argument is False,
-          C{Deferred} otherwise
+        By default, return this request wrapped in a Twisted
+        :py:class:`~twisted.internet.defer.Deferred`.  If the *defer*
+        keyword argument is passed and set to ``False``, simply return
+        the result of the request as a ``(headers, content)`` tuple,
+        without deferring to a thread.  This is useful in situations
+        where :py:meth:`.get_http` is already being called from a
+        separate thread created by
+        :py:func:`twisted.internet.threads.deferToThread`.
+
+        For further details, see the `httplib2 documentation
+        <http://code.google.com/p/httplib2/wiki/Examples>`_.
         """
         h = httplib2.Http(self.http_cache_dir, 10.0)
         
