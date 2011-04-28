@@ -248,15 +248,11 @@ class GoogleTranslateCommand(object):
                 params['source'] = language
                 break
         
-        print params['q']
-        
         for language in self.languages:
             if params['q'].endswith(' ' + language + ':'):
                 params['q'] = params['q'].rsplit(' ', 1)[0]
                 params['target'] = language
                 break
-        
-        print params['q']
         
         params['q'] = params['q'].strip()
         if not params['q']:
