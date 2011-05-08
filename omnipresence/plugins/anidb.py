@@ -95,11 +95,14 @@ class AniDBSearchCommand(object):
             year_cell = html.textify_html(anime_all.find('tr', {'class':
                                                          re.compile('year$')}) \
                                                    .find('td', 'value'))
-            year_cell = year_cell.split(' till ')
-            airdate = year_cell[0]
-            enddate = year_cell[1]
-            if '?' in enddate:
-                enddate = ''
+            if 'till' in year_cell:
+                (airdate, enddate) = year_cell.split(' till ')
+                if '?' in enddate:
+                    enddate = ''
+            else:
+                # Anime aired on a single day.
+                airdate = year_cell
+                enddate = airdate
             
             # Try to get the permanent rating first; if it's "N/A", then
             # move to the temporary rating.
