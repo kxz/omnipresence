@@ -22,11 +22,16 @@ class HTMLTitleProcessor(object):
             soup_kwargs['fromEncoding'] = cparams['charset']
         
         soup = BeautifulSoup(content, **soup_kwargs)
-
         title = u'No title found.'
-        
-        if soup.title:
+
+        try:
             title = soup.title.string.extract()
+        except AttributeError:
+            # Either there is no <title> element and soup.title is None,
+            # or the <title> element is empty and soup.title.string is
+            # None.  Either way, just move on.
+            pass
+        else:
             title = html.decode_html_entities(title)
             title = u'\x02%s\x02' % u' '.join(title.split()).strip()
 
