@@ -121,35 +121,39 @@ class GoogleDefinitionCommand(object):
     name = 'define'
     
     def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
-        # Using SoupStrainer to parse only <li> tags yields a nested tree of 
-        # <li> tags for some reason, so we just use "findAll" instead.
         soup = BeautifulSoup(response[1])
-        lis = soup.findAll('li')
         
-        results = []
-        result_url = ''
+        # Try to find definitions from the "built-in" Google dictionary
+        # first, delimited by <li style="list-style:decimal">.
+        results = soup.findAll('li', style='list-style:decimal')
         
-        for li in lis:
-            results.append(html.decode_html_entities(li.next).strip())
+        if results:
+            result_url = response[0]['content-location']
+        else:
+            # No luck?  Try the "Web definitions" next, each of which is
+            # marked by <li style="list-style:none">.  We only want the
+            # first set of definitions, so we look for the first <li>,
+            # ascend to its parent <ul>, then grab all of its <li>
+            # children.  The <ul>'s next sibling contains the cite URL.
+            first_result = soup.find('li', style='list-style:none')
             
-            # The last <li> in the first set of definitions has the associated 
-            # source linked after a <br>.
-            if li.find('br'):
-                result_url = urlparse.urlparse(li.find('a')['href']).query
-                
+            if first_result:
+                result_url = urlparse.urlparse(first_result.parent.nextSibling.find('a')['href']).query
+                    
                 # urlparse.parse_qs() does not like Unicode strings very 
                 # much, so we perform an encode/decode here.
                 result_url = result_url.encode('utf-8')
                 result_url = urlparse.parse_qs(result_url)['q'][0]
                 result_url = result_url.decode('utf-8')
-                break
+                
+                results = first_result.parent.findAll('li')
+            else:
+                # Still nothing?
+                bot.reply(prefix, channel, 'Google dict: No results found for '
+                                           '\x02%s\x02.' % args[1])
+                return
         
-        if len(results) < 1:
-            bot.reply(prefix, channel, 'Google dict: No results found for '
-                                       '\x02%s\x02.' % args[1])
-            return
-        
-        result = ' / '.join(results)
+        result = ' / '.join((html.textify_html(x).strip() for x in results))
         if len(result) > 255:
             result = result[:255] + '...'
         
@@ -164,7 +168,7 @@ class GoogleDefinitionCommand(object):
             bot.reply(prefix, channel, 'Please specify a term to look up.')
             return
         
-        d = self.factory.get_http('http://www.google.com/search?q=define:%s'
+        d = self.factory.get_http('http://www.google.com/search?q=%s&tbs=dfn:1'
                                    % urllib.quote(args[1]))
         d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
         return d
