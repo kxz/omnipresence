@@ -31,7 +31,7 @@ class IRCClient(irc.IRCClient):
         the two in a callback, use the Twisted constant
         :py:const:`CHANNEL_PREFIXES`::
 
-            from twisted.words.protocols.irc import CHANNEL_PREFIXES
+            from twisted.words.protocols import irc
 
             class Handler(object):
                 # ...
@@ -40,7 +40,7 @@ class IRCClient(irc.IRCClient):
                         # addressed to a channel
                     else:
                         # addressed to the bot specifically
-        """
+    """
     # Instance variables handled by t.w.p.irc.IRCClient.
     versionName = VERSION_NAME
     versionNum = VERSION_NUM
