@@ -46,6 +46,30 @@ URL_PATTERN = re.compile(ur"""
 )
 """, re.IGNORECASE | re.VERBOSE)
 
+def add_si_prefix(number, unit, plural_unit=None):
+    """Returns a string containing an approximate representation of the
+    given number and unit, using a decimal SI prefix.  *number* is
+    assumed to be a positive integer. If *plural_unit* is not specified,
+    it defaults to *unit* with an "s" appended."""
+    if not plural_unit:
+        plural_unit = unit + 's'
+    
+    if number == 1:
+        return '{0:n} {1}'.format(number, unit)
+    
+    prefix = ''
+    for prefix in ('', 'kilo', 'mega', 'giga', 'tera',
+                   'exa', 'peta', 'zetta', 'yotta'):
+        if number < 1000:
+            break
+        
+        number /= 1000.0
+
+    if prefix:
+        return '{0:.3n} {1}{2}'.format(number, prefix, plural_unit)
+
+    return '{0:n} {1}'.format(number, plural_unit)
+
 
 class ITitleProcessor(Interface):
     """
@@ -109,11 +133,16 @@ class URLTitleFetcher(object):
                     title = self.title_processors[ctype].process(headers,
                                                                  content)
                 else:
-                    content_length = ((' (%s bytes)'
-                                        % headers['content-length'])
-                                      if 'content-length' in headers
-                                      else '')
-                    title = (u'%s document%s' % (ctype, content_length))
+                    title = u'%s document' % ctype
+                    if 'content-length' in headers:
+                        try:
+                            content_length = int(headers['content-length'], 10)
+                        except ValueError:
+                            # Couldn't parse the content-length string.
+                            pass
+                        else:
+                            title += (u' (%s)' % add_si_prefix(content_length,
+                                                               'byte'))
 
                 hostname_tag = hostname
                 
@@ -123,8 +152,8 @@ class URLTitleFetcher(object):
                     content_hostname = urlparse.urlparse(headers['content-location']).hostname
                     if (content_hostname is not None and
                         hostname != content_hostname):
-                        hostname_tag = u'%s -> %s' % (hostname,
-                                                      content_hostname)
+                        hostname_tag = u'%s \u2192 %s' % (hostname,
+                                                          content_hostname)
 
                 title = u'[%s] %s' % (hostname_tag, title)
             else:
