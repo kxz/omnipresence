@@ -88,9 +88,11 @@ class AniDBSearchCommand(object):
                                                    .find('td', 'value'))
             type_cell = type_cell.split(', ')
             atype = type_cell[0]
-            episodes = type_cell[1].split()[0]
-            if 'unknown' in episodes:
-                episodes = ''
+            episodes = ''
+            if len(type_cell) > 1:
+                episodes = type_cell[1].split()[0]
+                if 'unknown' in episodes:
+                    episodes = ''
             
             year_cell = html.textify_html(anime_all.find('tr', {'class':
                                                          re.compile('year$')}) \
