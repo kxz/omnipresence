@@ -237,7 +237,15 @@ class URLTitleFetcher(object):
                 url = 'http://' + url
             
             # Strip the fragment portion of the URL, if present.
-            (url, tag) = urllib.splittag(url)
+            (url, frag) = urlparse.urldefrag(url)
+
+            # Look for "crawlable" AJAX URLs with fragments that begin
+            # with "#!", and transform them to use "_escaped_fragment_".
+            #
+            # <http://code.google.com/web/ajaxcrawling/>
+            if frag.startswith('!'):
+                url += ('&' if '?' in url else '?' +
+                        '_escaped_fragment_=' + urllib.quote(frag[1:]))
             
             # The number of blocking calls required for this makes 
             # working with Deferreds a nightmare, so we just defer the 
