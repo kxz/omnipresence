@@ -37,7 +37,7 @@ class YouTubeCommand(object):
             # A lot of video queries don't return associated view
             # statistics for one reason or another.
             if 'yt$statistics' in result: 
-                views = ', {0:n} views'.format(result['yt$statistics']['viewCount'])
+                views = ', {0:n} views'.format(int(result['yt$statistics']['viewCount']))
             else:
                 views = ''
 
