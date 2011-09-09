@@ -33,10 +33,16 @@ class YouTubeCommand(object):
             number = ''
             if len(results) > 1:
                 number = '(%d) ' % (i + 1)
-            
-            messages.append(u'%s\x02%s\x02, %s views: %s'
-                              % (number, result['title']['$t'],
-                                 result['yt$statistics']['viewCount'],
+
+            # A lot of video queries don't return associated view
+            # statistics for one reason or another.
+            if 'yt$statistics' in result: 
+                views = ', {0:n} views'.format(result['yt$statistics']['viewCount'])
+            else:
+                views = ''
+
+            messages.append(u'%s\x02%s\x02%s: %s'
+                              % (number, result['title']['$t'], views,
                                  result['link'][0]['href'].split('&', 1)[0]))
         
         bot.reply(reply_target, channel, ((u'YouTube: ' + u' \u2014 '.join(messages)) \
