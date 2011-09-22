@@ -172,10 +172,13 @@ class TVTropesSearch(object):
                     break
                 
                 if node_name not in BLOCK_HTML_ELEMENTS:
-                    if text_content.strip():
+                    # Only add whitespace if we've already seen some
+                    # other content.
+                    if summary or text_content.strip():
                         summary += text_content
             
-            summary = summary.strip()
+            # Reduce runs of whitespace to a single space.
+            summary = ' '.join(summary.strip().split())
             
             if len(summary) > 128:
                 summary = summary[:128] + u'...'
