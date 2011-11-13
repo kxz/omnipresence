@@ -30,4 +30,4 @@ def textify_html(soup):
             
             result += textify_html(k)
     
-    return result
+    return ' '.join(result.split()).strip()
