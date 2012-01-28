@@ -185,7 +185,8 @@ class WikipediaSearch(object):
                 # This generally shouldn't happen unless the interwiki
                 # map was touched since registered() was fired.  Make up
                 # a realistic URL.
-                url = wikipedia_url(DEFAULT_LANGUAGE, language + ':' + title)
+                url = wikipedia_url(DEFAULT_LANGUAGE,
+                                    u'%s:%s' % (language, title))
             
             bot.reply(reply_target, channel,
                       (u'Wikipedia (interwiki): %s' % url) \
