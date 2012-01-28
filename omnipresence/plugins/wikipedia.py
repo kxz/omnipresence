@@ -36,33 +36,27 @@ class WikipediaSearch(object):
     name = 'wikipedia'
 
     languages = set()
-    interwiki = {}
     
-    def call_wikipedia_api(self, language, params, defer=True):
+    def call_wikipedia_api(self, language, params):
         params['format'] = 'json'
-        return self.factory.get_http(WIKIPEDIA_API_URL
-                                      % (language, urllib.urlencode(params)),
-                                     defer=defer)
+        response = self.factory.get_http(WIKIPEDIA_API_URL
+                                          % (language, urllib.urlencode(params)),
+                                         defer=False)
+        data = json.loads(response[1])
+        if 'error' in data:
+            raise WikipediaAPIError('Wikipedia API encountered an error: '
+                                    '\x02%s\x02.' % (data['error']['info']))
+        return data
 
     def registered(self):
-        d = self.call_wikipedia_api(DEFAULT_LANGUAGE, {'action': 'sitematrix'})
+        d = threads.deferToThread(self.call_wikipedia_api,
+                                  DEFAULT_LANGUAGE, {'action': 'sitematrix'})
         d.addCallback(self.load_languages)
-
-        d = self.call_wikipedia_api(DEFAULT_LANGUAGE,
-                                    {'action': 'query', 'meta': 'siteinfo',
-                                     'siprop': 'interwikimap'})
-        d.addCallback(self.load_interwiki)
     
-    def load_languages(self, response):
-        data = json.loads(response[1])
+    def load_languages(self, data):
         for x in data['sitematrix'].itervalues():
             if isinstance(x, dict):
                 self.languages.add(x['code'])
-
-    def load_interwiki(self, response):
-        data = json.loads(response[1])
-        for x in data['query']['interwikimap']:
-            self.interwiki[x['prefix']] = x['url']
 
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
@@ -98,63 +92,58 @@ class WikipediaSearch(object):
         return d
 
     def search(self, language, title):
-        # Try an exact search first.
-        response = self.call_wikipedia_api(language, {'action': 'query',
-                                                      'titles': title,
-                                                      'redirects': 1,
-                                                      'format': 'json'},
-                                           defer=False)
-        data = json.loads(response[1])
+        # Perform a full-text search first, then query for the title
+        # returned by the full-text search as well as the exact one.
+        # Return information for the latter if the page exists, the
+        # former otherwise.  Doing this saves us some extraneous API
+        # requests and repeated code.
+        
+        query_titles = title
+        title = title.decode('utf-8')
+        
+        # Full-text search first.
+        data = self.call_wikipedia_api(language, {'action': 'query',
+                                                  'list': 'search',
+                                                  'srsearch': query_titles,
+                                                  'srlimit': 1})
 
-        if 'error' in data:
-            raise WikipediaAPIError('Wikipedia API encountered an error: '
-                                    '\x02%s\x02.' % (data['error']['info']))
+        if data['query']['search']:
+            query_titles += '|' + data['query']['search'][0]['title'].encode('utf-8')
+        
+        # Now do the exact search.
+        data = self.call_wikipedia_api(language, {'action': 'query',
+                                                  'titles': query_titles,
+                                                  'redirects': 1,
+                                                  'iwurl': 1,
+                                                  'prop': 'info',
+                                                  'inprop': 'url'})
 
         if 'interwiki' in data['query']:
-            language = data['query']['interwiki'][0]['iw']
-            title = title[len(language) + 1:]
-
             # This is a valid non-Wikipedia interwiki article.
-            return (language, title, None, '')
+            
+            # Strip off the interwiki prefix from the title.
+            title = title[len(data['query']['interwiki'][0]['iw']) + 1:]
+            url = data['query']['interwiki'][0]['url']
+            return (title, url, None, ' (interwiki)')
         
         if 'pages' in data['query']:
-            if data['query']['pages'].keys()[0] != '-1':
-                title = data['query']['pages'].values()[0]['title']
-                return self.get_summary(language, title)
+            for (pageid, pageinfo) in data['query']['pages'].iteritems():
+                if pageid != '-1':
+                    title = pageinfo['title']
+                    url = pageinfo['fullurl']
+                    return self.get_summary(language, title, url)
 
-        # Nothing works?  Do a full-text search.
-        response = self.call_wikipedia_api(language, {'action': 'query',
-                                                      'list': 'search',
-                                                      'srsearch': title,
-                                                      'srlimit': 1,
-                                                      'format': 'json'},
-                                           defer=False)
-        data = json.loads(response[1])
+        return None
 
-        if 'error' in data:
-            raise WikipediaAPIError('Wikipedia API encountered an error: '
-                                    '\x02%s\x02.' % (data['error']['info']))
-
-        results = data['query']['search']
-
-        if not results:
-            return None
-
-        return self.get_summary(language, results[0]['title'],
-                                info_text=' (full-text)')
-
-    def get_summary(self, language, title, info_text=''):
+    def get_summary(self, language, title, url, info_text=''):
         try:
-            response = self.call_wikipedia_api(language, {'action': 'parse',
-                                                          'prop': 'text',
-                                                          'page': title.encode('utf-8'),
-                                                          'format': 'json'},
-                                               defer=False)
+            data = self.call_wikipedia_api(language, {'action': 'parse',
+                                                      'prop': 'text',
+                                                      'page': title.encode('utf-8')})
         except:
             log.err(None, 'Wikipedia summary fetching failed.')
-            return (language, title, None, info_text)
+            return (title, url, None, info_text)
         
-        data = json.loads(response[1])
         soup = BeautifulSoup(data['parse']['text']['*']).findAll('p', '',
                                                                  recursive=False)
         for p in soup:
@@ -164,9 +153,9 @@ class WikipediaSearch(object):
                 summary = summary[:128] + u'...'
 
             if summary:
-                return (language, title, summary, info_text)
+                return (title, url, summary, info_text)
         else:
-            return (language, title, None, info_text)
+            return (title, url, None, info_text)
     
     def reply_with_article(self, response, bot, prefix,
                            reply_target, channel, args):
@@ -175,29 +164,12 @@ class WikipediaSearch(object):
                                         '\x02%s\x02.' % args[1]))
             return
         
-        (language, title, summary, info_text) = response
-        
-        if language not in self.languages:
-            if language in self.interwiki:
-                url = self.interwiki[language].replace('$1',
-                                                       urllib.quote(title))
-            else:
-                # This generally shouldn't happen unless the interwiki
-                # map was touched since registered() was fired.  Make up
-                # a realistic URL.
-                url = wikipedia_url(DEFAULT_LANGUAGE,
-                                    u'%s:%s' % (language, title))
-            
-            bot.reply(reply_target, channel,
-                      (u'Wikipedia (interwiki): %s' % url) \
-                       .encode(self.factory.encoding))
-            return
+        (title, url, summary, info_text) = response
         
         summary = summary + u' \u2014 ' if summary else ''
         
         bot.reply(reply_target, channel, (u'Wikipedia%s: \x02%s\x02: %s%s'
-                                            % (info_text, title, summary,
-                                               wikipedia_url(language, title))) \
+                                            % (info_text, title, summary, url)) \
                                           .encode(self.factory.encoding))
 
 
@@ -228,24 +200,21 @@ class RandomWikipediaArticle(WikipediaSearch):
         return d
     
     def random(self, language):
-        response = self.call_wikipedia_api(language, {'action': 'query',
-                                                      'list': 'random',
-                                                      'rnnamespace': 0,
-                                                      'format': 'json'},
-                                           defer=False)
-        data = json.loads(response[1])
+        data = self.call_wikipedia_api(language, {'action': 'query',
+                                                  'generator': 'random',
+                                                  'grnnamespace': 0,
+                                                  'prop': 'info',
+                                                  'inprop': 'url'})
         
-        if 'error' in data:
-            raise WikipediaAPIError('Wikipedia API encountered an error: '
-                                    '\x02%s\x02.' % (data['error']['info']))
-        
-        results = data['query']['random']
-        
-        if not results:
-            return None
-        
-        return self.get_summary(language, results[0]['title'],
-                                info_text=' (random)')
+        if 'pages' in data['query']:
+            for (pageid, pageinfo) in data['query']['pages'].iteritems():
+                if pageid != '-1':
+                    title = pageinfo['title']
+                    url = pageinfo['fullurl']
+                    return self.get_summary(language, title, url,
+                                            info_text=' (random)')
+
+        return None
     
     def reply_with_article(self, response, bot, prefix,
                            reply_target, channel, args):
