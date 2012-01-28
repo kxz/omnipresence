@@ -15,10 +15,6 @@ from omnipresence.iomnipresence import ICommand
 DEFAULT_LANGUAGE = 'en'
 WIKIPEDIA_API_URL = 'http://%s.wikipedia.org/w/api.php?%s'
 
-def wikipedia_url(language, title):
-    title = urllib.quote(title.encode('utf-8').replace(' ', '_'))
-    return 'http://%s.wikipedia.org/wiki/%s' % (language, title)
-
 
 class WikipediaAPIError(Exception):
     pass
