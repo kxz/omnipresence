@@ -70,7 +70,7 @@ class AniDBSearchCommand(object):
             enddate = html.textify_html(anime_row.find('td', 'date enddate'))
             if '-' in enddate:
                 enddate = ''
-            rating = html.textify_html(anime_row.find('td', 'rating perm'))
+            rating = html.textify_html(anime_row.find('td', 'rating weighted'))
         
         # Now for the "single result" case.
         elif anime_all:
