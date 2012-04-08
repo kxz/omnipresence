@@ -122,12 +122,22 @@ class WikipediaSearch(object):
             url = data['query']['interwiki'][0]['url']
             return (title, url, None, ' (interwiki)')
         
+        info_text = ''
         if 'pages' in data['query']:
+            if '-1' in data['query']['pages']:
+                # We can reasonably assume that the only title in our
+                # query that'll return a "missing article" result will
+                # be the exact title provided in `title`; full-text
+                # search shouldn't return nonexistent articles.  Thus,
+                # one "missing" result is enough to determine that we
+                # are falling back on full-text results.
+                info_text = ' (full-text)'
+            
             for (pageid, pageinfo) in data['query']['pages'].iteritems():
                 if pageid != '-1':
                     title = pageinfo['title']
                     url = pageinfo['fullurl']
-                    return self.get_summary(language, title, url)
+                    return self.get_summary(language, title, url, info_text)
 
         return None
 
