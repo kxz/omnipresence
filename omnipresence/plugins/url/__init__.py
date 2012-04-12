@@ -21,31 +21,6 @@ __path__.extend(pluginPackagePaths(__name__))
 __all__ = []
 
 
-# With acknowledgement to John Gruber.
-# <http://daringfireball.net/2010/07/improved_regex_for_matching_urls>
-URL_PATTERN = re.compile(ur"""
-\b
-(                                       # Capture 0: Entire matched URL
-  (                                     # Capture 1: STARTS WITH
-    https?://                           # http or https protocol
-    |                                   #   or
-    www\d{0,3}[.]                       # "www.", "www1." ... "www999."
-    |                                   #   or
-    [a-z0-9.\-]+[.][a-z]{2,4}/          # domain-ish string followed by a slash
-  )
-  (?:                                   # FOLLOWED BY ONE OR MORE
-    [^\s()<>]+                          # run of non-space, non-()<>
-    |                                   #   or
-    \(([^\s()<>]+|(\([^\s()<>]+\)))*\)  # balanced parens, up to 2 levels
-  )+
-  (?:                                   # ENDS WITH
-    \(([^\s()<>]+|(\([^\s()<>]+\)))*\)  # balanced parens, up to 2 levels
-    |                                   #   or
-    [^\s`!()\[\]{};:'".,<>?«»“”‘’]      # not space or one of these punct chars
-  )
-)
-""", re.IGNORECASE | re.VERBOSE)
-
 def add_si_prefix(number, unit, plural_unit=None):
     """Returns a string containing an approximate representation of the
     given number and unit, using a decimal SI prefix.  *number* is
@@ -69,6 +44,49 @@ def add_si_prefix(number, unit, plural_unit=None):
         return '{0:.3n} {1}{2}'.format(number, prefix, plural_unit)
 
     return '{0:n} {1}'.format(number, plural_unit)
+
+# Based on django.utils.html.urlize from the Django project.
+TRAILING_PUNCTUATION = ['.', ',', ':', ';']
+WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>'), ('&lt;', '&gt;')]
+
+word_split_re = re.compile(r'(\s+)')
+simple_url_re = re.compile(r'^https?://\w', re.IGNORECASE)
+simple_url_2_re = re.compile(r'^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$', re.IGNORECASE)
+
+def extract_urls(text):
+    """Extracts URL-like strings from *text* and returns them as a list."""
+    urls = []
+    words = word_split_re.split(text)
+    for i, word in enumerate(words):
+        match = None
+        if '.' in word or ':' in word:
+            # Deal with punctuation.
+            lead, middle, trail = '', word, ''
+            for punctuation in TRAILING_PUNCTUATION:
+                if middle.endswith(punctuation):
+                    middle = middle[:-len(punctuation)]
+                    trail = punctuation + trail
+            for opening, closing in WRAPPING_PUNCTUATION:
+                if middle.startswith(opening):
+                    middle = middle[len(opening):]
+                    lead = lead + opening
+                # Keep parentheses at the end only if they're balanced.
+                if (middle.endswith(closing)
+                    and middle.count(closing) == middle.count(opening) + 1):
+                    middle = middle[:-len(closing)]
+                    trail = closing + trail
+
+            # Make URL we want to point to.
+            url = None
+            if simple_url_re.match(middle):
+                url = middle
+            elif simple_url_2_re.match(middle):
+                url = 'http://%s' % middle
+
+            # Add to our list of URLs.
+            if url:
+                urls.append(url)
+    return urls
 
 
 class ITitleProcessor(Interface):
@@ -223,18 +241,12 @@ class URLTitleFetcher(object):
         if nick in self.ignore_list:
             return
         
-        urls = URL_PATTERN.findall(message)
+        urls = extract_urls(message)
         fetchers = []
         
-        for match in urls:
-            url = match[0]
+        for url in urls:
             log.msg('Saw URL %s from %s in channel %s.'
                     % (url, prefix, channel))
-            
-            # Add "http://" to URLs that were only matched through 
-            # starting with "www." and lack a protocol.
-            if match[1] not in ('http://', 'https://'):
-                url = 'http://' + url
             
             # Strip the fragment portion of the URL, if present.
             (url, frag) = urlparse.urldefrag(url)
