@@ -12,7 +12,7 @@ class GoogleSearch(web.WebCommand):
     search string.
     """
     name = 'google'
-    arg_type = 'search query'
+    arg_type = 'a search query'
     url = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q=%s'
     max_results = 3
     
