@@ -28,7 +28,7 @@ __all__ = []
 
 """The maximum number of bytes the fetcher will download for a single
 title fetch request."""
-MAX_DOWNLOAD_SIZE = 2097152
+MAX_DOWNLOAD_SIZE = 65536
 
 #
 # Utility methods
