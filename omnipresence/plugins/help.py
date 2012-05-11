@@ -27,8 +27,7 @@ class HelpCommand(object):
             
             help_text = help_text % args[1]
         else:
-            keywords = self.factory.commands.keys()
-            keywords.sort()
+            keywords = sorted(self.factory.commands)
             help_text = (
                 'Available commands: \x02%s\x02. For further help, use '
                 '\x02%s\x02 \x1Fkeyword\x1F. To redirect a command reply '
