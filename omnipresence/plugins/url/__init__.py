@@ -15,11 +15,9 @@ from twisted.internet import defer, error, protocol, reactor, threads
 from twisted.names.client import lookupAddress
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import failure, log
-from twisted.web.client import Agent, ContentDecoderAgent, GzipDecoder, \
-                               RedirectAgent, ResponseFailed
 from zope.interface import implements, Interface, Attribute
 
-from omnipresence import plugins
+from omnipresence import plugins, web
 from omnipresence.iomnipresence import IHandler
 
 
@@ -103,14 +101,6 @@ def extract_urls(text):
                 urls.append(url)
     return urls
 
-def get_content_type(response):
-    ctype_header = response.headers.getRawHeaders('content-type')
-    if ctype_header:
-        # getRawHeaders() returns a list, even for a single header
-        ctype, cparams = cgi.parse_header(ctype_header[0])
-        return ctype
-    return None
-
 def is_private_host(hostname):
     """Check if the given host corresponds to a private network, as
     specified by RFC 1918.  Only supports IPv4."""
@@ -157,55 +147,6 @@ class ITitleProcessor(Interface):
         """
 
 #
-# Web client helper classes
-#
-
-class RedirectTrackingAgent(RedirectAgent):
-    def _handleResponse(self, response, method, uri, headers, redirectCount):
-        response = RedirectAgent._handleResponse(self, response, method, uri,
-                                                 headers, redirectCount)
-        if not isinstance(response, defer.Deferred):
-            response.headers.addRawHeader('X-Omni-Location', uri)
-        return response
-
-
-class BufferSizeExceededError(Exception):
-    def __init__(self, actual_size, buffer_size):
-        self.actual_size = actual_size
-        self.buffer_size = buffer_size
-    
-    def __str__(self):
-        return 'tried to read {0} bytes into {1}-byte buffer'.format(
-            self.actual_size,
-            self.buffer_size
-            )
-
-
-class ResponseBuffer(protocol.Protocol):
-    def __init__(self, response, finished, max_bytes=sys.maxsize):
-        self.buffer = StringIO.StringIO()
-        self.response = response
-        self.finished = finished
-        self.remaining = self.max_bytes = max_bytes
-    
-    def dataReceived(self, bytes):
-        if self.remaining - len(bytes) < 0:
-            self.transport.loseConnection()
-            self.buffer.close()
-            failure = failure.Failure(BufferSizeExceededError(
-                self.max_bytes - self.remaining + len(bytes),
-                self.max_bytes
-                ))
-            self.finished.errback(ResponseFailed([failure], self.response))
-            return
-        
-        self.buffer.write(bytes)
-        self.remaining -= len(bytes)
-    
-    def connectionLost(self, reason):
-        self.finished.callback(self.buffer.getvalue())
-
-#
 # Actual handler plugin
 #
 
@@ -221,8 +162,6 @@ class URLTitleFetcher(object):
     title_processors = {}
     
     def registered(self):
-        self.agent = ContentDecoderAgent(RedirectTrackingAgent(Agent(reactor)),
-                                         [('gzip', GzipDecoder)])
         self.ignore_list = self.factory.config.getspacelist(
                              'url', 'ignore_messages_from')
         for title_processor in getPlugins(ITitleProcessor, plugins.url):
@@ -262,9 +201,7 @@ class URLTitleFetcher(object):
             
             # Twisted Names is full of headaches.  socket is easier.
             d = threads.deferToThread(is_private_host, hostname)
-            d.addCallback(self.request_headers, url)
-            d.addCallback(self.request_content, url)
-            d.addCallback(self.buffer_response_body)
+            d.addCallback(self.request, url)
             d.addCallback(self.process_content)
             d.addCallback(self.make_reply, hostname)
             d.addErrback(self.make_error_reply, hostname)
@@ -276,45 +213,22 @@ class URLTitleFetcher(object):
     
     action = privmsg
     
-    def request_headers(self, is_private_ip, url):
+    def request(self, is_private_ip, url):
         if is_private_ip:
             # Pretend that the given host just doesn't exist.
             raise error.TimeoutError()
-        
-        d = self.agent.request('HEAD', url)
-        return d
+        return web.request('GET', url, max_bytes=MAX_DOWNLOAD_SIZE)
     
-    def request_content(self, response, url):
-        if get_content_type(response) in self.title_processors:
-            return self.agent.request('GET', url)
-        return response
-    
-    def buffer_response_body(self, response):
-        if response.length != 0:
-            # Twisted overwrites the Content-Length header with how much
-            # of the response was delivered, but we need the original
-            # information.
-            response.headers.addRawHeader('X-Omni-Length', str(response.length))
-            d = defer.Deferred()
-            response.deliverBody(ResponseBuffer(response, d,
-                                                max_bytes=MAX_DOWNLOAD_SIZE))
-            d.addCallback(lambda body: (response, body))
-            return d
-        return (response, '')
-    
-    def process_content(self, response_and_body):
-        response, body = response_and_body
-        headers = dict((k, v[0]) for k, v in response.headers.getAllRawHeaders())
-        ctype = get_content_type(response)
-        
+    def process_content(self, (headers, content)):
+        ctype, cparams = cgi.parse_header(headers.get('Content-Type'))
         if ctype in self.title_processors:
             title_processor = self.title_processors[ctype]
-            d = threads.deferToThread(title_processor.process, headers, body)
-            d.addCallback(lambda t: (t, headers.get('X-Omni-Location')))
+            d = threads.deferToThread(title_processor.process, headers, content)
+            d.addCallback(lambda title: (title, headers.get('X-Omni-Location')))
             return d
         
         title = u'{0} document'.format(ctype or u'Unknown')
-        clength = headers.get('X-Omni-Length', headers.get('Content-Length', '0'))
+        clength = headers.get('X-Omni-Length', '0')
         if clength:
             try:
                 clength = int(clength, 10)
@@ -325,8 +239,7 @@ class URLTitleFetcher(object):
                 title += (u' ({0})'.format(add_si_prefix(clength, 'byte')))
         return (title, headers.get('X-Omni-Location'))
     
-    def make_reply(self, title_and_location, hostname):
-        title, location = title_and_location
+    def make_reply(self, (title, location), hostname):
         hostname_tag = hostname
         if location:
             content_hostname = urlparse.urlparse(location).hostname
