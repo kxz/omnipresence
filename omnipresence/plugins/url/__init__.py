@@ -60,7 +60,7 @@ def add_si_prefix(number, unit, plural_unit=None):
 
 # Based on django.utils.html.urlize from the Django project.
 TRAILING_PUNCTUATION = ['.', ',', ':', ';']
-WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>'), ('&lt;', '&gt;')]
+WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>')]
 
 word_split_re = re.compile(r'(\s+)')
 simple_url_re = re.compile(r'^https?://\w', re.IGNORECASE)
