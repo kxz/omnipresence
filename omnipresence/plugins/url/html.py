@@ -17,7 +17,7 @@ class HTMLTitleProcessor(object):
         
         # If the HTTP "Content-Type" header specifies an 
         # encoding, try to use it to decode the document.
-        ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
+        ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
         if 'charset' in cparams:
             soup_kwargs['fromEncoding'] = cparams['charset']
         
