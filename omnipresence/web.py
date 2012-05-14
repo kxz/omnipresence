@@ -162,8 +162,7 @@ def request(*args, **kwargs):
         kwargs['headers'].addRawHeader('User-Agent', USER_AGENT)
     
     if 'max_bytes' in kwargs:
-        transform_kwargs['max_bytes'] = kwargs['max_bytes']
-        del kwargs['max_bytes']
+        transform_kwargs['max_bytes'] = kwargs.pop('max_bytes')
     
     d = agent.request(*args, **kwargs)
     d.addCallback(transform_response, **transform_kwargs)
