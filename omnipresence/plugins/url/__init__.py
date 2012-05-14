@@ -174,12 +174,15 @@ class URLTitleFetcher(object):
         if nick in self.ignore_list:
             return
         
+        # Everything in here is Unicode.
+        message = message.decode(self.factory.encoding, 'ignore')
+        
         urls = extract_urls(message)
         fetchers = []
         
         for url in urls:
             log.msg('Saw URL %s from %s in channel %s.'
-                    % (url, prefix, channel))
+                    % (url.encode('utf8'), prefix, channel))
             
             # Strip the fragment portion of the URL, if present.
             url, frag = urlparse.urldefrag(url)
@@ -189,18 +192,19 @@ class URLTitleFetcher(object):
             #
             # <http://code.google.com/web/ajaxcrawling/>
             if frag.startswith('!'):
-                url += ('&' if '?' in url else '?' +
-                        '_escaped_fragment_=' + urllib.quote(frag[1:]))
+                url += (u'&' if u'?' in url else u'?' +
+                        u'_escaped_fragment_=' +
+                        urllib.quote(frag[1:].encode('utf8')))
             
             # Basic hostname sanity checks.
             hostname = urlparse.urlparse(url).hostname
             if hostname is None:
                 log.msg('Could not extract hostname from URL {0}; ignoring.' \
-                         .format(url))
+                         .format(url.encode('utf8')))
                 continue
             
             # Twisted Names is full of headaches.  socket is easier.
-            d = threads.deferToThread(is_private_host, hostname)
+            d = threads.deferToThread(is_private_host, hostname.encode('utf8'))
             d.addCallback(self.request, url)
             d.addCallback(self.process_content)
             d.addCallback(self.make_reply, hostname)
@@ -217,7 +221,8 @@ class URLTitleFetcher(object):
         if is_private_ip:
             # Pretend that the given host just doesn't exist.
             raise error.TimeoutError()
-        return web.request('GET', url, max_bytes=MAX_DOWNLOAD_SIZE)
+        return web.request('GET', url.encode('utf8'),
+                           max_bytes=MAX_DOWNLOAD_SIZE)
     
     def process_content(self, (headers, content)):
         ctype, cparams = cgi.parse_header(headers.get('Content-Type'))
@@ -228,7 +233,7 @@ class URLTitleFetcher(object):
             return d
         
         title = u'{0} document'.format(ctype or u'Unknown')
-        clength = headers.get('X-Omni-Length', '0')
+        clength = headers.get('X-Omni-Length')
         if clength:
             try:
                 clength = int(clength, 10)
@@ -260,7 +265,7 @@ class URLTitleFetcher(object):
             else:
                 # This should only happen if make_reply() bombs.
                 log.err(value, 'Encountered an error in URL processing.')
-                title = u'Error: \x02{0:s}\x02.'.format(value)
+                title = u'Error: \x02{0:s}\x02.'.format(value.value)
             
             if len(title) >= 140:
                 title = u'{0}…{1}'.format(title[:64], title[-64:])
