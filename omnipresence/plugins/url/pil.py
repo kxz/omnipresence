@@ -19,15 +19,16 @@ class PILTitleProcessor(object):
         pbuffer = Image.open(StringIO.StringIO(content))
         width, height = pbuffer.size
         format = pbuffer.format
-        clength = headers.get('X-Omni-Length', '0')
+        clength = headers.get('X-Omni-Length')
         if clength:
             try:
                 clength = int(clength, 10)
             except ValueError:
                 # Couldn't parse the content-length string.
-                pass
-        return u'{0} image ({1:n} \u00d7 {2:n} pixels, {3})'.format(
-            format, width, height, add_si_prefix(clength, 'byte')
+                clength = None
+        return u'{0} image ({1:n} \u00d7 {2:n} pixels{3})'.format(
+            format, width, height,
+            (u', ' + add_si_prefix(clength, 'byte')) if clength else u''
             )
 
 
