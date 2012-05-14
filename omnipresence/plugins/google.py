@@ -3,7 +3,7 @@ import json
 
 from BeautifulSoup import BeautifulSoup
 
-from omnipresence import web, util
+from omnipresence import web
 
 
 class GoogleSearch(web.WebCommand):
