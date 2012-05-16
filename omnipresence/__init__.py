@@ -279,6 +279,7 @@ class IRCClient(irc.IRCClient):
     def left(self, prefix, channel):
         """Called when the bot leaves the given *channel*."""
         self.call_handlers('left', channel, [prefix, channel])
+        del self.channel_names[channel]
     
     def noticed(self, prefix, channel, message):
         """Called when we receive a notice from another user.  Behaves
