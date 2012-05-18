@@ -23,12 +23,14 @@ def st_ago(time):
 """Holds cached feed information."""
 class Feed(object):
     url = None
-    channels = set()
-    seen_items = set()
+    channels = None
+    seen_items = None
     parsed = None
     
     def __init__(self, url):
         self.url = url
+        self.channels = set()
+        self.seen_items = set()
 
 
 class RSSNotifier(object):
@@ -139,7 +141,7 @@ class RSSNotifier(object):
         if len(args) < 2:
             if available_feeds:
                 bot.reply(reply_target, channel,
-                          'Available feeds: \x02{0}\x02.  For further '
+                          'Available feeds: \x02{0}\x02. For further '
                           'details, use \x02{1}\x02 \x1Ffeed_name\x1F.'.format(
                             '\x02, \x02'.join(sorted(available_feeds)),
                                               args[0]))
