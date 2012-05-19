@@ -8,13 +8,15 @@ from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols import irc
 
-from omnipresence import iomnipresence, plugins, ircutil, version
+from omnipresence import iomnipresence, plugins, ircutil, util, version
 
 
 VERSION_NAME = 'Omnipresence'
 VERSION_NUM = version.VERSION_NUMBER
 VERSION_ENV = platform.platform()
 SOURCE_URL = 'https://bitbucket.org/kxz/omnipresence'
+
+MAX_REPLY_LENGTH = 256
 
 
 class IRCClient(irc.IRCClient):
@@ -55,13 +57,20 @@ class IRCClient(irc.IRCClient):
     suspended_joins = None
     
     # Dictionary mapping channels to the nicks present in each channel.
-    channel_names = {}
+    channel_names = None
+    
+    # Message buffers for long messages.
+    message_buffers = None
+    
+    def __init__(self):
+        self.channel_names = {}
+        self.message_buffers = {'@': {}}
 
     # Utility methods
 
     def ping_server(self, servername):
         if self.ping_count > 2:
-            log.err('Sent three PINGs without receiving a PONG reply.')
+            log.err(None, 'Sent three PINGs without receiving a PONG reply.')
             self.ping_timer.stop()
             self.transport.loseConnection()
             return
@@ -201,16 +210,51 @@ class IRCClient(irc.IRCClient):
           by *prefix*.
         * If *prefix* is not specified, send the reply publicly to the
           channel given by *channel*, with no nickname addressing.
+        
+        Long replies are buffered in order to satisfy protocol message
+        length limits; a maximum of 256 characters will be sent at any
+        given time.  Further content from a buffered reply can be
+        retrieved by using the command provided with the `more` plugin.
+        
+        When possible, Omnipresence attempts to truncate replies on
+        whitespace, instead of in the middle of a word.  Replies are
+        _always_ broken on newlines, which can be useful for creating
+        commands that progressively give more information.
         """
+        # _Always_ split on a newline.
+        to_send, sep, to_buffer = message.partition('\n')
+        if isinstance(to_send, unicode):
+            truncated = util.truncate_unicode(to_send,
+                                              MAX_REPLY_LENGTH,  # in chars
+                                              MAX_REPLY_LENGTH,  # in bytes
+                                              self.factory.encoding)
+            if truncated.decode(self.factory.encoding) != to_send:
+                # Try and find whitespace to split the message on.
+                truncated = truncated.rsplit(None, 1)[0]
+                to_buffer = to_send[len(truncated.decode(self.factory.encoding)):] + \
+                            sep + to_buffer
+        else:
+            truncated = to_send[:MAX_REPLY_LENGTH]
+            if truncated != to_send:
+                # Try and find whitespace to split the message on.
+                truncated = truncated.rsplit(None, 1)[0]
+                to_buffer = to_send[len(truncated):] + sep + to_buffer
+        message = ircutil.close_formatting_codes(truncated).strip()
+        to_buffer = ''.join(ircutil.unclosed_formatting_codes(truncated)) + \
+                    to_buffer.strip()
         if prefix:
             nick = prefix.split('!', 1)[0].strip()
+            if to_buffer:
+                message += ' (+%d more characters)' % len(to_buffer)
             log.msg('Reply for %s on channel %s: %s'
                      % (nick, channel, message))
             
             if channel == self.nickname:
+                self.message_buffers['@'][nick] = to_buffer
                 self.notice(nick, message)
                 return
             
+            self.message_buffers[channel][nick] = to_buffer
             message = '%s: %s' % (nick, message)
         else:
             log.msg('Undirected reply for channel %s: %s' % (channel, message))
@@ -275,10 +319,13 @@ class IRCClient(irc.IRCClient):
         log.msg('Successfully joined channel %s.' % channel)
         self.call_handlers('joined', channel, [prefix, channel])
         self.channel_names[channel] = set()
+        self.message_buffers[channel] = {}
     
     def left(self, prefix, channel):
         """Called when the bot leaves the given *channel*."""
         self.call_handlers('left', channel, [prefix, channel])
+        del self.channel_names[channel]
+        del self.message_buffers[channel]
     
     def noticed(self, prefix, channel, message):
         """Called when we receive a notice from another user.  Behaves
@@ -317,7 +364,8 @@ class IRCClient(irc.IRCClient):
     def kickedFrom(self, channel, kicker, message):
         """Called when the bot is kicked from the given *channel*."""
         self.call_handlers('kickedFrom', channel, [channel, kicker, message])
-        self.channel_names[channel].clear()
+        del self.channel_names[channel]
+        del self.message_buffers[channel]
     
     def nickChanged(self, nick):
         """Called when the bot's nickname is changed."""
@@ -332,13 +380,17 @@ class IRCClient(irc.IRCClient):
     def userLeft(self, prefix, channel):
         """Called when another user leaves the given *channel*."""
         self.call_handlers('userLeft', channel, [prefix, channel])
-        self.channel_names[channel].discard(prefix.split('!', 1)[0])
+        nick = prefix.split('!', 1)[0]
+        self.channel_names[channel].discard(nick)
+        self.message_buffers[channel].pop(nick, None)
     
     def userQuit(self, prefix, quitMessage):
         """Called when another user has quit the IRC server."""
         self.call_handlers('userQuit', None, [prefix, quitMessage])
+        nick = prefix.split('!', 1)[0]
         for channel in self.channel_names:
-            self.channel_names[channel].discard(prefix.split('!', 1)[0])
+            self.channel_names[channel].discard(nick)
+            self.message_buffers[channel].pop(nick, None)
 
     def userKicked(self, kickee, channel, kicker, message):
         """Called when another user kicks a third party from the given
@@ -346,6 +398,7 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('userKicked', channel,
                            [kickee, channel, kicker, message])
         self.channel_names[channel].discard(kickee)
+        self.message_buffers[channel].pop(kickee, None)
 
     def action(self, prefix, channel, data):
         """Called when a ``/me`` action is performed in the given
@@ -363,6 +416,10 @@ class IRCClient(irc.IRCClient):
             if oldname in self.channel_names[channel]:
                 self.channel_names[channel].discard(oldname)
                 self.channel_names[channel].add(newname)
+        for channel in self.message_buffers:
+            if oldname in self.message_buffers[channel]:
+                self.message_buffers[channel][newname] = \
+                  self.message_buffers[channel].pop(oldname)
 
     def _join(self, channel):
         log.msg('Joining channel %s.' % channel)
@@ -385,7 +442,8 @@ class IRCClient(irc.IRCClient):
     def leave(self, channel, reason=None):
         """Leave the given *channel*."""
         self.call_handlers('leave', channel, [channel, reason])
-        self.channel_names[channel].clear()
+        del self.channel_names[channel]
+        del self.message_buffers[channel]
         irc.IRCClient.leave(self, channel, reason)
     
     def kick(self, channel, nick, reason=None):
@@ -393,6 +451,7 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('kick', channel, [channel, nick, reason])
         irc.IRCClient.kick(self, channel, nick, reason)
         self.channel_names[channel].discard(nick)
+        self.message_buffers[channel].pop(nick, None)
 
     def topic(self, channel, topic=None):
         """Change the topic of *channel* if a *topic* is provided;
@@ -434,12 +493,16 @@ class IRCClient(irc.IRCClient):
             if oldnick in self.channel_names[channel]: # sanity check
                 self.channel_names[channel].discard(oldnick)
                 self.channel_names[channel].add(nickname)
+        for channel in self.message_buffers:
+            # We should never have a buffer for ourselves.
+            self.message_buffers[channel].pop(oldnick, None)
     
     def quit(self, message=''):
         """Quit from the IRC server."""
         self.call_handlers('quit', None, [message])
         irc.IRCClient.quit(self, message)
         self.channel_names = {}
+        self.message_buffers = {'@': {}}
     
     def me(self, channel, action):
         """Perform an action in the given *channel*."""
@@ -512,11 +575,11 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     # Keys are channel names; values are an ordered list of handler instances 
     # to execute for each one.  "@" is a special key corresponding to handlers 
     # that should execute on private messages.
-    handlers = {}
+    handlers = None
 
     # Stores the command instances for this bot.  Keys are the keywords used to 
     # invoke each command; values are the command instances themselves.
-    commands = {}
+    commands = None
 
     encoding = 'utf-8'
     
@@ -542,6 +605,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
 
         # Load handler plug-ins through twisted.plugin, then map handlers to 
         # channels based on the specified configuration options.
+        self.handlers = {}
         found_handlers = {}
 
         for handler in getPlugins(iomnipresence.IHandler, plugins):
@@ -571,6 +635,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
 
         # Load command plug-ins through twisted.plugin, then map commands to 
         # keywords based on the specified configuration options.
+        self.commands = {}
         found_commands = {}
 
         for command in getPlugins(iomnipresence.ICommand, plugins):
