@@ -155,9 +155,6 @@ class WikipediaSearch(object):
         for p in soup:
             summary = html.textify_html(p)
 
-            if len(summary) > 128:
-                summary = summary[:128] + u'...'
-
             if summary:
                 return (title, url, summary, info_text)
         else:
@@ -175,8 +172,7 @@ class WikipediaSearch(object):
         summary = summary + u' \u2014 ' if summary else ''
         
         bot.reply(reply_target, channel, (u'Wikipedia%s: \x02%s\x02: %s%s'
-                                            % (info_text, title, summary, url)) \
-                                          .encode(self.factory.encoding))
+                                            % (info_text, title, summary, url)))
 
 
 class RandomWikipediaArticle(WikipediaSearch):
