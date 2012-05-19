@@ -202,6 +202,8 @@ class IRCClient(irc.IRCClient):
         * If *prefix* is not specified, send the reply publicly to the
           channel given by *channel*, with no nickname addressing.
         """
+        if isinstance(message, unicode):
+            message = message.encode(self.factory.encoding, 'replace')
         if prefix:
             nick = prefix.split('!', 1)[0].strip()
             log.msg('Reply for %s on channel %s: %s'
