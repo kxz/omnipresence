@@ -179,9 +179,6 @@ class TVTropesSearch(object):
             
             # Reduce runs of whitespace to a single space.
             summary = ' '.join(summary.strip().split())
-            
-            if len(summary) > 128:
-                summary = summary[:128] + u'...'
 
         return (title, url, summary, info_text)
     
@@ -193,11 +190,11 @@ class TVTropesSearch(object):
         
         (title, url, summary, info_text) = trope
         (title, url) = get_real_title_and_url(title, url)
-        summary = summary + u' \u2014 ' if summary else ''
+        summary = u': ' + summary if summary else ''
         
         bot.reply(reply_target, channel,
-                  u'TV Tropes%s: \x02%s\x02: %s%s'
-                    % (info_text, title, summary, url))
+                  u'TV Tropes%s: %s \u2014 \x02%s\x02%s'
+                    % (info_text, url, title, summary))
 
 
 class RandomTrope(TVTropesSearch):
