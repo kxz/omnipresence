@@ -47,8 +47,7 @@ class GoogleSearch(web.WebCommand):
                         for i, result in enumerate(results)]
         
         bot.reply(reply_target, channel,
-                  ((u'Google: ' + u' \u2014 '.join(messages)) \
-                   .encode(self.factory.encoding)))
+                  u'Google: ' + u' \u2014 '.join(messages))
 
 
 class ImFeelingLucky(GoogleSearch):

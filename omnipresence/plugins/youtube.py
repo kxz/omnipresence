@@ -45,8 +45,8 @@ class YouTubeCommand(object):
                               % (number, result['title']['$t'], views,
                                  result['link'][0]['href'].split('&', 1)[0]))
         
-        bot.reply(reply_target, channel, ((u'YouTube: ' + u' \u2014 '.join(messages)) \
-                                             .encode(self.factory.encoding)))
+        bot.reply(reply_target, channel,
+                  u'YouTube: ' + u' \u2014 '.join(messages))
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)

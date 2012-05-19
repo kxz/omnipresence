@@ -100,9 +100,8 @@ class TimeLookup(GeoNamesCommand):
             return
         
         bot.reply(reply_target, channel,
-                  ('Time service: %s (%.2f, %.2f) %s'
-                   % (canonical, lat, lng, data['time'])) \
-                  .encode(self.factory.encoding))
+                  'Time service: %s (%.2f, %.2f) %s'
+                   % (canonical, lat, lng, data['time']))
 
 
 class WeatherLookup(GeoNamesCommand):
@@ -177,10 +176,12 @@ class WeatherLookup(GeoNamesCommand):
             dt = observation['datetime'] + ' UTC'
         
         bot.reply(reply_target, channel,
-                  ('Weather service: %s (%.2f, %.2f) %s from %s [%s] as of %s'
-                    % (canonical, observation['lat'], observation['lng'],
-                       weather, observation['stationName'], observation['ICAO'],
-                       dt)).encode(self.factory.encoding))
+                  'Weather service: %s (%.2f, %.2f) %s from %s [%s] as of %s'
+                   % (canonical,
+                      observation['lat'], observation['lng'],
+                      weather,
+                      observation['stationName'], observation['ICAO'],
+                      dt))
 
 time = TimeLookup()
 weather = WeatherLookup()

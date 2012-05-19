@@ -121,21 +121,12 @@ class ChirpyCommand(object):
             return
         
         quote = random.choice(quotes)
-        quote_text = quote.body.replace('\n', ' ')
-        truncated_quote_text = util.truncate_unicode(quote_text.decode('utf-8'),
-                                                     MAX_QUOTE_CHAR_LENGTH,
-                                                     MAX_QUOTE_BYTE_LENGTH,
-                                                     self.factory.encoding)
-        
-        if quote_text != truncated_quote_text:
-            truncated_quote_text = '%s...' % truncated_quote_text
-        
-        reply = 'QDB: (#%d, %+d/%d) %s' % (quote.id, quote.rating,
-                                           quote.votes, truncated_quote_text)
+        quote_text = quote.body.decode('utf-8').replace('\n', ' ')
+        reply = u'QDB: (#%d, %+d/%d) %s' % (quote.id, quote.rating,
+                                            quote.votes, quote_text)
 
         if self.quote_url:
-            reply += (u' \u2014 '.encode(self.factory.encoding) +
-                      self.quote_url % quote.id)
+            reply += u' \u2014 ' + self.quote_url % quote.id
         
         bot.reply(reply_target, channel, reply)
 

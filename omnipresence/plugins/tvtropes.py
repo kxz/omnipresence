@@ -195,10 +195,9 @@ class TVTropesSearch(object):
         (title, url) = get_real_title_and_url(title, url)
         summary = summary + u' \u2014 ' if summary else ''
         
-        bot.reply(reply_target, channel, (u'TV Tropes%s: \x02%s\x02: %s%s'
-                                            % (info_text, title,
-                                               summary, url)) \
-                                          .encode(self.factory.encoding))
+        bot.reply(reply_target, channel,
+                  u'TV Tropes%s: \x02%s\x02: %s%s'
+                    % (info_text, title, summary, url))
 
 
 class RandomTrope(TVTropesSearch):

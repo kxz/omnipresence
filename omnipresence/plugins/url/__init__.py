@@ -275,7 +275,7 @@ class URLTitleFetcher(object):
             else:
                 message = u'URL: {0}'.format(title)
             
-            bot.reply(None, channel, message.encode(self.factory.encoding))
+            bot.reply(None, channel, message)
 
 
 url = URLTitleFetcher()

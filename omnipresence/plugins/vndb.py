@@ -67,9 +67,8 @@ class VNDBSearch(object):
             rating = u' \u2014 rated %s' % rating
 
         bot.reply(reply_target, channel,
-                  (u'VNDB: \x02%s\x02%s%s%s \u2014 %s'
-                     % (title, alt_title, release_date, rating, url)) \
-                  .encode(self.factory.encoding))
+                  u'VNDB: \x02%s\x02%s%s%s \u2014 %s'
+                    % (title, alt_title, release_date, rating, url))
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
