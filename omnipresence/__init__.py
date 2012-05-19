@@ -257,6 +257,8 @@ class IRCClient(irc.IRCClient):
             self.message_buffers[channel][nick] = to_buffer
             message = '%s: %s' % (nick, message)
         else:
+            if to_buffer:
+                message += u'\u2026'.encode(self.factory.encoding)
             log.msg('Undirected reply for channel %s: %s' % (channel, message))
 
         self.msg(channel, '\x0314%s' % message)
