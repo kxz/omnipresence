@@ -16,15 +16,16 @@ class WWWJDICSearch(web.WebCommand):
         soup = BeautifulSoup(response[1], parseOnlyThese=SoupStrainer('pre'))
 
         if soup.pre:
-            result = soup.pre.string.extract().strip().split('\n')[0]
-            # Strip off the trailing slash for the last gloss, then replace
-            # the first slash with nothing and the remaining ones with
+            results = []
+            # Strip off the trailing slash for the last gloss, then replace 
+            # the first slash with nothing and the remaining ones with 
             # semicolons, in an approximation of the Web interface.
-            result = result[:-1]
-            result = result.replace('/', '', 1)
-            result = result.replace('/', '; ')
-            result = result.encode(self.factory.encoding)
-            bot.reply(reply_target, channel, 'WWWJDIC: ' + result)
+            for result in soup.pre.string.extract().strip().split(u'\n'):
+                result = u'WWWJDIC: ' + result[:-1]
+                result = result.replace(u'/', u'', 1)
+                result = result.replace(u'/', u'; ')
+                results.append(result)
+            bot.reply(reply_target, channel, u'\n'.join(results))
         else:
             bot.reply(prefix, channel, 'WWWJDIC: No results found for '
                                        '\x02{0}\x02.'.format(args[1]))

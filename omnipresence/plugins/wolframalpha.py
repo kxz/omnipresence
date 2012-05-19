@@ -101,12 +101,8 @@ class Query(object):
                 messages.append('%s: \x02%s\x02' % (pod.get('title'),
                                                     ' / '.join(pod_messages)))
         
-        message = u' \u2014 '.join(messages)
-        if len(message) > 255:
-            message = message[:255] + '...'
-        
         bot.reply(reply_target, channel,
-                  ((u'Wolfram|Alpha: ' + message) \
+                  ((u'Wolfram|Alpha: ' + u' \u2014 '.join(messages)) \
                    .encode(self.factory.encoding)))
 
 
