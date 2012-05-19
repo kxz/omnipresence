@@ -15,9 +15,28 @@ from omnipresence.util import ago
 from omnipresence.web import request
 
 
+def force_unicode(s):
+    if isinstance(s, unicode):
+        return s
+    return s.decode('utf8', 'replace')
+
 def st_ago(time):
     """`ago` for `struct_time` tuples."""
     return ago(datetime.datetime.fromtimestamp(mktime(time)))
+
+def format_item(item, show_date=False):
+    messages = []
+    if 'link' in item:
+        messages.append(force_unicode(item['link']))
+    if 'title' in item:
+        messages.append(u'\x02{0}\x02'.format(force_unicode(item['title'])))
+    if 'author' in item:
+        messages.append(u'Author: {0}'.format(force_unicode(item['author'])))
+    msg = u' \u2014 '.join(messages)
+    date = item.get('published_parsed', item.get('updated_parsed'))
+    if date and show_date:
+        msg += u' ({0})'.format(st_ago(date))
+    return msg
 
 
 """Holds cached feed information."""
@@ -25,6 +44,7 @@ class Feed(object):
     url = None
     channels = None
     seen_items = None
+    last_update = None
     parsed = None
     
     def __init__(self, url):
@@ -45,7 +65,7 @@ class RSSNotifier(object):
     name = 'rss'
     
     """A dictionary mapping feed identifiers to a `Feed` instance."""
-    feeds = {}
+    feeds = None
     
     """The time between feed updates, in minutes."""
     update_interval = 10
@@ -56,10 +76,8 @@ class RSSNotifier(object):
     # Ick.
     _bot = None
     
-    def _maybe_encode(self, s):
-        if isinstance(s, unicode):
-            return s.encode(self.factory.encoding)
-        return s
+    def __init__(self):
+        self.feeds = {}
     
     def connectionMade(self, bot):
         self._bot = bot
@@ -87,45 +105,36 @@ class RSSNotifier(object):
                                       self.update_interval * 60, now=False))
             return l
     
-    def initialize(self, (headers, content), identifier):
-        feed = feedparser.parse(content)
-        self.feeds[identifier].parsed = feed
-        # Mark all of the items currently in the feed as seen.
-        for item in feed.entries:
-            if hasattr(item, 'id'):
-                self.feeds[identifier].seen_items.add(item.id)
-        log.msg('Found %d items in feed %s' % (len(feed.entries), identifier))
-    
     def update(self):
         log.msg('Updating RSS feeds')
         for identifier, feed in self.feeds.iteritems():
             d = request('GET', feed.url)
+            d.addCallback(self.initialize, identifier)
             d.addCallback(self.broadcast, identifier)
             d.addErrback(self.error, identifier)
     
-    def broadcast(self, (headers, content), identifier):
+    def initialize(self, (headers, content), identifier):
         feed = feedparser.parse(content)
         self.feeds[identifier].parsed = feed
-        feed_title = self._maybe_encode(feed.feed.title)
-        
-        msg = None
-        additional_updates = 0
-        for item in feed.entries:
-            if not hasattr(item, 'id'):
-                continue
-            if item.id not in self.feeds[identifier].seen_items:
-                self.feeds[identifier].seen_items.add(item.id)
-                if not msg:
-                    title = self._maybe_encode(item.title)
-                    url = self._maybe_encode(item.link)
-                    msg = ('RSS update from \x02{0}\x02: \x02{1}\x02' +
-                           u' \u2014 '.encode(self.factory.encoding) +
-                           '{2}').format(feed_title, title, url)
-                else:
-                    additional_updates += 1
-        if msg:
-            if additional_updates:
-                msg += ' (+{0} more)'.format(additional_updates)
+        self.feeds[identifier].last_update = datetime.datetime.now()
+        new_items = filter(lambda x: x.get('id') not in \
+                                     self.feeds[identifier].seen_items,
+                           feed.entries)
+        self.feeds[identifier].seen_items.update(x.get('id') for x in \
+                                                 feed.entries)
+        if new_items:
+            log.msg('Found %d new items in feed %s' % (len(new_items),
+                                                       identifier))
+        return new_items
+    
+    def broadcast(self, new_items, identifier):
+        if new_items:
+            feed_title = force_unicode(self.feeds[identifier].parsed.feed.get(
+                                         'title', identifier))
+            msg = (u'RSS update from \x02{0}\x02: {1}' \
+                     .format(feed_title, format_item(new_items[0])))
+            if len(new_items) > 1:
+                msg += u' (+{0} more)'.format(len(new_items) - 1)
             for channel in self.feeds[identifier].channels:
                 if channel in self._bot.channel_names:
                     self._bot.reply(None, channel, msg)
@@ -161,23 +170,19 @@ class RSSNotifier(object):
                                        'yet.'.format(identifier))
             return
         feed = self.feeds[identifier].parsed
+        feed_title = force_unicode(feed.feed.get('title', identifier))
         
         if len(args) == 2:
-            msg = u' \u2014 '.encode(self.factory.encoding).join(
-                    ['RSS: \x02{0}\x02',
-                     'Home page: {1}',
-                     'Feed URL: {2}']
-                  ).format(self._maybe_encode(feed.feed.title),
-                           self._maybe_encode(feed.feed.link),
-                           self.feeds[identifier].url)
-            if feed.entries:
-                msg += (u' \u2014 '.encode(self.factory.encoding) +
-                        'Last update: \x02{0}\x02 ({1})'.format(
-                          self._maybe_encode(feed.entries[0].title),
-                          st_ago(feed.entries[0].published_parsed)))
-                if len(feed.entries) > 1:
-                    msg += ' (+{0} more)'.format(len(feed.entries) - 1)
-            bot.reply(reply_target, channel, msg)
+            messages = [u'RSS: \x02{0}\x02'.format(feed_title)]
+            if 'link' in feed.feed:
+                messages.append(u'Home page: {0}'.format(
+                                  force_unicode(feed.feed['link'])))
+            messages.append(u'Feed URL: {0}'.format(
+                              force_unicode(self.feeds[identifier].url)))
+            messages.append(u'Last updated: {0}'.format(
+                              ago(self.feeds[identifier].last_update)))
+            messages.append(u'{0} items'.format(len(feed.entries)))
+            bot.reply(reply_target, channel, u' \u2014 '.join(messages))
             return
         
         item = None
@@ -188,7 +193,6 @@ class RSSNotifier(object):
             pass
         except ValueError:
             pass
-        
         if item_number < 1 or not item:
             bot.reply(prefix, channel,
                       'Invalid item number \x02{0}\x02 for feed \x02{1}\x02 '
@@ -197,14 +201,8 @@ class RSSNotifier(object):
             return
         
         bot.reply(reply_target, channel,
-                  ('RSS: \x02{0}\x02 item #{1}: \x02{2}\x02' +
-                   u' \u2014 '.encode(self.factory.encoding) +
-                   '{3} ({4})').format(self._maybe_encode(feed.feed.title),
-                                       item_number,
-                                       self._maybe_encode(item.title),
-                                       self._maybe_encode(item.link),
-                                       st_ago(item.published_parsed)))
-
+                  u'RSS: \x02{0}\x02 item #{1}: {2}'.format(
+                    feed_title, item_number, format_item(item, show_date=True)))
 
 
 default = RSSNotifier()
