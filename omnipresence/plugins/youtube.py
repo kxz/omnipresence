@@ -6,75 +6,42 @@ from twisted.plugin import IPlugin
 from omnipresence.iomnipresence import ICommand
 from omnipresence import util
 
+from omnipresence import web
 
-class YouTubeCommand(object):
+
+class YouTubeSearch(web.WebCommand):
     """
     \x02%s\x02 \x1Fsearch_string\x1F - Perform a YouTube search for videos 
     matching the given search string.
     """
-    implements(IPlugin, ICommand)
     name = 'youtube'
+    arg_type = 'a search query'
+    url = ('http://gdata.youtube.com/feeds/api/videos?v=2&q=%s&alt=json&'
+           "fields=entry(title,link[@rel%%3D'alternate'],yt:statistics)")
     
-    # The maximum number of results to return at any one time.
-    max_results = 3
-    
-    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
+    def reply(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
-        
-        if 'feed' not in data or 'entry' not in data['feed']:
-            bot.reply(prefix, channel, 'YouTube: No results found for '
-                                       '\x02%s\x02.' % args[1])
+        try:
+            results = data['feed']['entry']
+        except KeyError:
+            results = []
+        if not results:
+            bot.reply(prefix, channel,
+                      'Google: No results found for \x02%s\x02.' % args[1])
             return
-        
-        results = data['feed']['entry']
         messages = []
-        
         for i, result in enumerate(results):
-            number = ''
-            if len(results) > 1:
-                number = '(%d) ' % (i + 1)
-
+            message = u'YouTube: ({0}/{1}) {2} \u2014 \x02{3}\x02'.format(
+              i + 1, len(results),
+              result['link'][0]['href'].split('&', 1)[0],
+              result['title']['$t'])
             # A lot of video queries don't return associated view
             # statistics for one reason or another.
             if 'yt$statistics' in result: 
-                views = ', {0:n} views'.format(int(result['yt$statistics']['viewCount']))
-            else:
-                views = ''
-
-            messages.append(u'%s\x02%s\x02%s: %s'
-                              % (number, result['title']['$t'], views,
-                                 result['link'][0]['href'].split('&', 1)[0]))
-        
-        bot.reply(reply_target, channel,
-                  u'YouTube: ' + u' \u2014 '.join(messages))
-    
-    def execute(self, bot, prefix, reply_target, channel, args):
-        args = args.split(None, 1)
-        
-        if len(args) < 2:
-            bot.reply(prefix, channel, 'Please specify a search string.')
-            return
-        
-        params = urllib.urlencode({'q': args[1],
-                                   'alt': 'json',
-                                   'max-results': self.max_results,
-                                   'fields': "entry(title,link[@rel='alternate'],yt:statistics)",
-                                   'v': 2})
-        
-        d = self.factory.get_http('http://gdata.youtube.com/feeds/api/videos?%s'
-                                   % params)
-        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
-        return d
+                message += u' \u2014 {0:n} views'.format(
+                             int(result['yt$statistics']['viewCount']))
+            messages.append(message)
+        bot.reply(reply_target, channel, u'\n'.join(messages))
 
 
-class YouTubeAbbreviatedCommand(YouTubeCommand):
-    """
-    \x02%s\x02 \x1Fsearch_string\x1F - Perform a YouTube search for videos 
-    matching the given search string, and return only the first result.
-    """
-    name = 'yt'
-    max_results = 1
-
-
-youtube = YouTubeCommand()
-youtube_abbreviated = YouTubeAbbreviatedCommand()
+default = YouTubeSearch()

@@ -14,50 +14,23 @@ class GoogleSearch(web.WebCommand):
     name = 'google'
     arg_type = 'a search query'
     url = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q=%s'
-    max_results = 3
     
     def reply(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
-        
         try:
-            results = data['responseData']['results'][:self.max_results]
+            results = data['responseData']['results']
         except KeyError:
             results = []
-        
-        if len(results) < 1:
+        if not results:
             bot.reply(prefix, channel,
                       'Google: No results found for \x02%s\x02.' % args[1])
             return
-        
-        if len(results) == 1:
-            result = results[0]
-            
-            content = web.textify_html(BeautifulSoup(result['content']))
-            if len(content) > 128:
-                content = content[:128] + u'\u2026'
-            
-            messages = [(u'\x02%s\x02: %s \u2014 %s'
-                           % (web.decode_html_entities(result['titleNoFormatting']),
-                              content, result['unescapedUrl']))]
-        else:
-            messages = [(u'(%d) \x02%s\x02: %s'
-                           % (i + 1,
-                              web.decode_html_entities(result['titleNoFormatting']),
-                              result['unescapedUrl']))
-                        for i, result in enumerate(results)]
-        
-        bot.reply(reply_target, channel,
-                  u'Google: ' + u' \u2014 '.join(messages))
+        bot.reply(reply_target, channel, u'\n'.join(
+                    u'Google: ({0}/{1}) {2} \u2014 \x02{3}\x02: {4}'.format(
+                      i + 1, len(results), result['unescapedUrl'],
+                      web.decode_html_entities(result['titleNoFormatting']),
+                      web.textify_html(BeautifulSoup(result['content'])))
+                    for i, result in enumerate(results)))
 
 
-class ImFeelingLucky(GoogleSearch):
-    """
-    \x02%s\x02 \x1Fsearch_string\x1F - Perform a Google search on the given 
-    search string, and return only the first result.
-    """
-    name = 'lucky'
-    max_results = 1
-
-
-google = GoogleSearch()
-lucky = ImFeelingLucky()
+default = GoogleSearch()
