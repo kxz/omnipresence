@@ -169,10 +169,10 @@ class WikipediaSearch(object):
         
         (title, url, summary, info_text) = response
         
-        summary = summary + u' \u2014 ' if summary else ''
+        summary = u': ' + summary if summary else ''
         
-        bot.reply(reply_target, channel, (u'Wikipedia%s: \x02%s\x02: %s%s'
-                                            % (info_text, title, summary, url)))
+        bot.reply(reply_target, channel, (u'Wikipedia%s: %s \u2014 \x02%s\x02%s'
+                                            % (info_text, url, title, summary)))
 
 
 class RandomWikipediaArticle(WikipediaSearch):
