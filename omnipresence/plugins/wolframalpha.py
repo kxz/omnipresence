@@ -102,8 +102,7 @@ class Query(object):
                                                     ' / '.join(pod_messages)))
         
         bot.reply(reply_target, channel,
-                  ((u'Wolfram|Alpha: ' + u' \u2014 '.join(messages)) \
-                   .encode(self.factory.encoding)))
+                  u'Wolfram|Alpha: ' + u' \u2014 '.join(messages))
 
 
 class Dictionary(Query):

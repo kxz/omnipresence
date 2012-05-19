@@ -53,8 +53,7 @@ class LastFmCommand(object):
                                                      listeners, result['url']))
         
         bot.reply(reply_target, channel,
-                  ((u'Last.fm: ' + u' \u2014 '.join(messages)) \
-                   .encode(self.factory.encoding)))
+                  u'Last.fm: ' + u' \u2014 '.join(messages))
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)

@@ -190,7 +190,7 @@ class URLTitleFetcher(object):
             else:
                 message = u'URL: %s' % title
             
-            bot.reply(None, channel, message.encode(self.factory.encoding))
+            bot.reply(None, channel, message)
     
     def get_url(self, url):
         hostname = urlparse.urlparse(url).hostname

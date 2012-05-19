@@ -146,7 +146,7 @@ class AniDBSearchCommand(object):
         
         reply += u' \u2014 http://anidb.net/a%s' % aid.strip()
         
-        bot.reply(reply_target, channel, reply.encode(self.factory.encoding))
+        bot.reply(reply_target, channel, reply)
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)

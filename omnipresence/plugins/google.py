@@ -57,8 +57,7 @@ class GoogleCommand(object):
                         for i, result in enumerate(results)]
         
         bot.reply(reply_target, channel,
-                  ((u'Google: ' + u' \u2014 '.join(messages)) \
-                   .encode(self.factory.encoding)))
+                  u'Google: ' + u' \u2014 '.join(messages))
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
@@ -97,8 +96,7 @@ class GoogleCalculatorCommand(object):
         except AttributeError:
             result = u'No result was returned!'
         
-        bot.reply(reply_target, channel, ((u'Google calc: %s' % result) \
-                                          .encode(self.factory.encoding)))
+        bot.reply(reply_target, channel, u'Google calc: %s' % result)
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
@@ -157,9 +155,8 @@ class GoogleDefinitionCommand(object):
         if len(result) > 255:
             result = result[:255] + '...'
         
-        bot.reply(reply_target, channel, (u'Google dict: %s \u2014 %s'
-                                            % (result, result_url)) \
-                                          .encode(self.factory.encoding))
+        bot.reply(reply_target, channel,
+                  u'Google dict: %s \u2014 %s' % (result, result_url))
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
@@ -205,10 +202,9 @@ class GoogleTranslateCommand(object):
         
         if 'error' in data:
             bot.reply(prefix, channel,
-                      (('Google Translate: API returned error code \x02%d\x02: '
+                      ('Google Translate: API returned error code \x02%d\x02: '
                        '\x02%s\x02.' % (data['error']['code'],
-                                        data['error']['message'])) \
-                       .encode(self.factory.encoding)))
+                                        data['error']['message'])))
             return
         
         translation = data['data']['translations'][0]
@@ -222,9 +218,8 @@ class GoogleTranslateCommand(object):
         target_name = self.languages[params['target']]
         
         bot.reply(reply_target, channel,
-                  ((u'Google translation from %s to %s: %s'
-                      % (source_name, target_name, translated_text)) \
-                   .encode(self.factory.encoding)))
+                  u'Google translation from %s to %s: %s'
+                    % (source_name, target_name, translated_text))
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
