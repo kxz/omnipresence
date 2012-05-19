@@ -15,7 +15,7 @@ class More(object):
         nick = prefix.split('!', 1)[0].strip()
         buffer_channel = '@' if channel == bot.nickname else channel
         try:
-            buffer = bot.message_buffers[channel][nick]
+            buffer = bot.message_buffers[buffer_channel][nick]
         except KeyError:
             buffer = None
         
