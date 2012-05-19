@@ -18,16 +18,18 @@ class WWWJDICCommand(object):
         soup = BeautifulSoup(response[1], parseOnlyThese=SoupStrainer('pre'))
         
         if soup.pre:
-            results = []
+            results = soup.pre.string.extract().strip().split(u'\n')
+            messages = []
             # Strip off the trailing slash for the last gloss, then replace 
             # the first slash with nothing and the remaining ones with 
             # semicolons, in an approximation of the Web interface.
-            for result in soup.pre.string.extract().strip().split(u'\n'):
-                result = u'WWWJDIC: ' + result[:-1]
-                result = result.replace(u'/', u'', 1)
-                result = result.replace(u'/', u'; ')
-                results.append(result)
-            bot.reply(reply_target, channel, u'\n'.join(results))
+            for i, result in enumerate(results):
+                message = result[:-1].strip()
+                message = message.replace(u'/', u'', 1)
+                message = message.replace(u'/', u'; ')
+                messages.append(u'WWWJDIC: ({0}/{1}) {2}'.format(
+                                  i + 1, len(results), message))
+            bot.reply(reply_target, channel, u'\n'.join(messages))
         else:
             bot.reply(prefix, channel, 'WWWJDIC: No results found for '
                                        '\x02%s\x02.' % args[1])
