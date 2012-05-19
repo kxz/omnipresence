@@ -8,9 +8,6 @@ from zope.interface import implements
 from omnipresence import util
 from omnipresence.iomnipresence import ICommand
 
-MAX_QUOTE_CHAR_LENGTH = 256
-MAX_QUOTE_BYTE_LENGTH = 384
-
 ID_SYNTAX = re.compile(r'^#([0-9]+)$')
 
 # An approximate Python version of the "get_search_instruction" function
@@ -71,7 +68,7 @@ class ChirpyCommand(object):
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
         
-        query = sqlobject.AND(sqlobject.func.CHAR_LENGTH(self.quotes.q.body)<256,
+        query = sqlobject.AND(sqlobject.func.CHAR_LENGTH(self.quotes.q.body)<192,
                               self.quotes.q.approved==1)
         
         if len(args) > 1:
@@ -90,7 +87,7 @@ class ChirpyCommand(object):
                 # specified tags.  This is not particularly efficient,
                 # but the SQLObject contortions that would be involved
                 # in an entirely query-based solution make my head hurt.
-                tagged_quotes = set()
+                tagged_quotes = None
                 
                 for tag in tags:
                     tag_quotes_query = ('SELECT quote_id FROM {0}quote_tag '
@@ -102,10 +99,10 @@ class ChirpyCommand(object):
                     results = set((quote[0] for quote in
                                    self.connection.queryAll(tag_quotes_query)))
                     
-                    if tagged_quotes:
-                        tagged_quotes &= results
-                    else:
+                    if tagged_quotes is None:
                         tagged_quotes = results
+                    else:
+                        tagged_quotes &= results
                 
                 if tagged_quotes:
                     tag_query = sqlobject.OR(*[self.quotes.q.id==quote_id
