@@ -1,15 +1,15 @@
-import re
-import urllib
+"""Commands related to AniDB."""
+from re import compile as rec
 
 from BeautifulSoup import BeautifulSoup
-from twisted.plugin import IPlugin
-from zope.interface import implements
 
-from omnipresence import html, util
-from omnipresence.iomnipresence import ICommand, IHandler
+from omnipresence.web import textify_html as txt, WebCommand
 
-ANIDB_DATE_RE = re.compile(r'(?P<day>[0-9?]+)\.(?P<month>[0-9?]+)\.'
-                           r'(?P<year>[0-9?]+)')
+
+ANIDB_DATE_RE = rec(r'(?P<day>[0-9?]+)\.(?P<month>[0-9?]+)\.(?P<year>[0-9?]+)')
+
+def row_value(soup, html_class):
+    return txt(soup.find('tr', {'class': html_class}).find('td', 'value'))
 
 def parse_anidb_date(date):
     """
@@ -17,30 +17,31 @@ def parse_anidb_date(date):
     fields, into an ISO 8601 formatted date that omits missing fields.
     """
     match = ANIDB_DATE_RE.match(date)
-    
     if not match:
         return date
-    
     iso8601 = []
-    
     for part in ('year', 'month', 'day'):
         if '?' in match.group(part):
             break
         else:
             iso8601.append(match.group(part))
-    
     return '-'.join(iso8601)
 
 
-class AniDBSearchCommand(object):
+class AnimeSearch(WebCommand):
     """
     \x02%s\x02 \x1Fsearch_string\x1F - Search AniDB <http://anidb.net/>
     for anime series with the given title.
     """
-    implements(IPlugin, ICommand)
     name = 'anidb'
+    arg_type = 'a search query'
+    # (1) We sort by user count as an approximation of relevance.
+    # (2) "do.update" must be passed, or "noalias" is ignored.
+    url = ('http://anidb.net/perl-bin/animedb.pl?show=animelist&adb.search=%s&'
+           'orderby.ucnt=0.2&do.update=update&noalias=1')
     
-    def reply_with_anime(self, response, bot, prefix, reply_target, channel, args):
+    def reply(self, response, bot, prefix, reply_target, channel, args):
+        results = []
         soup = BeautifulSoup(response[1])
         
         # We may get one of three differently-formatted responses
@@ -58,65 +59,59 @@ class AniDBSearchCommand(object):
         
         if animelist:
             # Skip the first header row and grab the second row.
-            anime_row = animelist.findAll('tr')[1]
-            aid = anime_row.find('a')['href'].rsplit('=', 1)[1]
-            name = html.textify_html(anime_row.find('td', 'name'))
-            atype = html.textify_html(anime_row.find('td', {'class':
-                                                     re.compile('^type')}))
-            episodes = html.textify_html(anime_row.find('td', 'count eps'))
-            if 'TBC' in episodes:
-                episodes = ''
-            airdate = html.textify_html(anime_row.find('td', 'date airdate'))
-            enddate = html.textify_html(anime_row.find('td', 'date enddate'))
-            if '-' in enddate:
-                enddate = ''
-            rating = html.textify_html(anime_row.find('td', 'rating weighted'))
+            for row in animelist.findAll('tr')[1:]:
+                anime = { 'aid': row.find('a')['href'].rsplit('=', 1)[1],
+                          'name': txt(row.find('td', 'name')),
+                          'atype': txt(row.find('td', {'class': rec('^type')})),
+                          'episodes': txt(row.find('td', 'count eps')),
+                          'airdate': txt(row.find('td', 'date airdate')),
+                          'enddate': txt(row.find('td', 'date enddate')),
+                          'rating': txt(row.find('td', 'rating weighted'))
+                        }
+                if 'TBC' in anime['episodes']:
+                    anime['episodes'] = ''
+                if '-' in anime['enddate']:
+                    anime['enddate'] = ''
+                results.append(anime)
         
         # Now for the "single result" case.
         elif anime_all:
             # The regular expression matches for some fields are needed
             # because "g_odd" may be added to their class names.
+            type_cell = row_value(anime_all, rec('type$')).split(', ')
+
+            anime = { 'aid': response[0]['X-Omni-Location'].rsplit('=', 1)[1],
+                      # Grab the title from the <h1> element, and yank the
+                      # "Anime: " prefix off of it.  We use soup.find here
+                      # because the heading is not inside anime_all.
+                      'name': txt(soup.find('h1', 'anime'))[7:],
+                      'atype': type_cell[0]
+                    }
             
-            aid = response[0]['content-location'].rsplit('=', 1)[1]
-            # Grab the title from the <h1> element, and yank the
-            # "Anime: " prefix off of it.  We use soup.find here
-            # because the heading is not inside anime_all.
-            name = html.textify_html(soup.find('h1', 'anime'))[7:]
-            
-            type_cell = html.textify_html(anime_all.find('tr', {'class':
-                                                         re.compile('type$')}) \
-                                                   .find('td', 'value'))
-            type_cell = type_cell.split(', ')
-            atype = type_cell[0]
-            episodes = ''
+            anime['episodes'] = ''
             if len(type_cell) > 1:
-                episodes = type_cell[1].split()[0]
-                if 'unknown' in episodes:
-                    episodes = ''
-            
-            year_cell = html.textify_html(anime_all.find('tr', {'class':
-                                                         re.compile('year$')}) \
-                                                   .find('td', 'value'))
+                anime['episodes'] = type_cell[1].split()[0]
+                if 'unknown' in anime['episodes']:
+                    anime['episodes'] = ''
+
+            year_cell = row_value(anime_all, rec('year$'))
             if 'till' in year_cell:
-                (airdate, enddate) = year_cell.split(' till ')
-                if '?' in enddate:
-                    enddate = ''
+                anime['airdate'], anime['enddate'] = year_cell.split(' till ')
+                if anime['enddate'] == '?':
+                    anime['enddate'] = ''
             else:
                 # Anime aired on a single day.
-                airdate = year_cell
-                enddate = airdate
+                anime['airdate'] = year_cell
+                anime['enddate'] = anime['airdate']
             
             # Try to get the permanent rating first; if it's "N/A", then
             # move to the temporary rating.
-            rating = html.textify_html(anime_all.find('tr', {'class':
-                                                      re.compile(r'\brating$')}) \
-                                                .find('td', 'value'))
+            rating = row_value(anime_all, rec(r'\brating$'))
             if 'N/A' in rating:
-                rating = html.textify_html(anime_all.find('tr', {'class':
-                                                          re.compile('tmprating$')}) \
-                                                    .find('td', 'value'))
+                rating = row_value(anime_all, rec('tmprating$'))
             # Get rid of the "(weighted)" note.
-            rating = ' '.join(rating.split()[:2])
+            anime['rating'] = ' '.join(rating.split()[:2])
+            results.append(anime)
         
         # And all other cases.
         else:
@@ -124,44 +119,29 @@ class AniDBSearchCommand(object):
                                        '\x02%s\x02.' % args[1])
             return
         
-        reply = u'AniDB: %s \u2014 %s' % (name.strip(), atype.strip())
-        episodes = episodes.strip()
-        if episodes == '1':
-            reply += u', 1 episode'
-        elif episodes:
-            reply += u', %s episodes' % episodes
+        messages = []
+        for i, anime in enumerate(results):
+            message = u'AniDB: ({0}/{1}) {2} \u2014 {3}'.format(
+              i + 1, len(results),
+              anime['name'].strip(), anime['atype'].strip())
+            episodes = anime['episodes'].strip()
+            if episodes == '1':
+                message += u', 1 episode'
+            elif episodes:
+                message += u', {0} episodes'.format(episodes)
+            airdate = parse_anidb_date(anime['airdate'].strip())
+            enddate = parse_anidb_date(anime['enddate'].strip())
+            if enddate and airdate != enddate:
+                message += u' from {0} to {1}'.format(airdate, enddate)
+            elif airdate == enddate:
+                message += u' on {0}'.format(airdate)
+            else:
+                message += u' starting {0}'.format(airdate)
+            if not anime['rating'].startswith('N/A'):
+                message += u' \u2014 rated {0}'.format(anime['rating'].strip())
+            message += u' \u2014 http://anidb.net/a{0}'.format(anime['aid'].strip())
+            messages.append(message)
         
-        airdate = parse_anidb_date(airdate.strip())
-        enddate = parse_anidb_date(enddate.strip())
-        
-        if enddate and airdate != enddate:
-            reply += u' from %s to %s' % (airdate, enddate)
-        elif airdate == enddate:
-            reply += u' on %s' % airdate
-        else:
-            reply += u' starting %s' % airdate
-        
-        if not rating.startswith('N/A'):
-            reply += u' \u2014 rated %s' % rating.strip()
-        
-        reply += u' \u2014 http://anidb.net/a%s' % aid.strip()
-        
-        bot.reply(reply_target, channel, reply)
-    
-    def execute(self, bot, prefix, reply_target, channel, args):
-        args = args.split(None, 1)
-        
-        if len(args) < 2:
-            bot.reply(prefix, channel, 'Please specify a search string.')
-            return
-        
-        # "do.update" must be passed, or "noalias" is ignored.
-        params = {'show': 'animelist', 'orderby.ucnt': '0.2',
-                  'do.update': 'update', 'noalias': 1, 'adb.search': args[1]}
-        
-        d = self.factory.get_http('http://anidb.net/perl-bin/animedb.pl?%s'
-                                   % urllib.urlencode(params))
-        d.addCallback(self.reply_with_anime, bot, prefix, reply_target, channel, args)
-        return d
+        bot.reply(reply_target, channel, u'\n'.join(messages))
 
-a = AniDBSearchCommand()
+anime = AnimeSearch()
