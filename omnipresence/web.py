@@ -188,18 +188,24 @@ def decode_html_entities(s):
 
 
 def textify_html(soup):
-    """Convert a BeautifulSoup element's contents to a Unicode string."""
+    """Convert a BeautifulSoup element's contents to a Unicode string
+    with IRC formatting codes simulating common element styles."""
     result = u''
-
     for k in soup.contents:
         if isinstance(k, NavigableString):
             result += decode_html_entities(k)
         elif hasattr(k, 'name'):  # is another soup element
-            if k.name == u'sup':
-                result += u'^'
-
-            result += textify_html(k)
-
+            if k.name in (u'b', u'strong'):
+                fmt = u'\x02{0}\x02'
+            elif k.name in (u'i', u'u', u'em', u'cite', u'var'):
+                fmt = u'\x0F{0}\x0F'
+            elif k.name == u'sup':
+                fmt = u'^{0}'
+            elif k.name == u'sub':
+                fmt = u'_{0}'
+            else:
+                fmt = u'{0}'
+            result += fmt.format(textify_html(k))
     return u' '.join(result.split()).strip()
 
 
