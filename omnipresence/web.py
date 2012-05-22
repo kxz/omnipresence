@@ -153,14 +153,26 @@ def transform_response(response, **kwargs):
 
 
 def request(*args, **kwargs):
-    # XXX: docstring
-    transform_kwargs = {}
+    """Make an HTTP request, and return a Deferred that will yield an
+    httplib2-style ``(headers, content)`` tuple to its callback.
     
-    if 'headers' not in kwargs:
-        kwargs['headers'] = Headers()
+    Arguments are as for a request to a typical Twisted Web agent, with
+    the addition of one keyword argument, *max_bytes*, that specifies
+    the maximum number of bytes to fetch from the desired resource.  If
+    no ``User-Agent`` header is specified, one is added before making
+    the request.
+    
+    Two custom headers are returned in the response, in addition to any
+    set by the HTTP server:  ``X-Omni-Location`` contains the final
+    location of the request resource after following all redirects, and
+    ``X-Omni-Length`` contains the original value of the response's
+    ``Content-Length`` header, which Twisted may overwrite if the actual
+    response exceeds *max_bytes* in size."""
+    kwargs.setdefault('headers', Headers())
     if not kwargs['headers'].hasHeader('User-Agent'):
         kwargs['headers'].addRawHeader('User-Agent', USER_AGENT)
     
+    transform_kwargs = {}
     if 'max_bytes' in kwargs:
         transform_kwargs['max_bytes'] = kwargs.pop('max_bytes')
     
@@ -198,7 +210,7 @@ def textify_html(soup):
             if k.name in (u'b', u'strong'):
                 fmt = u'\x02{0}\x02'
             elif k.name in (u'i', u'u', u'em', u'cite', u'var'):
-                fmt = u'\x0F{0}\x0F'
+                fmt = u'\x16{0}\x16'
             elif k.name == u'sup':
                 fmt = u'^{0}'
             elif k.name == u'sub':
