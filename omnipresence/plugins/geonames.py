@@ -3,43 +3,44 @@ import json
 import urllib
 
 import pytz
-from twisted.internet import defer, threads
+from twisted.internet import defer
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
+from omnipresence import web
 from omnipresence.iomnipresence import ICommand
+from omnipresence.util import ago
 
 
-class GeoNamesCommand(object):
-    def find_location(self, query):
-        """
-        Find a location in GeoNames' database.  Return a tuple
-        containing a canonical name, latitude, and longitude, or None if
-        no matches could be found.
-        """        
-        params = urllib.urlencode({'maxRows': 1, 'style': 'FULL', 'q': query})
-        response = self.factory.get_http('http://ws.geonames.org/searchJSON?%s'
-                                          % params, defer=False)
-        data = json.loads(response[1])
-        
-        if 'geonames' not in data or not data['geonames']:
-            return None
-        
-        details = data['geonames'][0]
-        
-        canonical = details['name']
-        if ('adminName1' in details) and (details['adminName1']):
-            canonical = u'%s, %s' % (canonical, details['adminName1'])
-        if ('countryName' in details) and (details['countryName']):
-            canonical = u'%s, %s' % (canonical, details['countryName'])
-        lat = details['lat']
-        lng = details['lng']
-        
-        return (canonical, lat, lng)
+API_SERVER = 'http://ws.geonames.org'
+SEARCH_URL = API_SERVER + '/searchJSON?%s'
+TIME_URL = API_SERVER + '/timezoneJSON?%s'
+WEATHER_URL = API_SERVER + '/findNearByWeatherJSON?%s'
 
 
-class TimeLookup(GeoNamesCommand):
+@defer.inlineCallbacks
+def find_location(query):
+    """Find a location in the GeoNames database.  Return a Deferred that
+    yields a tuple containing a canonical name, latitude, and longitude,
+    or ``None`` if no matches could be found."""
+    params = urllib.urlencode({'maxRows': 1, 'style': 'FULL', 'q': query})
+    headers, content = yield web.request('GET', SEARCH_URL % params)
+    data = json.loads(content)
+    if 'geonames' not in data or not data['geonames']:
+        defer.returnValue(None)
+    details = data['geonames'][0]
+    canonical = [details['name']]
+    if ('adminName1' in details) and (details['adminName1']):
+        canonical.append(details['adminName1'])
+    if ('countryName' in details) and (details['countryName']):
+        canonical.append(details['countryName'])
+    defer.returnValue((u', '.join(canonical), details['lat'], details['lng']))
+
+def format_location(location, lat, lng):
+    return u'{0} ({1:.2f}, {2:.2f})'.format(location, lat, lng)
+
+
+class TimeLookup(object):
     """
     \x02%s\x02 \x1Flocation\x1F - Look up the current date and time in
     a given location, courtesy of GeoNames <http://geonames.org/>.
@@ -64,47 +65,30 @@ class TimeLookup(GeoNamesCommand):
                                              '%s' % (args[1], time))
             return
         
-        d = threads.deferToThread(self.get_location_time, args[1])
+        d = find_location(args[1])
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
     
-    def get_location_time(self, query):
-        details = self.find_location(query)
-        
-        if not details:
-            return None
-        
-        (canonical, lat, lng) = details
-        
-        params = urllib.urlencode({'lat': lat, 'lng': lng})
-        response = self.factory.get_http('http://ws.geonames.org/timezoneJSON?%s'
-                                          % params, defer=False)
-        
-        return (canonical, lat, lng, response)
-    
-    def reply(self, time, bot, prefix, reply_target, channel, args):
-        if not time:
-            bot.reply(prefix, channel,
-                      "Time service: Couldn't find the location \x02%s\x02."
-                       % args[1])
+    @defer.inlineCallbacks
+    def reply(self, location, bot, prefix, reply_target, channel, args):
+        if not location:
+            bot.reply(prefix, channel, "Time service: Couldn't find the "
+                                       'location \x02{0}\x02.'.format(args[1]))
             return
-        
-        (canonical, lat, lng, response) = time
-        data = json.loads(response[1])
-        
+        canonical, lat, lng = location
+        params = urllib.urlencode({'lat': lat, 'lng': lng})
+        headers, content = yield web.request('GET', TIME_URL % params)
+        data = json.loads(content)
         if 'time' not in data:
             bot.reply(prefix, channel,
                       (u'Time service: There is no time information for '
-                       u'%s (%.2f, %.2f).' % (canonical, lat, lng))
-                       .encode(self.factory.encoding))
+                       u'{0}.'.format(format_location(*location))))
             return
-        
-        bot.reply(reply_target, channel,
-                  'Time service: %s (%.2f, %.2f) %s'
-                   % (canonical, lat, lng, data['time']))
+        bot.reply(reply_target, channel, u'Time service: {0} {1}'.format(
+                    format_location(*location), data['time']))
 
 
-class WeatherLookup(GeoNamesCommand):
+class WeatherLookup(object):
     """
     \x02%s\x02 \x1Flocation\x1F - Look up the current weather conditions
     in a given location, courtesy of GeoNames <http://geonames.org/>.
@@ -119,69 +103,51 @@ class WeatherLookup(GeoNamesCommand):
             bot.reply(prefix, channel, 'Please specify a location.')
             return
         
-        d = threads.deferToThread(self.get_location_weather, args[1])
+        d = find_location(args[1])
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
-    
-    def get_location_weather(self, query):
-        details = self.find_location(query)
-        
-        if not details:
-            return None
-        
-        (canonical, lat, lng) = details
-        
-        params = urllib.urlencode({'lat': lat, 'lng': lng})
-        response = self.factory.get_http('http://ws.geonames.org/findNearByWeatherJSON?%s'
-                                          % params, defer=False)
-        
-        return (canonical, lat, lng, response)
-    
-    def reply(self, weather, bot, prefix, reply_target, channel, args):
-        if not weather:
-            bot.reply(prefix, channel,
-                      "Weather service: Couldn't find the location \x02%s\x02."
-                       % args[1])
+
+    @defer.inlineCallbacks
+    def reply(self, location, bot, prefix, reply_target, channel, args):
+        if not location:
+            bot.reply(prefix, channel, "Weather service: Couldn't find the "
+                                       'location \x02{0}\x02.'.format(args[1]))
             return
-        
-        (canonical, lat, lng, response) = weather
-        data = json.loads(response[1])
-        
+        canonical, lat, lng = location
+        params = urllib.urlencode({'lat': lat, 'lng': lng})
+        headers, content = yield web.request('GET', WEATHER_URL % params)
+        data = json.loads(content)
         if 'weatherObservation' not in data:
             bot.reply(prefix, channel,
                       (u'Weather service: There is no weather information for '
-                       u'%s (%.2f, %.2f).' % (canonical, lat, lng))
-                       .encode(self.factory.encoding))
+                       u'{0}.'.format(format_location(*location))))
             return
-        
         observation = data['weatherObservation']
-
         temp = float(observation['temperature'])
-        weather = u'%d\xb0C/%d\xb0F' % (round(temp), round(temp * 1.8 + 32))
-        if 'weatherCondition' in observation and observation['weatherCondition'] != 'n/a':
-            weather += ', ' + observation['weatherCondition'].strip()
-        if 'clouds' in observation and observation['clouds'] != 'n/a':
-            weather += ', ' + observation['clouds'].strip()
-        if 'windDirection' in observation and 'windSpeed' in observation and int(observation['windSpeed']) > 0:
-            weather += (u', winds from %s\xb0 at %d kt'
-                          % (observation['windDirection'],
-                             int(observation['windSpeed'])))
-        weather += ', %d%% humidity' % observation['humidity']
+        weather = u'%d\u00B0C/%d\u00B0F' % (round(temp), round(temp * 1.8 + 32))
+        if observation.get('weatherCondition', 'n/a') != 'n/a':
+            weather += u', ' + observation['weatherCondition'].strip()
+        if observation.get('clouds', 'n/a') != 'n/a':
+            weather += u', ' + observation['clouds'].strip()
+        if ('windDirection' in observation and
+            int(observation.get('windSpeed', 0)) > 0):
+            weather += (u', winds from {0}\u00B0 at {1} kt' \
+                          .format(observation['windDirection'],
+                                  int(observation['windSpeed'])))
+        weather += u', {0}% humidity'.format(observation['humidity'])
         
         try:
-            dt = util.ago(datetime.datetime.strptime(observation['datetime'],
-                                                     '%Y-%m-%d %H:%M:%S'),
-                          datetime.datetime.utcnow())
+            dt = ago(datetime.datetime.strptime(observation['datetime'],
+                                                '%Y-%m-%d %H:%M:%S'),
+                     datetime.datetime.utcnow())
         except ValueError:
-            dt = observation['datetime'] + ' UTC'
+            dt = observation['datetime'] + u' UTC'
         
         bot.reply(reply_target, channel,
-                  'Weather service: %s (%.2f, %.2f) %s from %s [%s] as of %s'
-                   % (canonical,
-                      observation['lat'], observation['lng'],
-                      weather,
-                      observation['stationName'], observation['ICAO'],
-                      dt))
+                  u'Weather service: {0} {1} from {2} [{3}] as of {4}' \
+                    .format(format_location(*location), weather,
+                            observation['stationName'], observation['ICAO'],
+                            dt))
 
 time = TimeLookup()
 weather = WeatherLookup()
