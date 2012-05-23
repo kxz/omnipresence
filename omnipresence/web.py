@@ -1,4 +1,6 @@
+# -*- test-case-name: omnipresence.test.test_web -*-
 """Utility methods for retrieving and manipulating data from Web resources."""
+
 import re
 import socket
 try:
@@ -202,23 +204,27 @@ def decode_html_entities(s):
 def textify_html(soup):
     """Convert a BeautifulSoup element's contents to a Unicode string
     with IRC formatting codes simulating common element styles."""
-    result = u''
+    # Grab the node's tag name, and change the format if necessary.
+    if soup.name in (u'b', u'strong'):
+        fmt = u'\x02{0}\x02'
+    elif soup.name in (u'i', u'u', u'em', u'cite', u'var'):
+        fmt = u'\x16{0}\x16'
+    elif soup.name == u'sup':
+        fmt = u'^{0}'
+    elif soup.name == u'sub':
+        fmt = u'_{0}'
+    else:
+        fmt = u'{0}'
+
+    # Recurse into the node's contents.
+    contents = u''
     for k in soup.contents:
         if isinstance(k, NavigableString):
-            result += decode_html_entities(k)
+            contents += decode_html_entities(k)
         elif hasattr(k, 'name'):  # is another soup element
-            if k.name in (u'b', u'strong'):
-                fmt = u'\x02{0}\x02'
-            elif k.name in (u'i', u'u', u'em', u'cite', u'var'):
-                fmt = u'\x16{0}\x16'
-            elif k.name == u'sup':
-                fmt = u'^{0}'
-            elif k.name == u'sub':
-                fmt = u'_{0}'
-            else:
-                fmt = u'{0}'
-            result += fmt.format(textify_html(k))
-    return u' '.join(result.split()).strip()
+            contents += textify_html(k)
+
+    return u' '.join(fmt.format(contents).split()).strip()
 
 
 #
