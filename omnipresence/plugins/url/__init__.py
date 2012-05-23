@@ -2,19 +2,14 @@
 import cgi
 import re
 import socket
-try:
-    import cStringIO as StringIO
-except ImportError:
-    import StringIO
 import struct
-import sys
 import urllib
 import urlparse
 
-from twisted.internet import defer, error, protocol, reactor, threads
-from twisted.names.client import lookupAddress
+from twisted.internet import defer, error, threads
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
-from twisted.python import failure, log
+from twisted.python import log
+from twisted.web import error as tweberror
 from zope.interface import implements, Interface, Attribute
 
 from omnipresence import plugins, web
@@ -29,6 +24,9 @@ __all__ = []
 """The maximum number of bytes the fetcher will download for a single
 title fetch request."""
 MAX_DOWNLOAD_SIZE = 65536
+
+"""The maximum number of "soft" redirects that will be followed."""
+MAX_SOFT_REDIRECTS = 2
 
 #
 # Utility methods
@@ -64,7 +62,8 @@ WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>')]
 
 word_split_re = re.compile(r'(\s+)')
 simple_url_re = re.compile(r'^https?://\w', re.IGNORECASE)
-simple_url_2_re = re.compile(r'^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$', re.IGNORECASE)
+simple_url_2_re = re.compile(
+  r'^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$', re.IGNORECASE)
 
 def extract_urls(text):
     """Extracts URL-like strings from *text* and returns them as a list."""
@@ -116,34 +115,34 @@ def is_private_host(hostname):
     return False
 
 #
-# Plugin interfaces
+# Plugin interfaces and helper classes
 #
 
+class Redirect(object):
+    """Returned by title processors to indicate a "soft" redirect, such
+    as an HTML ``<meta>`` refresh.  The *location* parameter indicates
+    the new URL to fetch."""
+
+    def __init__(self, location):
+        self.location = location
+
+
 class ITitleProcessor(Interface):
-    """
-    Finds the title of a given Web document.
-    """
+    """A plugin that can retrieve the title of a given Web document."""
 
     supported_content_types = Attribute("""
-        @type supported_content_types: C{list} of C{str}
-        @ivar supported_content_types: The MIME content types that this 
-        title processor supports.
+        An iterable containing the MIME content types that this title
+        processor supports; for example, ``('image/gif', 'text/xml')``.
         """)
 
     def process(self, headers, content):
-        """
-        Finds the title of the document specified by C{headers} and 
-        C{content}.
+        """Implement this method in your title processor class.  The
+        *headers* and *content* arguments are in the format returned by
+        :py:meth:`omnipresence.web.request()`.
 
-        @type headers: C{dict}
-        @param headers: A dictionary of HTTP response headers, as 
-        returned by the request() method of an httplib2.Http object.
-
-        @type content: C{str}
-        @param content: The body of the HTTP response.
-
-        @rtype: C{str}
-        @return: The title of the given document.
+        This method should either return a Unicode string containing the
+        extracted title, or a :py:class:`Redirect` object pointing at a
+        new URL from which to fetch a document title.
         """
 
 #
@@ -204,10 +203,7 @@ class URLTitleFetcher(object):
                 continue
             
             # Twisted Names is full of headaches.  socket is easier.
-            d = threads.deferToThread(is_private_host, hostname.encode('utf8'))
-            d.addCallback(self.request, url)
-            d.addCallback(self.process_content)
-            d.addCallback(self.make_reply, hostname)
+            d = self.get_title(url, hostname)
             d.addErrback(self.make_error_reply, hostname)
             fetchers.append(d)
         
@@ -216,52 +212,77 @@ class URLTitleFetcher(object):
         return l
     
     action = privmsg
-    
-    def request(self, is_private_ip, url):
-        if is_private_ip:
+
+    @defer.inlineCallbacks
+    def get_title(self, url, hostname, redirect_count=0):
+        private = yield threads.deferToThread(is_private_host,
+                                              hostname.encode('utf8'))
+        if private:
             # Pretend that the given host just doesn't exist.
             raise error.TimeoutError()
-        return web.request('GET', url.encode('utf8'),
-                           max_bytes=MAX_DOWNLOAD_SIZE)
-    
-    def process_content(self, (headers, content)):
+
+        # Fetch the title from a title processor if one is available for
+        # the response's Content-Type, or craft a default one.
+        hostname_tag = None
+        title = u'No title found.'
+        headers, content = yield web.request('GET', url.encode('utf8'),
+                                             max_bytes=MAX_DOWNLOAD_SIZE)
         ctype, cparams = cgi.parse_header(headers.get('Content-Type'))
         if ctype in self.title_processors:
             title_processor = self.title_processors[ctype]
-            d = threads.deferToThread(title_processor.process, headers, content)
-            d.addCallback(lambda title: (title, headers.get('X-Omni-Location')))
-            return d
-        
-        title = u'{0} document'.format(ctype or u'Unknown')
-        clength = headers.get('X-Omni-Length')
-        if clength:
-            try:
-                clength = int(clength, 10)
-            except ValueError:
-                # Couldn't parse the content-length string.
-                pass
-            else:
-                title += (u' ({0})'.format(add_si_prefix(clength, 'byte')))
-        return (title, headers.get('X-Omni-Location'))
-    
-    def make_reply(self, (title, location), hostname):
-        hostname_tag = hostname
-        if location:
-            content_hostname = urlparse.urlparse(location).hostname
-            if content_hostname is not None and hostname != content_hostname:
-                hostname_tag = u'%s \u2192 %s' % (hostname, content_hostname)
-        return u'[{0}] {1}'.format(hostname_tag, title)
+            processed = yield threads.deferToThread(
+                                title_processor.process, headers, content)
+            if isinstance(processed, Redirect):
+                if redirect_count < MAX_SOFT_REDIRECTS:
+                    hostname_tag, processed = yield self.get_title(
+                                                      processed.location,
+                                                      hostname,
+                                                      redirect_count + 1)
+                else:
+                    raise tweberror.InfiniteRedirection(
+                            599, 'Too many soft redirects',
+                            location=processed.location)
+            title = processed or title
+        else:
+            title = u'{0} document'.format(ctype or u'Unknown')
+            clength = headers.get('X-Omni-Length')
+            if clength:
+                try:
+                    clength = int(clength, 10)
+                except ValueError:
+                    # Couldn't parse the content-length string.
+                    pass
+                else:
+                    title += u' ({0})'.format(add_si_prefix(clength, 'byte'))
+
+        # Add a hostname tag to the returned title, indicating any
+        # redirects to a different host that occurred.
+        final_hostname = hostname
+        if hostname_tag:
+            # Some soft redirection occurred during title processing.
+            final_hostname = hostname_tag.split()[-1]
+        else:
+            location = headers.get('X-Omni-Location')
+            if location:
+                final_hostname = urlparse.urlparse(location).hostname
+        if final_hostname is not None and hostname != final_hostname:
+            hostname_tag = u'{0} \u2192 {1}'.format(hostname, final_hostname)
+        else:
+            hostname_tag = hostname
+
+        defer.returnValue((hostname_tag, title))
     
     def make_error_reply(self, failure, hostname):
         log.err(failure, 'Encountered an error in URL processing.')
-        return u'[{0}] Error: {1:s}'.format(hostname, failure.value)
+        return (hostname, u'Error: {0:s}'.format(failure.value))
     
     def reply(self, results, bot, prefix, channel):
         for i, result in enumerate(results):
             success, value = result
             
             if success:
-                title = value
+                hostname, title = value
+                title = u'[{0}] {1}'.format(hostname, title)
             else:
                 # This should only happen if make_reply() bombs.
                 log.err(value, 'Encountered an error in URL processing.')
@@ -271,7 +292,8 @@ class URLTitleFetcher(object):
                 title = u'{0}…{1}'.format(title[:64], title[-64:])
             
             if len(results) > 1:
-                message = u'URL ({0}/{1}): {2}'.format(i + 1, len(results), title)
+                message = u'URL ({0}/{1}): {2}'.format(i + 1, len(results),
+                                                       title)
             else:
                 message = u'URL: {0}'.format(title)
             
