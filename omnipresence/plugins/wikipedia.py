@@ -1,17 +1,20 @@
 import json
+import re
 import urllib
 
 from BeautifulSoup import BeautifulSoup
 from twisted.internet import defer
 from twisted.plugin import IPlugin
+from twisted.python import log
 from zope.interface import implements
 
 from omnipresence import web
-from omnipresence.iomnipresence import ICommand
+from omnipresence.iomnipresence import ICommand, IHandler
 
 
 DEFAULT_LANGUAGE = 'en'
 WIKIPEDIA_API_URL = 'https://%s.wikipedia.org/w/api.php?%s'
+WIKIPEDIA_INLINE_LINK = re.compile(r'\[\[(.*?)\]\]')
 
 languages = None
 
@@ -78,6 +81,7 @@ class ArticleSearch(WikipediaPlugin):
     exists.  If a \x1Flanguage_code\x1F is specified, the search is 
     performed on the Wikipedia of that language.
     """
+    implements(IHandler)  # in addition to IPlugin and ICommand
     name = 'wikipedia'
 
     def execute(self, bot, prefix, reply_target, channel, args):
@@ -99,12 +103,27 @@ class ArticleSearch(WikipediaPlugin):
         title = title.strip()
         if not title:
             bot.reply(reply_target, channel,
-                      'Wikipedia: http://%s.wikipedia.org/' % language)
+                      'Wikipedia: https://%s.wikipedia.org/' % language)
             return
 
         d = self.search(language, title)
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
+
+    def privmsg(self, bot, prefix, channel, message):
+        dl = []
+        for match in WIKIPEDIA_INLINE_LINK.finditer(message):
+            # Split on | in order to allow [[article|text]] links.
+            title = match.group(1).split('|')[0].strip()
+            if title:
+                log.msg('Saw Wikipedia link [[%s]] from %s in %s.'
+                        % (title, prefix, channel))
+                dl.append(defer.maybeDeferred(self.execute, bot, prefix, None,
+                                              channel, '% ' + title))
+        if dl:
+            return defer.DeferredList(dl)
+
+    action = privmsg
 
     @defer.inlineCallbacks
     def search(self, language, title):
@@ -124,10 +143,11 @@ class ArticleSearch(WikipediaPlugin):
             defer.returnValue((url, None, u' (interwiki)'))
 
         if 'pages' in exact['query']:
-            for pageinfo in exact['query']['pages'].itervalues():
-                # If there's no page with the given title, the API will
-                # still return an entry, just with "missing" present.
-                if 'missing' not in pageinfo:
+            for pageid, pageinfo in exact['query']['pages'].iteritems():
+                # If there's no page with the given title, or if the
+                # title is invalid, the API will still return an entry
+                # with a pageid of -1.
+                if pageid != '-1':
                     defer.returnValue((pageinfo['fullurl'],
                                        pageinfo['extract'], u''))
 
