@@ -1,13 +1,20 @@
 import json
 import re
+try:
+    import cStringIO as StringIO
+except ImportError:
+    import StringIO
 import urllib
 
 from BeautifulSoup import BeautifulSoup, NavigableString
-from twisted.internet import threads
+from twisted.internet import defer
 from twisted.plugin import IPlugin
+from twisted.python import log
+from twisted.web.client import FileBodyProducer
+from twisted.web.http_headers import Headers
 from zope.interface import implements
 
-from omnipresence import html, util
+from omnipresence import web
 from omnipresence.iomnipresence import ICommand, IHandler
 
 TROPE_LINK = re.compile(r'{{(.*?)}}')
@@ -32,7 +39,7 @@ def get_real_title_and_url(title, url):
     return (title, url)
 
 
-class TVTropesSearch(object):
+class TropeSearch(object):
     """
     \x02%s\x02 \x1Fsearch_string\x1F - Search for a TV Tropes article with a 
     title matching the given search string, or perform a full-text search if 
@@ -43,27 +50,29 @@ class TVTropesSearch(object):
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
-        
         if len(args) < 2:
             bot.reply(prefix, channel, 'Please specify a search string.')
             return
         
-        d = threads.deferToThread(self.search, args[1])
+        d = self.search(args[1])
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
     
     def privmsg(self, bot, prefix, channel, message):
-        tropes = TROPE_LINK.findall(message)
-        
-        for match in tropes:
-            match = match.strip()
-            if match:
-                d = threads.deferToThread(self.search, match)
-                d.addCallback(self.reply, bot, prefix, None, channel, [match])
-                return d
+        dl = []
+        for match in TROPE_LINK.finditer(message):
+            title = match.group(1).strip()
+            if title:
+                log.msg('Saw TV Tropes link {{%s}} from %s in %s.'
+                        % (title, prefix, channel))
+                dl.append(defer.maybeDeferred(self.execute, bot, prefix, None,
+                                              channel, '% ' + title))
+        if dl:
+            return defer.DeferredList(dl)
     
     action = privmsg
     
+    @defer.inlineCallbacks
     def search(self, title):
         # Start off by trying to find a trope with the exact title.
         
@@ -80,24 +89,26 @@ class TVTropesSearch(object):
         # links, by adding the known extant article "HomePage" to the
         # beginning of the query.  When removing this workaround, make
         # sure to update the link loop below as well!
-        preview_query = ('HomePage [=~%s~=] {{%s}}' % (title, plain_title))
-        params = {'source': preview_query}
+        preview_text = 'HomePage [=~%s~=] {{%s}}' % (title, plain_title)
+        params = { 'source': preview_text }
+        bp = FileBodyProducer(StringIO.StringIO(urllib.urlencode(params)))
+
+        req_headers = Headers()
+        req_headers.addRawHeader('Content-Type',
+                                 'application/x-www-form-urlencoded')
+
+        headers, content = yield web.request('POST',
+                                   'http://tvtropes.org/pmwiki/preview.php',
+                                   headers=req_headers, bodyProducer=bp)
         
-        response = self.factory.get_http('http://tvtropes.org/pmwiki/preview.php',
-                                         'POST', body=urllib.urlencode(params),
-                                         headers={'Content-type':
-                                                  'application/x-www-form-urlencoded'},
-                                         defer=False)
-        preview_soup = BeautifulSoup(response[1])
-        
+        preview_soup = BeautifulSoup(content)
         # Discard the bogus HomePage link.
         preview_soup.find('a', 'twikilink').extract()
-        
         while preview_soup.find('a', 'twikilink'):
             link = preview_soup.find('a', 'twikilink').extract()
             
             try:
-                result = link.attrMap['href']
+                result = link['href']
             except KeyError:
                 continue
             
@@ -109,37 +120,36 @@ class TVTropesSearch(object):
                 continue
             
             # We've found our match.
-            return self.get_summary(result, '')
+            trope = yield self.get_summary(result.encode('utf8'), '')
+            defer.returnValue(trope)
 
         # No results?  Try a full-text Google search.        
         params = urllib.urlencode({'q': ('site:tvtropes.org inurl:pmwiki.php '
                                          '-"click the edit button" %s,')
                                           % title,
-                                   'v': '1.0'})
-        
-        response = self.factory.get_http('http://ajax.googleapis.com/ajax/'
-                                         'services/search/web?' + params,
-                                         defer=False)
-        data = json.loads(response[1])
-        
-        if ('responseData' not in data or
-            'results' not in data['responseData'] or
-            not data['responseData']['results']):
-            return None
-        
-        result = data['responseData']['results'][0]
-        return self.get_summary(result['unescapedUrl'], ' (full-text)')
-    
-    def get_summary(self, url, info_text=''):
+                                   'v': '1.0'})        
+        headers, content = yield web.request('GET',
+                                   ('http://ajax.googleapis.com/ajax/'
+                                    'services/search/web?' + params))
+
+        data = json.loads(content)
         try:
-            response = self.factory.get_http(url, defer=False)
-        except:
-            log.err(None, 'TV Tropes summary fetching failed.')
-            return ('', url, None, info_text)
-        
-        soup = BeautifulSoup(response[1])
-        title = html.textify_html(soup.find('title'))
-        url = response[0]['content-location']
+            results = data['responseData']['results']
+        except KeyError:
+            results = []
+        if not results:
+            defer.returnValue(None)
+        trope = yield self.get_summary(
+                        results[0]['unescapedUrl'].encode('utf8'),
+                        ' (full-text)')
+        defer.returnValue(trope)
+    
+    @defer.inlineCallbacks
+    def get_summary(self, url, info_text=''):
+        headers, content = yield web.request('GET', url)
+        soup = BeautifulSoup(content)
+        title = web.textify_html(soup.find('title'))
+        url = headers['X-Omni-Location']
         
         # Summary generation.
         #
@@ -163,10 +173,10 @@ class TVTropesSearch(object):
             for node in wikitext.contents:
                 if isinstance(node, NavigableString):
                     node_name = '#text'
-                    text_content = html.decode_html_entities(node)
+                    text_content = web.decode_html_entities(node)
                 else:
                     node_name = node.name
-                    text_content = html.textify_html(node)
+                    text_content = web.textify_html(node)
                 
                 if summary and node_name in BLOCK_HTML_ELEMENTS:
                     break
@@ -180,7 +190,7 @@ class TVTropesSearch(object):
             # Reduce runs of whitespace to a single space.
             summary = ' '.join(summary.strip().split())
 
-        return (title, url, summary, info_text)
+        defer.returnValue((title, url, summary, info_text))
     
     def reply(self, trope, bot, prefix, reply_target, channel, args):
         if not trope:
@@ -188,30 +198,27 @@ class TVTropesSearch(object):
                                        '\x02%s\x02.' % args[1])
             return
         
-        (title, url, summary, info_text) = trope
-        (title, url) = get_real_title_and_url(title, url)
+        title, url, summary, info_text = trope
+        title, url = get_real_title_and_url(title, url)
         summary = u': ' + summary if summary else ''
         
         bot.reply(reply_target, channel,
-                  u'TV Tropes%s: %s \u2014 \x02%s\x02%s'
-                    % (info_text, url, title, summary))
+                  u'TV Tropes{0}: {1} \u2014 \x02{2}\x02{3}'.format(
+                    info_text, url, title, summary))
 
 
-class RandomTrope(TVTropesSearch):
+class RandomTrope(TropeSearch):
     """
     \x02%s\x02 - Get a random TV Tropes article.
     """
     name = 'tvtropes_random'
     
     def execute(self, bot, prefix, reply_target, channel, args):
-        d = threads.deferToThread(self.random)
+        d = self.get_summary('http://tvtropes.org/pmwiki/randomitem.php',
+                             ' (random)')
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
-    
-    def random(self):
-        return self.get_summary('http://tvtropes.org/pmwiki/randomitem.php',
-                                ' (random)')
 
 
-tvtropes = TVTropesSearch()
-tvtropes_random = RandomTrope()
+default = TropeSearch()
+random = RandomTrope()
