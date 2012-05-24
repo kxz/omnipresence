@@ -6,7 +6,7 @@ from omnipresence import web
 class WWWJDICSearch(web.WebCommand):
     """
     \x02%s\x02 \x1Fsearch_string\x1F - Look up a Japanese word or phrase in Jim
-    Breen's WWWJDIC <http://wwwjdic.org/>, and return the first result.
+    Breen's WWWJDIC <http://wwwjdic.org/>.
     """
     name = 'wwwjdic'
     arg_type = 'a term to look up'
