@@ -75,10 +75,10 @@ class WikipediaPlugin(object):
 
 class ArticleSearch(WikipediaPlugin):
     """
-    \x02%s\x02 [\x1Flanguage_code\x1F\x02:\x02]\x1Fsearch_string\x1F - 
-    Search for a Wikipedia article with a title matching the given 
-    search string, or perform a full-text search if no such article 
-    exists.  If a \x1Flanguage_code\x1F is specified, the search is 
+    \x02%s\x02 [\x1Flanguage_code\x1F\x02:\x02]\x1Fsearch_string\x1F -
+    Search for a Wikipedia article with a title matching the given
+    search string, or perform a full-text search if no such article
+    exists.  If a \x1Flanguage_code\x1F is specified, the search is
     performed on the Wikipedia of that language.
     """
     implements(IHandler)  # in addition to IPlugin and ICommand
@@ -172,8 +172,8 @@ class ArticleSearch(WikipediaPlugin):
 
 class RandomArticle(WikipediaPlugin):
     """
-    \x02%s\x02 [\x1Flanguage_code\x1F[\x02:]] - Get a random main 
-    namespace Wikipedia article, in the Wikipedia corresponding to 
+    \x02%s\x02 [\x1Flanguage_code\x1F[\x02:\x02]] - Get a random main
+    namespace Wikipedia article, in the Wikipedia corresponding to
     \x1Flanguage_code\x1F if one is specified.
     """
     name = 'wikipedia_random'
