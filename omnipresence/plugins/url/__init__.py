@@ -234,9 +234,11 @@ class URLTitleFetcher(object):
                                 title_processor.process, headers, content)
             if isinstance(processed, Redirect):
                 if redirect_count < MAX_SOFT_REDIRECTS:
+                    # Join the new location with the current URL, in
+                    # order to handle relative URIs.
+                    location = urlparse.urljoin(url, processed.location)
                     hostname_tag, processed = yield self.get_title(
-                                                      processed.location,
-                                                      hostname,
+                                                      location, hostname,
                                                       redirect_count + 1)
                 else:
                     raise tweberror.InfiniteRedirection(
