@@ -99,12 +99,13 @@ class RSSNotifier(object):
                 d.addCallback(self.initialize, identifier)
                 d.addErrback(self.error, identifier)
                 initializers.append(d)
-        if not self.scheduler:
-            self.scheduler = task.LoopingCall(self.update)
-            l = defer.DeferredList(initializers)
-            l.addCallback(lambda x: self.scheduler.start(
-                                      self.update_interval * 60, now=False))
-            return l
+            if initializers and not self.scheduler:
+                self.scheduler = task.LoopingCall(self.update)
+                l = defer.DeferredList(initializers)
+                l.addCallback(lambda x: self.scheduler.start(
+                                          self.update_interval * 60,
+                                          now=False))
+                return l
     
     def update(self):
         log.msg('Updating RSS feeds')
