@@ -99,6 +99,7 @@ class RSSNotifier(object):
                 d.addCallback(self.initialize, identifier)
                 d.addErrback(self.error, identifier)
                 initializers.append(d)
+        if not self.scheduler:
             self.scheduler = task.LoopingCall(self.update)
             l = defer.DeferredList(initializers)
             l.addCallback(lambda x: self.scheduler.start(
