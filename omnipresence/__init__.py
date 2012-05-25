@@ -70,7 +70,8 @@ class IRCClient(irc.IRCClient):
 
     def ping_server(self, servername):
         if self.ping_count > 2:
-            log.err(None, 'Sent three PINGs without receiving a PONG reply.')
+            log.err(failure.Failure(),
+                    'Sent three PINGs without receiving a PONG reply.')
             self.ping_timer.stop()
             self.transport.loseConnection()
             return
