@@ -41,9 +41,11 @@ def ago(then, now=None):
         return "%d weeks ago" % (delta.days / 7)
 
 def andify(seq, two_comma=False):
-    """Given a list, join its elements to form a list of the form "x 
-    and y" or "x, y, and z".  If "two_comma" is True, return "x, and y" 
-    for lists that are two elements long."""
+    """Given a list, join its elements and return a string of the form
+    "*x* and *y*" for a two-element list, or "*x*, *y*, and *z*" for
+    three or more elements.  If *two_comma* is True, insert a comma
+    before "and" even if the list is only two elements long ("*x*, and
+    *y*")."""
     if len(seq) > 2:
         return ', '.join(seq[:-2] + [', and '.join(seq[-2:])])
     
@@ -53,8 +55,9 @@ def andify(seq, two_comma=False):
     return ' and '.join(seq)
 
 def duration_to_timedelta(duration):
-    """Convert a duration of the form "?w?d?h?m?s" into a timedelta
-    object, where individual components are optional."""
+    """Convert a duration of the form "?w?d?h?m?s" into a
+    :py:class:`datetime.timedelta` object, where individual components
+    are optional."""
     match = DURATION_RE.match(duration)
 
     if match:

@@ -1,40 +1,50 @@
 import cgi
+import re
 
 from BeautifulSoup import BeautifulSoup, SoupStrainer
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import html
-from omnipresence.plugins.url import ITitleProcessor
+from omnipresence.plugins.url import ITitleProcessor, Redirect
+from omnipresence.web import textify_html
+
+
+"""The maximum delay a ``<meta>`` refresh can have to be considered a
+soft redirect.  This avoids catching pages that automatically refresh
+themselves every minute or longer."""
+MAX_REFRESH_DELAY = 15
+
+REFRESH_RE = re.compile('refresh', re.IGNORECASE)
+
 
 class HTMLTitleProcessor(object):
     implements(IPlugin, ITitleProcessor)
-
-    supported_content_types = ['text/html', 'application/xhtml+xml']
+    supported_content_types = ('text/html', 'application/xhtml+xml')
 
     def process(self, headers, content):
-        soup_kwargs = {'parseOnlyThese': SoupStrainer('title')}
-        
-        # If the HTTP "Content-Type" header specifies an 
-        # encoding, try to use it to decode the document.
-        ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
+        soup_kwargs = {}
+        # If the HTTP "Content-Type" header specifies an encoding, try
+        # to use it to decode the document.
+        ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
         if 'charset' in cparams:
             soup_kwargs['fromEncoding'] = cparams['charset']
-        
         soup = BeautifulSoup(content, **soup_kwargs)
-        title = u'No title found.'
 
-        try:
-            title = soup.title.string.extract()
-        except AttributeError:
-            # Either there is no <title> element and soup.title is None,
-            # or the <title> element is empty and soup.title.string is
-            # None.  Either way, just move on.
-            pass
-        else:
-            title = html.decode_html_entities(title)
-            title = u'\x02%s\x02' % u' '.join(title.split()).strip()
+        # Handle any <meta> refreshes.
+        for refresh in soup('meta', attrs={'http-equiv': REFRESH_RE,
+                                           'content': True}):
+            rseconds, rparams = cgi.parse_header(refresh['content'])
+            try:
+                rseconds = int(rseconds, 10)
+            except ValueError:
+                # Not a valid number; just pretend it's zero.
+                rseconds = 0
+            if rseconds < MAX_REFRESH_DELAY and 'url' in rparams:
+                return Redirect(rparams['url'])
 
-        return title
+        # Just the title, ma'am.
+        if soup.title:
+            return u'\x02{0}\x02'.format(textify_html(soup.title))
+        return None
 
 h = HTMLTitleProcessor()

@@ -74,7 +74,7 @@ class ICommand(Interface):
         :py:class:`~twisted.internet.defer.Deferred` object, add a
         callback that calls :py:meth:`~omnipresence.IRCClient.reply`,
         and return that :py:class:`~twisted.internet.defer.Deferred`
-        (see :ref:`web-commands`).  An error handler will be
+        (see :ref:`using-deferreds`).  An error handler will be
         automatically added that replies with the associated value of
         any exceptions that are not handled by the command itself.
 

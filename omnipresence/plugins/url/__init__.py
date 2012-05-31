@@ -6,13 +6,13 @@ import struct
 import urllib
 import urlparse
 
-from httplib2 import ServerNotFoundError
-from twisted.internet import defer, threads
+from twisted.internet import defer, error, threads
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
-from twisted.python import failure, log
+from twisted.python import log
+from twisted.web import error as tweberror
 from zope.interface import implements, Interface, Attribute
 
-from omnipresence import plugins
+from omnipresence import plugins, web
 from omnipresence.iomnipresence import IHandler
 
 
@@ -20,6 +20,17 @@ from omnipresence.iomnipresence import IHandler
 __path__.extend(pluginPackagePaths(__name__))
 __all__ = []
 
+
+"""The maximum number of bytes the fetcher will download for a single
+title fetch request."""
+MAX_DOWNLOAD_SIZE = 65536
+
+"""The maximum number of "soft" redirects that will be followed."""
+MAX_SOFT_REDIRECTS = 2
+
+#
+# Utility methods
+#
 
 def add_si_prefix(number, unit, plural_unit=None):
     """Returns a string containing an approximate representation of the
@@ -47,11 +58,12 @@ def add_si_prefix(number, unit, plural_unit=None):
 
 # Based on django.utils.html.urlize from the Django project.
 TRAILING_PUNCTUATION = ['.', ',', ':', ';']
-WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>'), ('&lt;', '&gt;')]
+WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>')]
 
 word_split_re = re.compile(r'(\s+)')
 simple_url_re = re.compile(r'^https?://\w', re.IGNORECASE)
-simple_url_2_re = re.compile(r'^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$', re.IGNORECASE)
+simple_url_2_re = re.compile(
+  r'^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$', re.IGNORECASE)
 
 def extract_urls(text):
     """Extracts URL-like strings from *text* and returns them as a list."""
@@ -88,34 +100,54 @@ def extract_urls(text):
                 urls.append(url)
     return urls
 
+def is_private_host(hostname):
+    """Check if the given host corresponds to a private network, as
+    specified by RFC 1918.  Only supports IPv4."""
+    addr = socket.gethostbyname(hostname)
+    addr = struct.unpack('!I', socket.inet_aton(addr))[0]
+    if ((addr >> 24 == 0x00  )   # 0.0.0.0/8
+     or (addr >> 24 == 0x0A  )   # 10.0.0.0/8
+     or (addr >> 24 == 0x7F  )   # 127.0.0.0/8
+     or (addr >> 16 == 0xA9DE)   # 169.254.0.0/16
+     or (addr >> 20 == 0xAC1 )   # 172.16.0.0/12
+     or (addr >> 16 == 0xC0A8)): # 192.168.0.0/16
+        return True
+    return False
+
+#
+# Plugin interfaces and helper classes
+#
+
+class Redirect(object):
+    """Returned by title processors to indicate a "soft" redirect, such
+    as an HTML ``<meta>`` refresh.  The *location* parameter indicates
+    the new URL to fetch."""
+
+    def __init__(self, location):
+        self.location = location
+
 
 class ITitleProcessor(Interface):
-    """
-    Finds the title of a given Web document.
-    """
+    """A plugin that can retrieve the title of a given Web document."""
 
     supported_content_types = Attribute("""
-        @type supported_content_types: C{list} of C{str}
-        @ivar supported_content_types: The MIME content types that this 
-        title processor supports.
+        An iterable containing the MIME content types that this title
+        processor supports; for example, ``('image/gif', 'text/xml')``.
         """)
 
     def process(self, headers, content):
-        """
-        Finds the title of the document specified by C{headers} and 
-        C{content}.
+        """Implement this method in your title processor class.  The
+        *headers* and *content* arguments are in the format returned by
+        :py:meth:`omnipresence.web.request()`.
 
-        @type headers: C{dict}
-        @param headers: A dictionary of HTTP response headers, as 
-        returned by the request() method of an httplib2.Http object.
-
-        @type content: C{str}
-        @param content: The body of the HTTP response.
-
-        @rtype: C{str}
-        @return: The title of the given document.
+        This method should either return a Unicode string containing the
+        extracted title, or a :py:class:`Redirect` object pointing at a
+        new URL from which to fetch a document title.
         """
 
+#
+# Actual handler plugin
+#
 
 class URLTitleFetcher(object):
     """
@@ -127,113 +159,13 @@ class URLTitleFetcher(object):
     name = 'url'
 
     title_processors = {}
-
     
     def registered(self):
-        self.ignore_list = self.factory.config.getspacelist('url',
-                                                            'ignore_messages_from')
+        self.ignore_list = self.factory.config.getspacelist(
+                             'url', 'ignore_messages_from')
         for title_processor in getPlugins(ITitleProcessor, plugins.url):
             for content_type in title_processor.supported_content_types:
                 self.title_processors[content_type] = title_processor
-   
-    def reply_with_titles(self, results, bot, prefix, channel):
-        for i, result in enumerate(results):
-            success, response = result
-            
-            title = u'No title found.'
-            
-            if success:
-                hostname, headers, content = response
-                ctype, cparams = cgi.parse_header(headers.get('content-type',
-                                                              'Unknown'))
-
-                if ctype in self.title_processors:
-                    title = self.title_processors[ctype].process(headers,
-                                                                 content)
-                else:
-                    title = u'%s document' % ctype
-                    if 'content-length' in headers:
-                        try:
-                            content_length = int(headers['content-length'], 10)
-                        except ValueError:
-                            # Couldn't parse the content-length string.
-                            pass
-                        else:
-                            title += (u' (%s)' % add_si_prefix(content_length,
-                                                               'byte'))
-
-                hostname_tag = hostname
-                
-                # When a redirect lands us at a different hostname than the one
-                # in the URL, append the new hostname to the tag.
-                if 'content-location' in headers:
-                    content_hostname = urlparse.urlparse(headers['content-location']).hostname
-                    if (content_hostname is not None and
-                        hostname != content_hostname):
-                        hostname_tag = u'%s \u2192 %s' % (hostname,
-                                                          content_hostname)
-
-                title = u'[%s] %s' % (hostname_tag, title)
-            else:
-                if not isinstance(response.value, ServerNotFoundError):
-                    log.err(response,
-                            'Encountered an error in URL processing.')
-                
-                title = (u'Error: \x02%s\x02.'
-                           % response.getErrorMessage())
-            
-            if len(title) >= 140:
-                title = title[:64] + u'...' + title[-64:]
-            
-            if len(results) > 1:
-                message = u'URL (%d/%d): %s' % (i + 1, len(results), title)
-            else:
-                message = u'URL: %s' % title
-            
-            bot.reply(None, channel, message)
-    
-    def get_url(self, url):
-        hostname = urlparse.urlparse(url).hostname
-        
-        if hostname is None:
-            log.msg('Could not extract hostname for URL %s; failing.' % url)
-            raise ServerNotFoundError('Unable to find the server at %s'
-                                       % hostname)
-        
-        # Check to make sure that the hostname doesn't correspond to a 
-        # private IP.  This only supports IPv4 addresses.
-        try:
-            addr = socket.gethostbyname(hostname)
-        except socket.gaierror:
-            # The hostname doesn't resolve to anything.
-            raise ServerNotFoundError('Unable to find the server at %s'
-                                       % hostname)
-        
-        addr = struct.unpack('!I', socket.inet_aton(addr))[0]
-        if ((addr >> 24 == 0x00  )   # 0.0.0.0/8
-         or (addr >> 24 == 0x0A  )   # 10.0.0.0/8
-         or (addr >> 24 == 0x7F  )   # 127.0.0.0/8
-         or (addr >> 16 == 0xA9DE)   # 169.254.0.0/16
-         or (addr >> 20 == 0xAC1 )   # 172.16.0.0/12
-         or (addr >> 16 == 0xC0A8)): # 192.168.0.0/16
-            # This hostname resolves to a private IP address.  Pretend 
-            # we don't know anything about it.
-            raise ServerNotFoundError('Unable to find the server at %s'
-                                       % hostname)
-        
-        # The provided URL is confirmed to not be on a private network.  
-        # First, probe the content type of the target document with a 
-        # HEAD request, and see if it's one for which we support title 
-        # snarfing.  If so, make a GET request and return its results 
-        # instead.  If not, just return the results of the HEAD request, 
-        # as we have no use for the content.
-        headers, content = self.factory.get_http(url, method='HEAD', defer=False)
-        ctype, cparams = cgi.parse_header(headers.get('content-type', ''))
-
-        if ctype in self.title_processors:
-            headers, content = self.factory.get_http(url, defer=False)
-
-        return (hostname, headers, content)
     
     def privmsg(self, bot, prefix, channel, message):
         nick = prefix.split('!', 1)[0]
@@ -241,34 +173,133 @@ class URLTitleFetcher(object):
         if nick in self.ignore_list:
             return
         
+        # Everything in here is Unicode.
+        message = message.decode(self.factory.encoding, 'ignore')
+        
         urls = extract_urls(message)
         fetchers = []
         
         for url in urls:
             log.msg('Saw URL %s from %s in channel %s.'
-                    % (url, prefix, channel))
+                    % (url.encode('utf8'), prefix, channel))
             
             # Strip the fragment portion of the URL, if present.
-            (url, frag) = urlparse.urldefrag(url)
+            url, frag = urlparse.urldefrag(url)
 
             # Look for "crawlable" AJAX URLs with fragments that begin
             # with "#!", and transform them to use "_escaped_fragment_".
             #
             # <http://code.google.com/web/ajaxcrawling/>
             if frag.startswith('!'):
-                url += ('&' if '?' in url else '?' +
-                        '_escaped_fragment_=' + urllib.quote(frag[1:]))
+                url += (u'&' if u'?' in url else u'?' +
+                        u'_escaped_fragment_=' +
+                        urllib.quote(frag[1:].encode('utf8')))
             
-            # The number of blocking calls required for this makes 
-            # working with Deferreds a nightmare, so we just defer the 
-            # entire thing to a thread here instead.
-            fetchers.append(threads.deferToThread(self.get_url, url))
+            # Basic hostname sanity checks.
+            hostname = urlparse.urlparse(url).hostname
+            if hostname is None:
+                log.msg('Could not extract hostname from URL {0}; ignoring.' \
+                         .format(url.encode('utf8')))
+                continue
+            
+            # Twisted Names is full of headaches.  socket is easier.
+            d = self.get_title(url, hostname)
+            d.addErrback(self.make_error_reply, hostname)
+            fetchers.append(d)
         
-        l = defer.DeferredList(fetchers, consumeErrors=True)
-        l.addBoth(self.reply_with_titles, bot, prefix, channel)
+        l = defer.DeferredList(fetchers)
+        l.addCallback(self.reply, bot, prefix, channel)
         return l
     
     action = privmsg
+
+    @defer.inlineCallbacks
+    def get_title(self, url, hostname, redirect_count=0):
+        private = yield threads.deferToThread(is_private_host,
+                                              hostname.encode('utf8'))
+        if private:
+            # Pretend that the given host just doesn't exist.
+            raise error.TimeoutError()
+
+        # Fetch the title from a title processor if one is available for
+        # the response's Content-Type, or craft a default one.
+        hostname_tag = None
+        title = u'No title found.'
+        headers, content = yield web.request('GET', url.encode('utf8'),
+                                             max_bytes=MAX_DOWNLOAD_SIZE)
+        ctype, cparams = cgi.parse_header(headers.get('Content-Type'))
+        if ctype in self.title_processors:
+            title_processor = self.title_processors[ctype]
+            processed = yield threads.deferToThread(
+                                title_processor.process, headers, content)
+            if isinstance(processed, Redirect):
+                if redirect_count < MAX_SOFT_REDIRECTS:
+                    # Join the new location with the current URL, in
+                    # order to handle relative URIs.
+                    location = urlparse.urljoin(url, processed.location)
+                    hostname_tag, processed = yield self.get_title(
+                                                      location, hostname,
+                                                      redirect_count + 1)
+                else:
+                    raise tweberror.InfiniteRedirection(
+                            599, 'Too many soft redirects',
+                            location=processed.location)
+            title = processed or title
+        else:
+            title = u'{0} document'.format(ctype or u'Unknown')
+            clength = headers.get('X-Omni-Length')
+            if clength:
+                try:
+                    clength = int(clength, 10)
+                except ValueError:
+                    # Couldn't parse the content-length string.
+                    pass
+                else:
+                    title += u' ({0})'.format(add_si_prefix(clength, 'byte'))
+
+        # Add a hostname tag to the returned title, indicating any
+        # redirects to a different host that occurred.
+        final_hostname = hostname
+        if hostname_tag:
+            # Some soft redirection occurred during title processing.
+            final_hostname = hostname_tag.split()[-1]
+        else:
+            location = headers.get('X-Omni-Location')
+            if location:
+                final_hostname = urlparse.urlparse(location).hostname
+        if final_hostname is not None and hostname != final_hostname:
+            hostname_tag = u'{0} \u2192 {1}'.format(hostname, final_hostname)
+        else:
+            hostname_tag = hostname
+
+        defer.returnValue((hostname_tag, title))
+    
+    def make_error_reply(self, failure, hostname):
+        log.err(failure, 'Encountered an error in URL processing.')
+        return (hostname, u'Error: {0:s}'.format(failure.value))
+    
+    def reply(self, results, bot, prefix, channel):
+        for i, result in enumerate(results):
+            success, value = result
+            
+            if success:
+                hostname, title = value
+                title = u'[{0}] {1}'.format(hostname, title)
+            else:
+                # This should only happen if make_reply() bombs.
+                log.err(value, 'Encountered an error in URL processing.')
+                title = u'Error: \x02{0:s}\x02.'.format(value.value)
+            
+            if len(title) >= 140:
+                title = u'{0}…{1}'.format(title[:64], title[-64:])
+            
+            if len(results) > 1:
+                message = u'URL ({0}/{1}): {2}'.format(i + 1, len(results),
+                                                       title)
+            else:
+                message = u'URL: {0}'.format(title)
+            
+            bot.reply(None, channel, message)
 
 
 url = URLTitleFetcher()

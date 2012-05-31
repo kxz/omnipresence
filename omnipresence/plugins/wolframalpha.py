@@ -4,44 +4,27 @@ except ImportError:
     from xml.etree.ElementTree import ParseError, XML
 import urllib
 
-from zope.interface import implements
-from twisted.plugin import IPlugin
-from omnipresence.iomnipresence import ICommand
-from omnipresence import util
+from omnipresence.web import WebCommand
 
 
 class APIError(Exception):
     pass
 
 
-class Query(object):
+class WolframAlphaQuery(WebCommand):
     """
     \x02%s\x02 \x1Fquery_string\x1F - Retrieve Wolfram|Alpha results for the
     given query string.
     """
-    implements(IPlugin, ICommand)
     name = 'wolframalpha'
+    arg_type = 'a query string'
+    url = ('http://api.wolframalpha.com/v2/query?input=%s&format=plaintext&'
+           'appid=')
     
     def registered(self):
-        self.appid = self.factory.config.get('wolframalpha', 'appid')
+        self.url += self.factory.config.get('wolframalpha', 'appid')
     
-    def execute(self, bot, prefix, reply_target, channel, args):
-        args = args.split(None, 1)
-        
-        if len(args) < 2:
-            bot.reply(prefix, channel, 'Please specify a query string.')
-            return
-        
-        params = urllib.urlencode({'appid': self.appid,
-                                   'input': args[1],
-                                   'format': 'plaintext'})
-        
-        d = self.factory.get_http('http://api.wolframalpha.com/v2/query?%s'
-                                   % params)
-        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
-        return d
-    
-    def reply_with_results(self, response, bot, prefix, reply_target, channel, args):
+    def reply(self, response, bot, prefix, reply_target, channel, args):
         try:
             queryresult = XML(response[1])
         except ParseError:
@@ -105,33 +88,20 @@ class Query(object):
                   u'Wolfram|Alpha: ' + u' \u2014 '.join(messages))
 
 
-class Dictionary(Query):
+class DictionaryLookup(WolframAlphaQuery):
     """
     \x02%s\x02 \x1Fterm\x1F - Get a definition for the given term from
     Wolfram|Alpha.
     """
-    implements(IPlugin, ICommand)
     name = 'wolframalpha_define'
-    
-    def registered(self):
-        self.appid = self.factory.config.get('wolframalpha', 'appid')
     
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
-        
-        if len(args) < 2:
-            bot.reply(prefix, channel, 'Please specify a term to look up.')
-            return
-        
-        params = urllib.urlencode({'appid': self.appid,
-                                   'input': 'definition of %s' % args[1],
-                                   'format': 'plaintext'})
-        
-        d = self.factory.get_http('http://api.wolframalpha.com/v2/query?%s'
-                                   % params)
-        d.addCallback(self.reply_with_results, bot, prefix, reply_target, channel, args)
-        return d
+        args.insert(1, 'definition of')
+        args = ' '.join(args)
+        super(DictionaryLookup, self).execute(bot, prefix, reply_target,
+                                              channel, args)
 
 
-default = Query()
-define = Dictionary()
+default = WolframAlphaQuery()
+define = DictionaryLookup()
