@@ -201,18 +201,22 @@ def decode_html_entities(s):
     return s
 
 
-def textify_html(soup):
-    """Convert a BeautifulSoup element's contents to a Unicode string
-    with IRC formatting codes simulating common element styles."""
-    # Grab the node's tag name, and change the format if necessary.
-    if soup.name in (u'b', u'strong'):
-        fmt = u'\x02{0}\x02'
-    elif soup.name in (u'i', u'u', u'em', u'cite', u'var'):
-        fmt = u'\x16{0}\x16'
-    elif soup.name == u'sup':
-        fmt = u'^{0}'
-    elif soup.name == u'sub':
-        fmt = u'_{0}'
+def textify_html(soup, format_output=True):
+    """Convert a BeautifulSoup element's contents to a Unicode string.
+    If *format_output* is ``True``, IRC formatting codes are added to
+    simulate common element styles."""
+    if format_output:
+        # Grab the node's tag name, and change the format if necessary.
+        if soup.name in (u'b', u'strong'):
+            fmt = u'\x02{0}\x02'
+        elif soup.name in (u'i', u'u', u'em', u'cite', u'var'):
+            fmt = u'\x16{0}\x16'
+        elif soup.name == u'sup':
+            fmt = u'^{0}'
+        elif soup.name == u'sub':
+            fmt = u'_{0}'
+        else:
+            fmt = u'{0}'
     else:
         fmt = u'{0}'
 
@@ -222,7 +226,7 @@ def textify_html(soup):
         if isinstance(k, NavigableString):
             contents += decode_html_entities(k)
         elif hasattr(k, 'name'):  # is another soup element
-            contents += textify_html(k)
+            contents += textify_html(k, format_output)
 
     return u' '.join(fmt.format(contents).split()).strip()
 
