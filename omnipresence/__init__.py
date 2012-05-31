@@ -1,7 +1,6 @@
 import platform
 import re
 
-import httplib2
 import sqlobject
 from twisted.internet import defer, protocol, task, threads
 from twisted.plugin import getPlugins
@@ -675,40 +674,3 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         p.userinfo = self.config.getdefault('core', 'userinfo', None)
 
         return p
-
-    # Not really sure where this belongs, since there are dependencies on 
-    # configuration information.  Maybe yet another plugin infrastructure?
-    def get_http(self, *args, **kwargs):
-        """Make an :py:mod:`httplib2` :py:class:`~httplib2.Http` request
-        with the given arguments, using the cache directory and
-        user-agent string specified in the bot configuration file.
-        
-        By default, return this request wrapped in a Twisted
-        :py:class:`~twisted.internet.defer.Deferred`.  If the *defer*
-        keyword argument is passed and set to ``False``, simply return
-        the result of the request as a ``(headers, content)`` tuple,
-        without deferring to a thread.  This is useful in situations
-        where :py:meth:`.get_http` is already being called from a
-        separate thread created by
-        :py:func:`twisted.internet.threads.deferToThread`.
-
-        For further details, see the `httplib2 documentation
-        <http://code.google.com/p/httplib2/wiki/Examples>`_.
-        """
-        h = httplib2.Http(self.http_cache_dir, 10.0)
-        
-        if 'headers' not in kwargs:
-            kwargs['headers'] = {}
-        if not 'User-Agent' in kwargs['headers']:
-            kwargs['headers']['User-Agent'] = self.http_user_agent
-        
-        if 'defer' in kwargs:
-            defer = kwargs['defer']
-            del kwargs['defer']
-        else:
-            defer = True
-        
-        if defer:
-            return threads.deferToThread(h.request, *args, **kwargs)
-
-        return h.request(*args, **kwargs)

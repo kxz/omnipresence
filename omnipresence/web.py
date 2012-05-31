@@ -39,9 +39,9 @@ USER_AGENT = ('Omnipresence/{0} (+bot; '
 
 # While we're waiting for <http://twistedmatrix.com/trac/ticket/5435>...
 class RedirectTrackingAgent(object):
-    """A version of :py:class`twisted.web.client.RedirectAgent` that
+    """A version of :py:class:`twisted.web.client.RedirectAgent` that
     adds the ultimate resolved location of the resource as a response
-    header `X-Omni-Location`."""
+    header ``X-Omni-Location``."""
 
     def __init__(self, agent, redirectLimit=20):
         self._agent = agent
@@ -275,8 +275,7 @@ class WebCommand(object):
         """Implement this method in your command subclass.  The
         *response* argument will contain a ``(headers, content)``
         response tuple as returned by
-        :py:func:`omnipresence.web.request`; *msg* will contain the
-        :py:class:`~omnipresence.bot.Message` object that triggered the
-        command invocation.
+        :py:func:`~omnipresence.web.request`.  The other arguments are
+        as passed in to :py:meth:`ICommand.execute`.
         """
         raise NotImplementedError('no reply method provided for WebCommand')
