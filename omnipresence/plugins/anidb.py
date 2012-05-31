@@ -121,7 +121,7 @@ class AnimeSearch(WebCommand):
         
         messages = []
         for i, anime in enumerate(results):
-            message = u'AniDB: ({0}/{1}) {2} \u2014 {3}'.format(
+            message = u'AniDB: ({0}/{1}) \x02{2}\x02 \u2014 {3}'.format(
               i + 1, len(results),
               anime['name'].strip(), anime['atype'].strip())
             episodes = anime['episodes'].strip()
