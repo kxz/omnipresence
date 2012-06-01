@@ -22,7 +22,7 @@ class YouTubeSearch(web.WebCommand):
             results = []
         if not results:
             bot.reply(prefix, channel,
-                      'Google: No results found for \x02%s\x02.' % args[1])
+                      'YouTube: No results found for \x02%s\x02.' % args[1])
             return
         messages = []
         for i, result in enumerate(results):
