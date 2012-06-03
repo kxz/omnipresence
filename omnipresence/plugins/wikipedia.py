@@ -59,14 +59,15 @@ class WikipediaPlugin(object):
             return
         url, summary, info_text = pageinfo
 
-        # Reduce the summary down to the first paragraph.
-        soup = BeautifulSoup(summary).findAll('p', '', recursive=False)
-        for p in soup:
-            ptext = web.textify_html(p)
-            if ptext:
-                summary = u' \u2014 ' + ptext
-                break
-        else:
+        if summary:
+            # Reduce the summary down to the first paragraph.
+            soup = BeautifulSoup(summary).findAll('p', '', recursive=False)
+            for p in soup:
+                ptext = web.textify_html(p)
+                if ptext:
+                    summary = u' \u2014 ' + ptext
+                    break
+        if not summary:
             summary = u''
         
         bot.reply(reply_target, channel,
