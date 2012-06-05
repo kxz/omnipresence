@@ -584,21 +584,11 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     commands = None
 
     encoding = 'utf-8'
-    
-    http_cache_dir = None
-    http_user_agent = ('%s/%s (bot; +%s)'
-                        % (VERSION_NAME, VERSION_NUM, SOURCE_URL))
 
     def __init__(self, config):
         self.config = config
         self.encoding = self.config.getdefault('core', 'encoding',
                                                self.encoding)
-        
-        self.http_cache_dir = self.config.getdefault('core', 'http_cache_dir',
-                                                     self.http_cache_dir)
-        self.http_user_agent = self.config.getdefault('core',
-                                                      'http_user_agent',
-                                                      self.http_user_agent)
 
         # Set up the bot's SQLObject connection instance.
         sqlobject_uri = self.config.get('core', 'database')
