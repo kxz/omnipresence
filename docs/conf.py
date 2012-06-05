@@ -46,7 +46,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Omnipresence'
-copyright = u'2011, Kevin Xiwei Zheng'
+copyright = u'Kevin Xiwei Zheng'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
