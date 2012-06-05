@@ -11,7 +11,7 @@ from omnipresence import iomnipresence, plugins, ircutil, util, version
 
 
 VERSION_NAME = 'Omnipresence'
-VERSION_NUM = version.VERSION_NUMBER
+VERSION_NUM = version.__version__
 VERSION_ENV = platform.platform()
 SOURCE_URL = 'https://bitbucket.org/kxz/omnipresence'
 

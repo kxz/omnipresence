@@ -2,19 +2,21 @@
 import os.path
 from subprocess import Popen, PIPE
 
-BASE_VERSION = '2.1'
+__version__ = '2.1'
 
 # With thanks to Douglas Creager <https://gist.github.com/300803>;
 # command invocation ported from Git to Mercurial.
 try:
+    if os.path.basename(__file__) == 'setup.py':
+        repository_root = os.path.dirname(__file__)
+    else:
+        repository_root = os.path.join(os.path.dirname(__file__), '..')
     p = Popen(['hg', 'log',
-               '-R', os.path.join(os.path.dirname(__file__), '..'),
+               '-R', repository_root,
                '-r', '.',
-               '--template',
-               '{latesttag}-{latesttagdistance}-{node|short}'],
+               '--template', '{latesttag}-{latesttagdistance}-{node|short}'],
               stdout=PIPE, stderr=PIPE)
-    p.stderr.close()
-    line = p.stdout.readlines()[0]
-    VERSION_NUMBER = line.strip()
+    out, err = p.communicate()
+    __version__ = out.strip()
 except:
-    VERSION_NUMBER = BASE_VERSION
+    pass
