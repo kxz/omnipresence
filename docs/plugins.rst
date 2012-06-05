@@ -9,10 +9,10 @@ Omnipresence supports two different types of plugins:
   In IRC channels, a *command prefix* is also expected.  Both of these are specified in the bot configuration.
 
 Plugins are expected to be module-level variables in submodules of the package :py:mod:`omnipresence.plugins`.
-`Twisted's plugin documentation <http://twistedmatrix.com/documents/current/core/howto/plugin.html#auto1>`_ has further details.  In practice, this means that you will write a plugin class that implements the provided interfaces, and assign an instance of that class to a variable in your plugin module::
+`Twisted's plugin documentation <http://twistedmatrix.com/documents/current/core/howto/plugin.html#auto1>`_ has further details.
+In practice, this means that you will write a plugin class that implements the provided interfaces, and assign an instance of that class to a variable in your plugin module::
 
     # omnipresence/plugins/example.py
-    
     from twisted.plugin import IPlugin
     from omnipresence.iomnipresence import ICommand
 
@@ -22,7 +22,8 @@ Plugins are expected to be module-level variables in submodules of the package :
         name = 'example'
 
         def execute(self, bot, prefix, reply_target, channel, args):
-            # ...
+            # ... command performs its work ...
+            bot.reply(reply_target, channel, text)
 
 
     # Don't forget to do this at the end of your module file, or Omnipresence
