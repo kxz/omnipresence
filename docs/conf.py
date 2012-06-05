@@ -18,8 +18,6 @@ import sys, os
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
 
-from omnipresence.version import __version__
-
 # -- General configuration
 # -----------------------------------------------------
 
@@ -53,7 +51,7 @@ copyright = u'2011, Kevin Xiwei Zheng'
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
 # built documents.
-#
+execfile('../omnipresence/version.py')
 # The short X.Y version.
 version = '.'.join(__version__.split('.')[:2])
 # The full version, including alpha/beta/rc tags.
