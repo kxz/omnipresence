@@ -53,7 +53,7 @@ copyright = u'Kevin Xiwei Zheng'
 # built documents.
 execfile('../omnipresence/version.py')
 # The short X.Y version.
-version = '.'.join(__version__.split('.')[:2])
+version = __version__.split('-', 1)[0]
 # The full version, including alpha/beta/rc tags.
 release = __version__
 
