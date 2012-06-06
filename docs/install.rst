@@ -14,7 +14,7 @@ The following dependencies should be automatically installed by the setup script
 
 * `Twisted <http://twistedmatrix.com/>`_ 12.0.0 or later
 * `SQLObject <http://sqlobject.org/>`_ 0.10 or later
-* `Beautiful Soup <http://www.crummy.com/software/BeautifulSoup/>`_ 3 (*not* 4)
+* `Beautiful Soup <http://www.crummy.com/software/BeautifulSoup/>`_ 4
 
 You will need to install an additional package to provide support for the specific database engine you wish to use.
 For example, MySQL support is provided by the *mysql-python* package.

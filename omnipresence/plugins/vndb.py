@@ -1,6 +1,6 @@
 import urlparse
 
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
@@ -19,15 +19,15 @@ class VisualNovelSearch(WebCommand):
     def reply(self, response, bot, prefix, reply_target, channel, args):
         url = response[0]['X-Omni-Location']
         soup = BeautifulSoup(response[1])
-        vnbrowse = soup.find('div', 'mainbox browse vnbrowse')
+        vnbrowse = soup.find('div', 'vnbrowse')
         results = []
 
         # Either zero results, or more than one result.
         if vnbrowse:
             # Don't recurse into children, to avoid picking up the row
             # contained within the <thead> element.
-            for row in vnbrowse.table.findAll('tr', recursive=False):
-                row_data = row.findAll('td')
+            for row in vnbrowse.table('tr', recursive=False):
+                row_data = row('td')
                 vn = { 'url': urlparse.urljoin(url, row_data[0].a['href']),
                        'title': txt(row_data[0].a),
                        'release_date': txt(row_data[3]) }
@@ -36,7 +36,7 @@ class VisualNovelSearch(WebCommand):
                     vn['alt_title'] = alt_title
                 rating = txt(row_data[5], format_output=False)
                 if not rating.startswith(u'0.00'):
-                    vn['rating'] = rating.replace('(', ' (')
+                    vn['rating'] = rating
                 results.append(vn)
         # Single result, redirecting to an individual visual novel page.
         else:
@@ -49,7 +49,7 @@ class VisualNovelSearch(WebCommand):
                 vn['alt_title'] = txt(alt_title)
             votestats = data.find('div', 'votestats')
             if votestats:
-                rating = txt(votestats.findAll('p')[-1])
+                rating = txt(votestats('p')[-1])
                 rating = rating.rsplit(None, 1)[-1]
                 votes = txt(votestats.tfoot.find('td', colspan='2'))
                 votes = votes.split(None, 1)[0]

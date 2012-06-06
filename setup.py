@@ -12,7 +12,7 @@ setup(name='Omnipresence',
       install_requires=['Twisted>=12.0.0',
                         'pyOpenSSL',
                         'sqlobject>=0.10',
-                        'BeautifulSoup>=3.0'],
+                        'beautifulsoup4'],
 
       author='Kevin Xiwei Zheng',
       author_email='blankplacement+omnipresence@gmail.com',

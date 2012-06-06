@@ -1,7 +1,7 @@
 import cgi
 import re
 
-from BeautifulSoup import BeautifulSoup, SoupStrainer
+from bs4 import BeautifulSoup, SoupStrainer
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
@@ -27,7 +27,7 @@ class HTMLTitleProcessor(object):
         # to use it to decode the document.
         ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
         if 'charset' in cparams:
-            soup_kwargs['fromEncoding'] = cparams['charset']
+            soup_kwargs['from_encoding'] = cparams['charset']
         soup = BeautifulSoup(content, **soup_kwargs)
 
         # Handle any <meta> refreshes.
@@ -44,7 +44,8 @@ class HTMLTitleProcessor(object):
 
         # Just the title, ma'am.
         if soup.title:
-            return u'\x02{0}\x02'.format(textify_html(soup.title))
+            return u'\x02{0}\x02'.format(textify_html(soup.title,
+                                                      format_output=False))
         return None
 
 h = HTMLTitleProcessor()

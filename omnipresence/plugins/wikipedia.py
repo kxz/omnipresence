@@ -2,7 +2,7 @@ import json
 import re
 import urllib
 
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 from twisted.internet import defer
 from twisted.plugin import IPlugin
 from twisted.python import log
@@ -61,12 +61,11 @@ class WikipediaPlugin(object):
 
         if summary:
             # Reduce the summary down to the first paragraph.
-            soup = BeautifulSoup(summary).findAll('p', '', recursive=False)
-            for p in soup:
+            p = BeautifulSoup(summary).find('p', '', recursive=False)
+            if p:
                 ptext = web.textify_html(p)
                 if ptext:
                     summary = u' \u2014 ' + ptext
-                    break
         if not summary:
             summary = u''
         

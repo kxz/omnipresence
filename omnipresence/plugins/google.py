@@ -1,7 +1,7 @@
 """Commands related to Google Web services."""
 import json
 
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 
 from omnipresence import web
 
@@ -28,7 +28,7 @@ class GoogleSearch(web.WebCommand):
         bot.reply(reply_target, channel, u'\n'.join(
                     u'Google: ({0}/{1}) {2} \u2014 \x02{3}\x02: {4}'.format(
                       i + 1, len(results), result['unescapedUrl'],
-                      web.decode_html_entities(result['titleNoFormatting']),
+                      web.textify_html(result['titleNoFormatting']),
                       web.textify_html(BeautifulSoup(result['content'])))
                     for i, result in enumerate(results)))
 

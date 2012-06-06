@@ -1,4 +1,4 @@
-from BeautifulSoup import BeautifulSoup, SoupStrainer
+from bs4 import BeautifulSoup, SoupStrainer
 
 from omnipresence import web
 
@@ -16,7 +16,7 @@ class WWWJDICSearch(web.WebCommand):
         soup = BeautifulSoup(response[1], parseOnlyThese=SoupStrainer('pre'))
 
         if soup.pre:
-            results = soup.pre.string.extract().strip().split(u'\n')
+            results = unicode(soup.pre.string).strip().split(u'\n')
             messages = []
             # Strip off the trailing slash for the last gloss, then replace 
             # the first slash with nothing and the remaining ones with 

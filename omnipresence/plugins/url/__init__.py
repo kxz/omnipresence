@@ -299,7 +299,11 @@ class URLTitleFetcher(object):
             else:
                 message = u'URL: {0}'.format(title)
             
-            bot.reply(None, channel, message)
+            # In the event that we're enabled for private messages...
+            if channel == bot.nickname:
+                bot.reply(prefix, channel, message)
+            else:
+                bot.reply(None, channel, message)
 
 
 url = URLTitleFetcher()

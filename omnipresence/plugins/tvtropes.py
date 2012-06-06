@@ -6,7 +6,7 @@ except ImportError:
     import StringIO
 import urllib
 
-from BeautifulSoup import BeautifulSoup, NavigableString
+from bs4 import BeautifulSoup, NavigableString
 from twisted.internet import defer
 from twisted.plugin import IPlugin
 from twisted.python import log
@@ -173,7 +173,7 @@ class TropeSearch(object):
             for node in wikitext.contents:
                 if isinstance(node, NavigableString):
                     node_name = '#text'
-                    text_content = web.decode_html_entities(node)
+                    text_content = unicode(node)
                 else:
                     node_name = node.name
                     text_content = web.textify_html(node)

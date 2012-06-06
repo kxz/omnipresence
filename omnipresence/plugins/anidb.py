@@ -1,15 +1,16 @@
 """Commands related to AniDB."""
-from re import compile as rec
+import re
 
-from BeautifulSoup import BeautifulSoup
+from bs4 import BeautifulSoup
 
 from omnipresence.web import textify_html as txt, WebCommand
 
 
-ANIDB_DATE_RE = rec(r'(?P<day>[0-9?]+)\.(?P<month>[0-9?]+)\.(?P<year>[0-9?]+)')
+ANIDB_DATE_RE = re.compile(
+                  r'(?P<day>[0-9?]+)\.(?P<month>[0-9?]+)\.(?P<year>[0-9?]+)')
 
 def row_value(soup, html_class):
-    return txt(soup.find('tr', {'class': html_class}).find('td', 'value'))
+    return txt(soup.find('tr', html_class).find('td', 'value'))
 
 def parse_anidb_date(date):
     """
@@ -55,18 +56,18 @@ class AnimeSearch(WebCommand):
         # with unexpected cases in an "else", so we'll start with the
         # "multiple result" case.
         animelist = soup.find('table', 'animelist')
-        anime_all = soup.find('div', 'g_content anime_all')
+        anime_all = soup.find('div', 'anime_all')
         
         if animelist:
             # Skip the first header row and grab the second row.
-            for row in animelist.findAll('tr')[1:]:
+            for row in animelist('tr')[1:]:
                 anime = { 'aid': row.find('a')['href'].rsplit('=', 1)[1],
                           'name': txt(row.find('td', 'name')),
-                          'atype': txt(row.find('td', {'class': rec('^type')})),
-                          'episodes': txt(row.find('td', 'count eps')),
-                          'airdate': txt(row.find('td', 'date airdate')),
-                          'enddate': txt(row.find('td', 'date enddate')),
-                          'rating': txt(row.find('td', 'rating weighted'))
+                          'atype': txt(row.find('td', 'type')),
+                          'episodes': txt(row.find('td', 'eps')),
+                          'airdate': txt(row.find('td', 'airdate')),
+                          'enddate': txt(row.find('td', 'enddate')),
+                          'rating': txt(row.find('td', 'weighted'))
                         }
                 if 'TBC' in anime['episodes']:
                     anime['episodes'] = ''
@@ -76,9 +77,7 @@ class AnimeSearch(WebCommand):
         
         # Now for the "single result" case.
         elif anime_all:
-            # The regular expression matches for some fields are needed
-            # because "g_odd" may be added to their class names.
-            type_cell = row_value(anime_all, rec('type$')).split(', ')
+            type_cell = row_value(anime_all, 'type').split(', ')
 
             anime = { 'aid': response[0]['X-Omni-Location'].rsplit('=', 1)[1],
                       # Grab the title from the <h1> element, and yank the
@@ -94,7 +93,7 @@ class AnimeSearch(WebCommand):
                 if 'unknown' in anime['episodes']:
                     anime['episodes'] = ''
 
-            year_cell = row_value(anime_all, rec('year$'))
+            year_cell = row_value(anime_all, 'year')
             if 'till' in year_cell:
                 anime['airdate'], anime['enddate'] = year_cell.split(' till ')
                 if anime['enddate'] == '?':
@@ -106,9 +105,9 @@ class AnimeSearch(WebCommand):
             
             # Try to get the permanent rating first; if it's "N/A", then
             # move to the temporary rating.
-            rating = row_value(anime_all, rec(r'\brating$'))
+            rating = row_value(anime_all, 'rating')
             if 'N/A' in rating:
-                rating = row_value(anime_all, rec('tmprating$'))
+                rating = row_value(anime_all, 'tmprating')
             # Get rid of the "(weighted)" note.
             anime['rating'] = ' '.join(rating.split()[:2])
             results.append(anime)

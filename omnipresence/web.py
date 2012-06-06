@@ -10,7 +10,7 @@ import sys
 import urllib
 import urlparse
 
-from BeautifulSoup import BeautifulSoup, BeautifulStoneSoup, NavigableString
+from bs4 import BeautifulSoup, NavigableString
 from twisted.internet import defer, protocol, reactor
 from twisted.plugin import IPlugin
 from twisted.python import failure
@@ -191,43 +191,50 @@ HTML_HEX_REFS = re.compile(r'&#x([0-9a-fA-F]+);')
 
 def decode_html_entities(s):
     """Convert HTML entities in a string to their Unicode character
-    equivalents."""
-    s = BeautifulStoneSoup(s,
-                           convertEntities=BeautifulStoneSoup.HTML_ENTITIES) \
-                          .contents[0]
-    # BeautifulStoneSoup doesn't parse hexadecimal character references
-    s = HTML_HEX_REFS.sub(lambda x: unichr(int(x.group(1), 16)), s)
-    return s
+    equivalents.
+    
+    .. deprecated:: 2.2
+       Create a Beautiful Soup tag and pass it to
+       :py:func:`textify_html` instead::
+
+           text = textify_html(BeautifulSoup(s), format_output=False)
+    """
+    return textify_html(BeautifulSoup(s), format_output=False)
 
 
 def textify_html(soup, format_output=True):
-    """Convert a BeautifulSoup element's contents to a Unicode string.
+    """Convert a Beautiful Soup element's contents to a Unicode string.
     If *format_output* is ``True``, IRC formatting codes are added to
     simulate common element styles."""
-    if format_output:
-        # Grab the node's tag name, and change the format if necessary.
-        if soup.name in (u'b', u'strong'):
-            fmt = u'\x02{0}\x02'
-        elif soup.name in (u'i', u'u', u'em', u'cite', u'var'):
-            fmt = u'\x16{0}\x16'
-        elif soup.name == u'sup':
-            fmt = u'^{0}'
-        elif soup.name == u'sub':
-            fmt = u'_{0}'
+    def handle_soup(soup, format_output):
+        if format_output:
+            # Grab the node's tag name, and change the format if necessary.
+            if soup.name in (u'b', u'strong'):
+                fmt = u'\x02{0}\x02'
+            elif soup.name in (u'i', u'u', u'em', u'cite', u'var'):
+                fmt = u'\x16{0}\x16'
+            elif soup.name == u'sup':
+                fmt = u'^{0}'
+            elif soup.name == u'sub':
+                fmt = u'_{0}'
+            else:
+                fmt = u'{0}'
         else:
             fmt = u'{0}'
-    else:
-        fmt = u'{0}'
+    
+        # Recurse into the node's contents.
+        contents = u''
+        for k in soup.contents:
+            if isinstance(k, NavigableString):
+                contents += unicode(k)
+            elif hasattr(k, 'name'):  # is another soup element
+                contents += handle_soup(k, format_output)
 
-    # Recurse into the node's contents.
-    contents = u''
-    for k in soup.contents:
-        if isinstance(k, NavigableString):
-            contents += decode_html_entities(k)
-        elif hasattr(k, 'name'):  # is another soup element
-            contents += textify_html(k, format_output)
+        return fmt.format(contents)
 
-    return u' '.join(fmt.format(contents).split()).strip()
+    # Don't strip whitespace until the very end, in order to avoid
+    # misparsing constructs like <span>hello<b> world</b></span>.
+    return u' '.join(handle_soup(soup, format_output).split()).strip()
 
 
 #
