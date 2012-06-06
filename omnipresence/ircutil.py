@@ -1,7 +1,6 @@
 # -*- test-case-name: omnipresence.test.test_ircutil -*-
 """IRC-specific utility functions."""
 import re
-import string
 
 # Common IRC formatting control codes
 # <http://forum.egghelp.org/viewtopic.php?p=94834>
@@ -23,12 +22,6 @@ CONTROL_CODES = re.compile(r"""
   \x1F              # Underline
 )
 """, re.VERBOSE)
-
-# Case mappings for canonicalize()
-TRANS_ASCII = string.maketrans(string.ascii_uppercase + r'\[]~',
-                               string.ascii_lowercase + r'|{}^')
-TRANS_RFC1459 = string.maketrans(string.ascii_uppercase + r'\[]~',
-                                 string.ascii_lowercase + r'|{}^')
 
 
 def canonicalize(name, casemapping='rfc1459'):
