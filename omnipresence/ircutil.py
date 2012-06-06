@@ -1,5 +1,7 @@
+# -*- test-case-name: omnipresence.test.test_ircutil -*-
 """IRC-specific utility functions."""
 import re
+import string
 
 # Common IRC formatting control codes
 # <http://forum.egghelp.org/viewtopic.php?p=94834>
@@ -22,11 +24,34 @@ CONTROL_CODES = re.compile(r"""
 )
 """, re.VERBOSE)
 
+# Case mappings for canonicalize()
+TRANS_ASCII = string.maketrans(string.ascii_uppercase + r'\[]~',
+                               string.ascii_lowercase + r'|{}^')
+TRANS_RFC1459 = string.maketrans(string.ascii_uppercase + r'\[]~',
+                                 string.ascii_lowercase + r'|{}^')
 
-def canonicalize(name):
-    """Convert an IRC name to its "canonical" lowercase representation."""
-    return name.lower().replace('[',  '{').replace(']',  '}') \
-                       .replace('\\', '|').replace('^',  '~')
+
+def canonicalize(name, casemapping='rfc1459'):
+    """Convert an IRC name to its "canonical" lowercase representation.
+    The *casemapping* parameter determines the case folding rules used
+    to perform the conversion:
+
+    * ``'ascii'`` treats the letters *A-Z* as uppercase versions of the
+      letters *a-z*.
+    * ``'strict-rfc1459'`` uses the ``'ascii'`` case mappings, further
+      treating *{}|* as the lowercase versions of *[]\*.
+    * ``'rfc1459'`` uses the ``'strict-rfc1459'`` case mappings, further
+      treating *~* as the lowercase version of *^*.
+
+    The default value is ``'rfc1459'``.  If the value of *casemapping*
+    is not one of the above values, it is treated as the default."""
+    name = name.lower()
+    if casemapping == 'ascii':
+        return name
+    name = name.replace('[',  '{').replace(']',  '}').replace('\\', '|')
+    if casemapping == 'strict-rfc1459':
+        return name
+    return name.replace('^',  '~')
 
 def mode_string(set, modes, args):
     """Given the arguments "set", "modes", and "args" as passed to
@@ -38,6 +63,14 @@ def mode_string(set, modes, args):
     args = filter(None, args)
     return (('+' if set else '-') +
             modes + (' ' + ' '.join(args) if args else ''))
+
+def parse_hostmask(hostmask):
+    """Turn a hostmask in the form *nick!user@host* into a 3-tuple
+    ``(nick, user, host)``, with ``None`` appearing in place of any
+    components not present in the original hostmask."""
+    nick, _, rest = hostmask.partition('!')
+    user, _, host = rest.partition('@')
+    return (nick, user or None, host or None)
 
 def remove_control_codes(s):
     """Remove IRC formatting control codes from a string."""

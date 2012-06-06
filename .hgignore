@@ -1,9 +1,13 @@
 syntax: glob
 
 *.py[co]
-dropin.cache
 .DS_Store
 
+# Twisted
+dropin.cache
+_trial_temp
+
+# Sphinx
 docs/_build
 
 # Packages

@@ -1,4 +1,3 @@
-# -*- test-case-name: omnipresence.test.test_web -*-
 """Utility methods for retrieving and manipulating data from Web resources."""
 
 import re
