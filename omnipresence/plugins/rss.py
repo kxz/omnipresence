@@ -29,7 +29,8 @@ def format_item(item, show_date=False):
     if 'link' in item:
         messages.append(force_unicode(item['link']))
     if 'title' in item:
-        messages.append(u'\x02{0}\x02'.format(force_unicode(item['title'])))
+        title = force_unicode(item['title']).split(u'\n')[0]
+        messages.append(u'\x02{0}\x02'.format(title))
     if 'author' in item:
         messages.append(u'Author: {0}'.format(force_unicode(item['author'])))
     msg = u' \u2014 '.join(messages)
