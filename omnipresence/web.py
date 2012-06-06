@@ -1,3 +1,4 @@
+# -*- test-case-name: omnipresence.test.test_web -*-
 """Utility methods for retrieving and manipulating data from Web resources."""
 
 import re
@@ -191,21 +192,24 @@ HTML_HEX_REFS = re.compile(r'&#x([0-9a-fA-F]+);')
 
 def decode_html_entities(s):
     """Convert HTML entities in a string to their Unicode character
-    equivalents.
+    equivalents.  This method is equivalent to::
+
+        textify_html(s, format_output=False)
     
     .. deprecated:: 2.2
-       Create a Beautiful Soup tag and pass it to
-       :py:func:`textify_html` instead::
-
-           text = textify_html(BeautifulSoup(s), format_output=False)
+       Use :py:func:`textify_html` instead.
     """
-    return textify_html(BeautifulSoup(s), format_output=False)
+    return textify_html(s, format_output=False)
 
-
-def textify_html(soup, format_output=True):
-    """Convert a Beautiful Soup element's contents to a Unicode string.
-    If *format_output* is ``True``, IRC formatting codes are added to
-    simulate common element styles."""
+def textify_html(html, format_output=True):
+    """Convert the contents of *html* to a Unicode string.  *html* can
+    be either a string containing HTML markup, or a Beautiful Soup tag
+    object.  If *format_output* is ``True``, IRC formatting codes are
+    added to simulate common element styles."""
+    if isinstance(html, BeautifulSoup):
+        soup = html
+    else:
+        soup = BeautifulSoup(html)
     def handle_soup(soup, format_output):
         if format_output:
             # Grab the node's tag name, and change the format if necessary.
@@ -219,18 +223,17 @@ def textify_html(soup, format_output=True):
                 fmt = u'_{0}'
             else:
                 fmt = u'{0}'
-        else:
-            fmt = u'{0}'
-    
-        # Recurse into the node's contents.
-        contents = u''
-        for k in soup.contents:
-            if isinstance(k, NavigableString):
-                contents += unicode(k)
-            elif hasattr(k, 'name'):  # is another soup element
-                contents += handle_soup(k, format_output)
 
-        return fmt.format(contents)
+            # Recurse into the node's contents.
+            contents = u''
+            for k in soup.contents:
+                if isinstance(k, NavigableString):
+                    contents += unicode(k)
+                elif hasattr(k, 'name'):  # is another soup element
+                    contents += handle_soup(k, format_output)
+            return fmt.format(contents)
+        else:
+            return u''.join(soup.strings)
 
     # Don't strip whitespace until the very end, in order to avoid
     # misparsing constructs like <span>hello<b> world</b></span>.
