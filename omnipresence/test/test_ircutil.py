@@ -4,59 +4,26 @@ import omnipresence.ircutil as ircutil
 
 
 class CanonicalizationTestCase(unittest.TestCase):
-    def test_ascii(self):
-        self.assertEqual(ircutil.canonicalize('#foo', 'ascii'),
-                         ircutil.canonicalize('#foo', 'ascii'))
-        self.assertEqual(ircutil.canonicalize('#foo', 'ascii'),
-                         ircutil.canonicalize('#FOO', 'ascii'))
-        self.assertEqual(ircutil.canonicalize('#FOO', 'ascii'),
-                         ircutil.canonicalize('#foo', 'ascii'))
-        self.assertEqual(ircutil.canonicalize('#FOO', 'ascii'),
-                         ircutil.canonicalize('#FOO', 'ascii'))
-        self.assertNotEqual(ircutil.canonicalize('nick[tag]', 'ascii'),
-                            ircutil.canonicalize('nick{tag}', 'ascii'))
-        self.assertNotEqual(ircutil.canonicalize('foo|bar', 'ascii'),
-                            ircutil.canonicalize('foo\\bar', 'ascii'))
-        self.assertNotEqual(ircutil.canonicalize('hello~', 'ascii'),
-                            ircutil.canonicalize('hello^', 'ascii'))
-        self.assertNotEqual(ircutil.canonicalize('#foo', 'ascii'),
-                            ircutil.canonicalize('#bar', 'ascii'))
+    expected = {
+        # Strings to compare        # Equal under...
+        ('#foo', '#foo'):           ('ascii', 'strict-rfc1459', 'rfc1459'),
+        ('#foo', '#FOO'):           ('ascii', 'strict-rfc1459', 'rfc1459'),
+        ('#FOO', '#FOO'):           ('ascii', 'strict-rfc1459', 'rfc1459'),
+        ('nick[tag]', 'nick{tag}'): ('strict-rfc1459', 'rfc1459'),
+        ('foo|bar', 'foo\\bar'):    ('strict-rfc1459', 'rfc1459'),
+        ('hello~', 'hello^'):       ('rfc1459'),
+        ('#foo', '#bar'):           tuple()
+    }
 
-    def test_rfc1459(self):
-        self.assertEqual(ircutil.canonicalize('#foo', 'rfc1459'),
-                         ircutil.canonicalize('#foo', 'rfc1459'))
-        self.assertEqual(ircutil.canonicalize('#foo', 'rfc1459'),
-                         ircutil.canonicalize('#FOO', 'rfc1459'))
-        self.assertEqual(ircutil.canonicalize('#FOO', 'rfc1459'),
-                         ircutil.canonicalize('#foo', 'rfc1459'))
-        self.assertEqual(ircutil.canonicalize('#FOO', 'rfc1459'),
-                         ircutil.canonicalize('#FOO', 'rfc1459'))
-        self.assertEqual(ircutil.canonicalize('nick[tag]', 'rfc1459'),
-                         ircutil.canonicalize('nick{tag}', 'rfc1459'))
-        self.assertEqual(ircutil.canonicalize('foo|bar', 'rfc1459'),
-                         ircutil.canonicalize('foo\\bar', 'rfc1459'))
-        self.assertEqual(ircutil.canonicalize('hello~', 'rfc1459'),
-                         ircutil.canonicalize('hello^', 'rfc1459'))
-        self.assertNotEqual(ircutil.canonicalize('#foo', 'rfc1459'),
-                            ircutil.canonicalize('#bar', 'rfc1459'))
-
-    def test_strict_rfc1459(self):
-        self.assertEqual(ircutil.canonicalize('#foo', 'strict-rfc1459'),
-                         ircutil.canonicalize('#foo', 'strict-rfc1459'))
-        self.assertEqual(ircutil.canonicalize('#foo', 'strict-rfc1459'),
-                         ircutil.canonicalize('#FOO', 'strict-rfc1459'))
-        self.assertEqual(ircutil.canonicalize('#FOO', 'strict-rfc1459'),
-                         ircutil.canonicalize('#foo', 'strict-rfc1459'))
-        self.assertEqual(ircutil.canonicalize('#FOO', 'strict-rfc1459'),
-                         ircutil.canonicalize('#FOO', 'strict-rfc1459'))
-        self.assertEqual(ircutil.canonicalize('nick[tag]', 'strict-rfc1459'),
-                         ircutil.canonicalize('nick{tag}', 'strict-rfc1459'))
-        self.assertEqual(ircutil.canonicalize('foo|bar', 'strict-rfc1459'),
-                         ircutil.canonicalize('foo\\bar', 'strict-rfc1459'))
-        self.assertNotEqual(ircutil.canonicalize('hello~', 'strict-rfc1459'),
-                            ircutil.canonicalize('hello^', 'strict-rfc1459'))
-        self.assertNotEqual(ircutil.canonicalize('#foo', 'strict-rfc1459'),
-                            ircutil.canonicalize('#bar', 'strict-rfc1459'))
+    def test_canonicalization(self):
+        for (a, b), equal_casemappings in self.expected.iteritems():
+            for casemapping in ('ascii', 'strict-rfc1459', 'rfc1459'):
+                ca = ircutil.canonicalize(a, casemapping)
+                cb = ircutil.canonicalize(b, casemapping)
+                if casemapping in equal_casemappings:
+                    self.assertEqual(ca, cb)
+                else:
+                    self.assertNotEqual(ca, cb)
 
 
 class HostmaskTestCase(unittest.TestCase):
