@@ -11,7 +11,7 @@ import sys
 import urllib
 import urlparse
 
-from bs4 import BeautifulSoup, NavigableString
+from bs4 import BeautifulSoup, NavigableString, Tag
 from twisted.internet import defer, protocol, reactor
 from twisted.plugin import IPlugin
 from twisted.python import failure
@@ -157,13 +157,13 @@ def transform_response(response, **kwargs):
 def request(*args, **kwargs):
     """Make an HTTP request, and return a Deferred that will yield an
     httplib2-style ``(headers, content)`` tuple to its callback.
-    
+
     Arguments are as for a request to a typical Twisted Web agent, with
     the addition of one keyword argument, *max_bytes*, that specifies
     the maximum number of bytes to fetch from the desired resource.  If
     no ``User-Agent`` header is specified, one is added before making
     the request.
-    
+
     Two custom headers are returned in the response, in addition to any
     set by the HTTP server:  ``X-Omni-Location`` contains the final
     location of the request resource after following all redirects, and
@@ -173,11 +173,11 @@ def request(*args, **kwargs):
     kwargs.setdefault('headers', Headers())
     if not kwargs['headers'].hasHeader('User-Agent'):
         kwargs['headers'].addRawHeader('User-Agent', USER_AGENT)
-    
+
     transform_kwargs = {}
     if 'max_bytes' in kwargs:
         transform_kwargs['max_bytes'] = kwargs.pop('max_bytes')
-    
+
     d = agent.request(*args, **kwargs)
     d.addCallback(transform_response, **transform_kwargs)
     return d
@@ -195,7 +195,7 @@ def decode_html_entities(s):
     equivalents.  This method is equivalent to::
 
         textify_html(s, format_output=False)
-    
+
     .. deprecated:: 2.2
        Use :py:func:`textify_html` instead.
     """
@@ -206,7 +206,7 @@ def textify_html(html, format_output=True):
     be either a string containing HTML markup, or a Beautiful Soup tag
     object.  If *format_output* is ``True``, IRC formatting codes are
     added to simulate common element styles."""
-    if isinstance(html, BeautifulSoup):
+    if isinstance(html, BeautifulSoup) or isinstance(html, Tag):
         soup = html
     else:
         soup = BeautifulSoup(html)
@@ -272,10 +272,10 @@ class WebCommand(object):
             bot.reply(prefix, channel,
                       'Please specify {0}.'.format(self.arg_type))
             return
-        
+
         if self.url is None:
             raise NotImplementedError('no URL provided for WebCommand')
-        
+
         d = request('GET', self.url % urllib.quote(args[1]))
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
