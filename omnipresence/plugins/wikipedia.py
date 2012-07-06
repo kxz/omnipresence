@@ -45,6 +45,16 @@ def load_languages():
         if isinstance(x, dict):
             languages.add(x['code'])
 
+def pick_intro(html):
+    """Get the text of the first paragraph in *html*."""
+    if html:
+        p = BeautifulSoup(html).p
+        if p:
+            ptext = web.textify_html(p)
+            if ptext:
+                return ptext
+    return None
+
 
 class WikipediaPlugin(object):
     implements(IPlugin, ICommand)
@@ -58,17 +68,12 @@ class WikipediaPlugin(object):
                                         '\x02%s\x02.' % args[1]))
             return
         url, summary, info_text = pageinfo
-
+        summary = pick_intro(summary)
         if summary:
-            # Reduce the summary down to the first paragraph.
-            p = BeautifulSoup(summary).find('p', '', recursive=False)
-            if p:
-                ptext = web.textify_html(p)
-                if ptext:
-                    summary = u' \u2014 ' + ptext
-        if not summary:
+            summary = u' \u2014 ' + summary
+        else:
             summary = u''
-        
+
         bot.reply(reply_target, channel,
                   u'Wikipedia{0}: {1}{2}'.format(info_text, url, summary))
 
@@ -165,7 +170,7 @@ class ArticleSearch(WikipediaPlugin):
             for pageinfo in ftext['query']['pages'].itervalues():
                 defer.returnValue((pageinfo['fullurl'],
                                    pageinfo['extract'], u' (full-text)'))
-        
+
         # Nothing doing.
         defer.returnValue(None)
 
@@ -177,9 +182,9 @@ class RandomArticle(WikipediaPlugin):
     \x1Flanguage_code\x1F if one is specified.
     """
     name = 'wikipedia_random'
-    
+
     def execute(self, bot, prefix, reply_target, channel, args):
-        args = args.split(None, 1) 
+        args = args.split(None, 1)
         language = DEFAULT_LANGUAGE
         if len(args) > 1:
             language = args[1].rstrip(':')
@@ -188,11 +193,11 @@ class RandomArticle(WikipediaPlugin):
                           'The language code \x02%s\x02 is invalid.'
                            % language)
                 return
-        
+
         d = self.random(language)
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
-    
+
     @defer.inlineCallbacks
     def random(self, language):
         random = yield call_wikipedia_api(language, {'action': 'query',
@@ -214,7 +219,7 @@ class RandomArticle(WikipediaPlugin):
             bot.reply(prefix, channel,
                       'Wikipedia (random): No articles found.')
             return
-    
+
         super(RandomArticle, self).reply(pageinfo, *args)
 
 
