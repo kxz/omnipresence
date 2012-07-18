@@ -39,16 +39,16 @@ def add_si_prefix(number, unit, plural_unit=None):
     it defaults to *unit* with an "s" appended."""
     if not plural_unit:
         plural_unit = unit + 's'
-    
+
     if number == 1:
         return '{0:n} {1}'.format(number, unit)
-    
+
     prefix = ''
     for prefix in ('', 'kilo', 'mega', 'giga', 'tera',
                    'exa', 'peta', 'zetta', 'yotta'):
         if number < 1000:
             break
-        
+
         number /= 1000.0
 
     if prefix:
@@ -151,38 +151,38 @@ class ITitleProcessor(Interface):
 
 class URLTitleFetcher(object):
     """
-    Reply to messages containing URLs with an appropriate title (the 
-    contents of the <title> element for HTML pages, the first line for 
+    Reply to messages containing URLs with an appropriate title (the
+    contents of the <title> element for HTML pages, the first line for
     plain text documents, and so forth.)
     """
     implements(IPlugin, IHandler)
     name = 'url'
 
     title_processors = {}
-    
+
     def registered(self):
         self.ignore_list = self.factory.config.getspacelist(
                              'url', 'ignore_messages_from')
         for title_processor in getPlugins(ITitleProcessor, plugins.url):
             for content_type in title_processor.supported_content_types:
                 self.title_processors[content_type] = title_processor
-    
+
     def privmsg(self, bot, prefix, channel, message):
         nick = prefix.split('!', 1)[0]
-        
+
         if nick in self.ignore_list:
             return
-        
+
         # Everything in here is Unicode.
         message = message.decode(self.factory.encoding, 'ignore')
-        
+
         urls = extract_urls(message)
         fetchers = []
-        
+
         for url in urls:
             log.msg('Saw URL %s from %s in channel %s.'
                     % (url.encode('utf8'), prefix, channel))
-            
+
             # Strip the fragment portion of the URL, if present.
             url, frag = urlparse.urldefrag(url)
 
@@ -194,23 +194,23 @@ class URLTitleFetcher(object):
                 url += (u'&' if u'?' in url else u'?' +
                         u'_escaped_fragment_=' +
                         urllib.quote(frag[1:].encode('utf8')))
-            
+
             # Basic hostname sanity checks.
             hostname = urlparse.urlparse(url).hostname
             if hostname is None:
                 log.msg('Could not extract hostname from URL {0}; ignoring.' \
                          .format(url.encode('utf8')))
                 continue
-            
+
             # Twisted Names is full of headaches.  socket is easier.
             d = self.get_title(url, hostname)
             d.addErrback(self.make_error_reply, hostname)
             fetchers.append(d)
-        
+
         l = defer.DeferredList(fetchers)
         l.addCallback(self.reply, bot, prefix, channel)
         return l
-    
+
     action = privmsg
 
     @defer.inlineCallbacks
@@ -227,7 +227,7 @@ class URLTitleFetcher(object):
         title = u'No title found.'
         headers, content = yield web.request('GET', url.encode('utf8'),
                                              max_bytes=MAX_DOWNLOAD_SIZE)
-        ctype, cparams = cgi.parse_header(headers.get('Content-Type'))
+        ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
         if ctype in self.title_processors:
             title_processor = self.title_processors[ctype]
             processed = yield threads.deferToThread(
@@ -273,15 +273,15 @@ class URLTitleFetcher(object):
             hostname_tag = hostname
 
         defer.returnValue((hostname_tag, title))
-    
+
     def make_error_reply(self, failure, hostname):
         log.err(failure, 'Encountered an error in URL processing.')
         return (hostname, u'Error: {0:s}'.format(failure.value))
-    
+
     def reply(self, results, bot, prefix, channel):
         for i, result in enumerate(results):
             success, value = result
-            
+
             if success:
                 hostname, title = value
                 title = u'[{0}] {1}'.format(hostname, title)
@@ -289,16 +289,16 @@ class URLTitleFetcher(object):
                 # This should only happen if make_reply() bombs.
                 log.err(value, 'Encountered an error in URL processing.')
                 title = u'Error: \x02{0:s}\x02.'.format(value.value)
-            
+
             if len(title) >= 140:
                 title = u'{0}…{1}'.format(title[:64], title[-64:])
-            
+
             if len(results) > 1:
                 message = u'URL ({0}/{1}): {2}'.format(i + 1, len(results),
                                                        title)
             else:
                 message = u'URL: {0}'.format(title)
-            
+
             # In the event that we're enabled for private messages...
             if channel == bot.nickname:
                 bot.reply(prefix, channel, message)
