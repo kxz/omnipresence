@@ -26,14 +26,12 @@ def find_location(query):
     params = urllib.urlencode({'maxRows': 1, 'style': 'FULL', 'q': query})
     headers, content = yield web.request('GET', SEARCH_URL % params)
     data = json.loads(content)
-    if 'geonames' not in data or not data['geonames']:
+    if not data.get('geonames'):
         defer.returnValue(None)
     details = data['geonames'][0]
-    canonical = [details['name']]
-    if ('adminName1' in details) and (details['adminName1']):
-        canonical.append(details['adminName1'])
-    if ('countryName' in details) and (details['countryName']):
-        canonical.append(details['countryName'])
+    canonical = filter(None, [details.get('name'),
+                              details.get('adminName1'),
+                              details.get('countryName')])
     defer.returnValue((u', '.join(canonical), details['lat'], details['lng']))
 
 def format_location(location, lat, lng):
@@ -48,14 +46,14 @@ class TimeLookup(object):
     """
     implements(IPlugin, ICommand)
     name = 'time'
-    
+
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
-        
+
         if len(args) < 2:
             bot.reply(prefix, channel, 'Please specify a location.')
             return
-        
+
         if args[1] in pytz.all_timezones:
             time = datetime.datetime.utcnow() \
                     .replace(tzinfo=pytz.utc) \
@@ -64,11 +62,11 @@ class TimeLookup(object):
             bot.reply(reply_target, channel, 'Time service: %s (tz database) '
                                              '%s' % (args[1], time))
             return
-        
+
         d = find_location(args[1])
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
-    
+
     @defer.inlineCallbacks
     def reply(self, location, bot, prefix, reply_target, channel, args):
         if not location:
@@ -95,14 +93,14 @@ class WeatherLookup(object):
     """
     implements(IPlugin, ICommand)
     name = 'weather'
-    
+
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
-        
+
         if len(args) < 2:
             bot.reply(prefix, channel, 'Please specify a location.')
             return
-        
+
         d = find_location(args[1])
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
@@ -135,14 +133,14 @@ class WeatherLookup(object):
                           .format(observation['windDirection'],
                                   int(observation['windSpeed'])))
         weather += u', {0}% humidity'.format(observation['humidity'])
-        
+
         try:
             dt = ago(datetime.datetime.strptime(observation['datetime'],
                                                 '%Y-%m-%d %H:%M:%S'),
                      datetime.datetime.utcnow())
         except ValueError:
             dt = observation['datetime'] + u' UTC'
-        
+
         bot.reply(reply_target, channel,
                   u'Weather service: {0} {1} from {2} [{3}] as of {4}' \
                     .format(format_location(*location), weather,
