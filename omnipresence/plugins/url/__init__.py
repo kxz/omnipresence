@@ -70,7 +70,6 @@ def extract_urls(text):
     urls = []
     words = word_split_re.split(text)
     for i, word in enumerate(words):
-        match = None
         if '.' in word or ':' in word:
             # Deal with punctuation.
             lead, middle, trail = '', word, ''
@@ -88,16 +87,11 @@ def extract_urls(text):
                     middle = middle[:-len(closing)]
                     trail = closing + trail
 
-            # Make URL we want to point to.
-            url = None
-            if simple_url_re.match(middle):
-                url = middle
-            elif simple_url_2_re.match(middle):
-                url = 'http://%s' % middle
-
             # Add to our list of URLs.
-            if url:
-                urls.append(url)
+            if simple_url_re.match(middle):
+                urls.append(middle)
+            elif simple_url_2_re.match(middle):
+                urls.append('http://%s' % middle)
     return urls
 
 def is_private_host(hostname):
@@ -180,6 +174,26 @@ class URLTitleFetcher(object):
         fetchers = []
 
         for url in urls:
+            # Perform some basic URL format sanity checks.
+            parsed = urlparse.urlparse(url)
+            # The extract_urls method will happily treat strings like
+            # "site:example.com" as a URL, "http://site:example.com",
+            # which is a problem when dealing with e.g. Google searches.
+            # In this case, the resulting port "number" is invalid, so
+            # we check it and bail if we hit an exception.
+            try:
+                parsed.port
+            except ValueError:
+                # Ignore it and move on.
+                continue
+            # Make sure we have a valid hostname.
+            hostname = parsed.hostname
+            if hostname is None:
+                log.msg('Could not extract hostname from URL {0}; '
+                        'ignoring.'.format(url.encode('utf8')))
+                continue
+
+            # Okay, everything looks good.  Log the seen URL.
             log.msg('Saw URL %s from %s in channel %s.'
                     % (url.encode('utf8'), prefix, channel))
 
@@ -195,14 +209,7 @@ class URLTitleFetcher(object):
                         u'_escaped_fragment_=' +
                         urllib.quote(frag[1:].encode('utf8')))
 
-            # Basic hostname sanity checks.
-            hostname = urlparse.urlparse(url).hostname
-            if hostname is None:
-                log.msg('Could not extract hostname from URL {0}; ignoring.' \
-                         .format(url.encode('utf8')))
-                continue
-
-            # Twisted Names is full of headaches.  socket is easier.
+            # Make the actual request.
             d = self.get_title(url, hostname)
             d.addErrback(self.make_error_reply, hostname)
             fetchers.append(d)
@@ -215,6 +222,7 @@ class URLTitleFetcher(object):
 
     @defer.inlineCallbacks
     def get_title(self, url, hostname, redirect_count=0):
+        # Twisted Names is full of headaches.  socket is easier.
         private = yield threads.deferToThread(is_private_host,
                                               hostname.encode('utf8'))
         if private:
