@@ -11,13 +11,13 @@ DURATION_RE = re.compile('^(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s
 DURATION_GROUPS = ['weeks', 'days', 'hours', 'minutes', 'seconds']
 
 def ago(then, now=None):
-    """Given a datetime object, return a string giving an approximate relative 
+    """Given a datetime object, return a string giving an approximate relative
     time, such as "5 days ago"."""
     if not now:
         now = datetime.datetime.now()
-    
+
     delta = now - then
-    
+
     if delta.days == 0:
         if delta.seconds < 10:
             return "just now"
@@ -48,10 +48,10 @@ def andify(seq, two_comma=False):
     *y*")."""
     if len(seq) > 2:
         return ', '.join(seq[:-2] + [', and '.join(seq[-2:])])
-    
+
     if two_comma:
         return ', and '.join(seq)
-    
+
     return ' and '.join(seq)
 
 def duration_to_timedelta(duration):
@@ -64,7 +64,7 @@ def duration_to_timedelta(duration):
         kwargs = dict(((DURATION_GROUPS[i], int(value, 10))
                        for (i, value) in enumerate(match.groups('0'))))
         return datetime.timedelta(**kwargs)
-    
+
     return datetime.timedelta(0)
 
 def readable_duration(duration):
@@ -78,15 +78,15 @@ def readable_duration(duration):
             if value:
                 unit = DURATION_GROUPS[i]
                 value = int(value, 10)
-                
+
                 if value == 1:
                     # Thankfully, all of these words are simple plurals.
                     components.append(unit[:-1])
                 else:
                     components.append('%d %s' % (value, unit))
-        
+
         return andify(components)
-    
+
     return 'instant'
 
 # <http://stackoverflow.com/questions/1809531/-/1820949>

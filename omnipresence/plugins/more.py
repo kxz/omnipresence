@@ -10,7 +10,7 @@ class More(object):
     """
     implements(IPlugin, ICommand)
     name = 'more'
-    
+
     def execute(self, bot, prefix, reply_target, channel, args):
         nick = prefix.split('!', 1)[0].strip()
         buffer_channel = '@' if channel == bot.nickname else channel
@@ -18,7 +18,7 @@ class More(object):
             buffer = bot.message_buffers[buffer_channel][nick]
         except KeyError:
             buffer = None
-        
+
         bot.reply(reply_target, channel, buffer or 'No text in buffer.')
 
 default = More()

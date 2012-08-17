@@ -8,7 +8,7 @@ from omnipresence.iomnipresence import IHandler
 class AutoVoicer(object):
     implements(IPlugin, IHandler)
     name = 'autovoice'
-    
+
     moderated = {}
 
     def joined(self, bot, prefix, channel):
@@ -30,6 +30,6 @@ class AutoVoicer(object):
             nick = prefix.split('!', 1)[0]
             log.msg('Attempting to voice %s on channel %s.' % (nick, channel))
             bot.mode(channel, True, 'v', user=nick)
-            
+
 
 autovoice = AutoVoicer()

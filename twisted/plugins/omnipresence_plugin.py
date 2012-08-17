@@ -25,7 +25,7 @@ class ServiceMaker(object):
 
     def makeService(self, options):
         """
-        Construct a TCP or SSL client from IRCClientFactory, using the options 
+        Construct a TCP or SSL client from IRCClientFactory, using the options
         in the given configuration file.
         """
 
@@ -33,7 +33,7 @@ class ServiceMaker(object):
 
         config = OmnipresenceConfigParser()
         config.read(os.path.join(os.getcwd(), options['config_file']))
-        
+
         factory = IRCClientFactory(config)
 
         server = config.get('core', 'server')

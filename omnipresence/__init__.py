@@ -21,7 +21,7 @@ MAX_REPLY_LENGTH = 256
 class IRCClient(irc.IRCClient):
     """Omnipresence's core IRC client protocol class.  Common parameters
     for callbacks and class methods include:
-    
+
     *prefix*
         A full ``nick!user@host`` mask.
     *channel* or *nick*
@@ -54,13 +54,13 @@ class IRCClient(irc.IRCClient):
 
     # Suspended join queue.
     suspended_joins = None
-    
+
     # Dictionary mapping channels to the nicks present in each channel.
     channel_names = None
-    
+
     # Message buffers for long messages.
     message_buffers = None
-    
+
     def __init__(self):
         self.channel_names = {}
         self.message_buffers = {'@': {}}
@@ -104,14 +104,14 @@ class IRCClient(irc.IRCClient):
         self.suspended_joins = None
 
     def call_handlers(self, event, channel, args=[]):
-        # If the channel is None, this is a server event not associated with a 
-        # specific channel, such as a successful sign-on or a quit.  Send the 
+        # If the channel is None, this is a server event not associated with a
+        # specific channel, such as a successful sign-on or a quit.  Send the
         # event to every registered handler.
         if channel is None:
             handlers = set()
-            
-            # If this is a quit or nick change, only invoke callbacks on the 
-            # handlers that are active for the channels where the relevant 
+
+            # If this is a quit or nick change, only invoke callbacks on the
+            # handlers that are active for the channels where the relevant
             # user is present.
             if event in ('userQuit', 'userRenamed'):
                 for channel in self.factory.handlers:
@@ -122,12 +122,12 @@ class IRCClient(irc.IRCClient):
                 for channel in self.factory.handlers:
                     handlers.update(self.factory.handlers[ircutil.canonicalize(channel)])
         else:
-            # If the channel doesn't start with an IRC channel prefix, treat 
-            # the event as a private one.  Some networks send notices to "AUTH" 
+            # If the channel doesn't start with an IRC channel prefix, treat
+            # the event as a private one.  Some networks send notices to "AUTH"
             # when performing ident lookups, for example.
             if channel[0] not in irc.CHANNEL_PREFIXES:
                 channel = '@'
-    
+
             try:
                 handlers = self.factory.handlers[ircutil.canonicalize(channel)]
             except KeyError:
@@ -145,10 +145,10 @@ class IRCClient(irc.IRCClient):
     def run_commands(self, prefix, channel, message):
         # First, get rid of formatting codes in the message.
         message = ircutil.remove_control_codes(message)
-        
-        # Second, see if the message matches any of the command prefixes 
-        # specified in the configuration file.  We read directly from 
-        # `self.factory.config` on every message, because the 
+
+        # Second, see if the message matches any of the command prefixes
+        # specified in the configuration file.  We read directly from
+        # `self.factory.config` on every message, because the
         # "current_nickname" default may change while the bot is being run.
         defaults = {'current_nickname': self.nickname}
         command_prefixes = self.factory.config.getspacelist('core',
@@ -160,12 +160,12 @@ class IRCClient(irc.IRCClient):
                 message = message[len(command_prefix):].strip()
                 break
         else:
-            # The message doesn't start with any of the given command prefixes.  
-            # Continue command parsing if this is a private message; otherwise, 
+            # The message doesn't start with any of the given command prefixes.
+            # Continue command parsing if this is a private message; otherwise,
             # bail out.
             if channel[0] in irc.CHANNEL_PREFIXES:
                 return
-            
+
             # Strip excess leading and trailing whitespace for
             # unprefixed commands sent through private messages.
             message = message.strip()
@@ -185,14 +185,14 @@ class IRCClient(irc.IRCClient):
             (message, reply_target) = message.rsplit('>', 1)
             message = message.strip()
             reply_target = reply_target.strip()
-        
+
         if reply_target != prefix:
             log.msg('Command from %s directed at %s on channel %s: %s'
                      % (prefix, reply_target, channel, message))
         else:
             log.msg('Command from %s on channel %s: %s'
                      % (prefix, channel, message))
-        
+
         d = defer.maybeDeferred(self.factory.commands[keyword].execute,
                                 self, prefix, reply_target, channel, message)
         d.addErrback(self.reply_with_error, prefix, channel, keyword)
@@ -210,12 +210,12 @@ class IRCClient(irc.IRCClient):
           by *prefix*.
         * If *prefix* is not specified, send the reply publicly to the
           channel given by *channel*, with no nickname addressing.
-        
+
         Long replies are buffered in order to satisfy protocol message
         length limits; a maximum of 256 characters will be sent at any
         given time.  Further content from a buffered reply can be
         retrieved by using the command provided with the `more` plugin.
-        
+
         When possible, Omnipresence attempts to truncate replies on
         whitespace, instead of in the middle of a word.  Replies are
         _always_ broken on newlines, which can be useful for creating
@@ -248,12 +248,12 @@ class IRCClient(irc.IRCClient):
                 message += ' (+%d more characters)' % len(to_buffer)
             log.msg('Reply for %s on channel %s: %s'
                      % (nick, channel, message))
-            
+
             if channel == self.nickname:
                 self.message_buffers['@'][nick] = to_buffer
                 self.notice(nick, message)
                 return
-            
+
             self.message_buffers[channel][nick] = to_buffer
             message = '%s: %s' % (nick, message)
         else:
@@ -314,7 +314,7 @@ class IRCClient(irc.IRCClient):
 
         self.call_handlers('privmsg', channel, [prefix, channel, message])
         self.run_commands(prefix, channel, message)
-        
+
     def joined(self, prefix, channel):
         """Called when the bot successfully joins the given *channel*.
         Use this to perform channel-specific initialization."""
@@ -322,13 +322,13 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('joined', channel, [prefix, channel])
         self.channel_names[channel] = set()
         self.message_buffers[channel] = {}
-    
+
     def left(self, prefix, channel):
         """Called when the bot leaves the given *channel*."""
         self.call_handlers('left', channel, [prefix, channel])
         del self.channel_names[channel]
         del self.message_buffers[channel]
-    
+
     def noticed(self, prefix, channel, message):
         """Called when we receive a notice from another user.  Behaves
         largely the same as :py:meth:`privmsg`."""
@@ -336,7 +336,7 @@ class IRCClient(irc.IRCClient):
             log.msg('Notice from %s for %s: %s' % (prefix, channel, message))
 
         self.call_handlers('noticed', channel, [prefix, channel, message])
-    
+
     def modeChanged(self, prefix, channel, set, modes, args):
         """Called when a channel's mode is changed.  See `the Twisted
         documentation
@@ -344,7 +344,7 @@ class IRCClient(irc.IRCClient):
         for information on this method's parameters."""
         self.call_handlers('modeChanged', channel,
                            [prefix, channel, set, modes, args])
-    
+
     def signedOn(self):
         """Called after successfully signing on to the server."""
         log.msg('Successfully signed on to server.')
@@ -368,24 +368,24 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('kickedFrom', channel, [channel, kicker, message])
         del self.channel_names[channel]
         del self.message_buffers[channel]
-    
+
     def nickChanged(self, nick):
         """Called when the bot's nickname is changed."""
         self.call_handlers('nickChanged', None, [nick])
         irc.IRCClient.nickChanged(self, nick)
-    
+
     def userJoined(self, prefix, channel):
         """Called when another user joins the given *channel*."""
         self.call_handlers('userJoined', channel, [prefix, channel])
         self.channel_names[channel].add(prefix.split('!', 1)[0])
-    
+
     def userLeft(self, prefix, channel):
         """Called when another user leaves the given *channel*."""
         self.call_handlers('userLeft', channel, [prefix, channel])
         nick = prefix.split('!', 1)[0]
         self.channel_names[channel].discard(nick)
         self.message_buffers[channel].pop(nick, None)
-    
+
     def userQuit(self, prefix, quitMessage):
         """Called when another user has quit the IRC server."""
         self.call_handlers('userQuit', None, [prefix, quitMessage])
@@ -410,7 +410,7 @@ class IRCClient(irc.IRCClient):
     def topicUpdated(self, nick, channel, newTopic):
         """Called when the topic of the given *channel* is changed."""
         self.call_handlers('topicUpdated', channel, [nick, channel, newTopic])
-    
+
     def userRenamed(self, oldname, newname):
         """Called when another user changes nick."""
         self.call_handlers('userRenamed', None, [oldname, newname])
@@ -447,7 +447,7 @@ class IRCClient(irc.IRCClient):
         del self.channel_names[channel]
         del self.message_buffers[channel]
         irc.IRCClient.leave(self, channel, reason)
-    
+
     def kick(self, channel, nick, reason=None):
         """Kick the the given *nick* from the given *channel*."""
         self.call_handlers('kick', channel, [channel, nick, reason])
@@ -462,7 +462,7 @@ class IRCClient(irc.IRCClient):
         callback."""
         self.call_handlers('topic', channel, [channel, topic])
         irc.IRCClient.topic(self, channel, topic)
-    
+
     def mode(self, chan, set, modes, limit=None, user=None, mask=None):
         """Change the mode of the given *channel*.  See `the Twisted
         documentation
@@ -471,9 +471,9 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('mode', chan,
                            [chan, set, modes, limit, user, mask])
         irc.IRCClient.mode(self, chan, set, modes, limit, user, mask)
-    
+
     # def say(...) is not necessary, as it simply delegates to msg().
-    
+
     def msg(self, nick, message):
         """Send a message to the nickname or channel specified by
         *nick*."""
@@ -485,7 +485,7 @@ class IRCClient(irc.IRCClient):
         *nick*."""
         self.call_handlers('notice', nick, [nick, message])
         irc.IRCClient.notice(self, nick, message)
-    
+
     def setNick(self, nickname):
         """Change the bot's nickname."""
         oldnick = self.nickname
@@ -498,14 +498,14 @@ class IRCClient(irc.IRCClient):
         for channel in self.message_buffers:
             # We should never have a buffer for ourselves.
             self.message_buffers[channel].pop(oldnick, None)
-    
+
     def quit(self, message=''):
         """Quit from the IRC server."""
         self.call_handlers('quit', None, [message])
         irc.IRCClient.quit(self, message)
         self.channel_names = {}
         self.message_buffers = {'@': {}}
-    
+
     def me(self, channel, action):
         """Perform an action in the given *channel*."""
         self.call_handlers('me', channel, [channel, action])
@@ -540,7 +540,7 @@ class IRCClient(irc.IRCClient):
 
     def irc_PONG(self, prefix, secs):
         self.ping_count = 0
-    
+
     def names(self, *channels):
         """Ask the IRC server for a list of nicknames in the given
         channels.  Plugins generally should not need to call this
@@ -573,13 +573,13 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     """Creates :py:class:`.IRCClient` instances."""
     protocol = IRCClient
 
-    # Stores the handler instances for each channel that we are connected to.  
-    # Keys are channel names; values are an ordered list of handler instances 
-    # to execute for each one.  "@" is a special key corresponding to handlers 
+    # Stores the handler instances for each channel that we are connected to.
+    # Keys are channel names; values are an ordered list of handler instances
+    # to execute for each one.  "@" is a special key corresponding to handlers
     # that should execute on private messages.
     handlers = None
 
-    # Stores the command instances for this bot.  Keys are the keywords used to 
+    # Stores the command instances for this bot.  Keys are the keywords used to
     # invoke each command; values are the command instances themselves.
     commands = None
 
@@ -595,7 +595,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         sqlobject.sqlhub.processConnection = \
           sqlobject.connectionForURI(sqlobject_uri)
 
-        # Load handler plug-ins through twisted.plugin, then map handlers to 
+        # Load handler plug-ins through twisted.plugin, then map handlers to
         # channels based on the specified configuration options.
         self.handlers = {}
         found_handlers = {}
@@ -609,8 +609,8 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         channels = self.config.options('channels')
         for channel in channels:
             handler_names = self.config.getspacelist('channels', channel)
-            # Since "#" can't be used to start a line in the configuration file 
-            # (it gets parsed as a comment by ConfigParser), add "#" to the 
+            # Since "#" can't be used to start a line in the configuration file
+            # (it gets parsed as a comment by ConfigParser), add "#" to the
             # beginning of any channel name that's not special (i.e. "@").
             if channel[0] not in irc.CHANNEL_PREFIXES and channel != '@':
                 channel = '#' + channel
@@ -625,7 +625,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
                                        % handler_name)
                         raise
 
-        # Load command plug-ins through twisted.plugin, then map commands to 
+        # Load command plug-ins through twisted.plugin, then map commands to
         # keywords based on the specified configuration options.
         self.commands = {}
         found_commands = {}
@@ -637,7 +637,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             found_commands[command.name] = command
 
         for (keyword, command_name) in self.config.items('commands'):
-            # Force the keyword to lowercase.  This enables case-insensitive 
+            # Force the keyword to lowercase.  This enables case-insensitive
             # matching when parsing commands.
             keyword = keyword.lower()
 

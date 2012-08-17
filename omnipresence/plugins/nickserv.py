@@ -46,21 +46,21 @@ class NickServHandler(object):
             return
 
         if self.identify_re.search(message):
-            # We're being asked to identify for this nick by NickServ, so send 
+            # We're being asked to identify for this nick by NickServ, so send
             # it our password.
             log.msg('Received NickServ authentication request; sending password.')
             bot.msg(prefix.split('!', 1)[0], 'identify %s' % self.password)
             return
 
         if self.identified_re.search(message):
-            # We've successfully identified to the server, so we can now join 
+            # We've successfully identified to the server, so we can now join
             # channels as usual.
             log.msg('Successfully identified to NickServ.')
             bot.resume_joins()
             return
 
         if self.kill_ghosts and self.ghost_killed_re.search(message):
-            # We've gotten the ghost out of the way, so change to our usual 
+            # We've gotten the ghost out of the way, so change to our usual
             # nick and wait for an authentication request.
             log.msg('Successfully killed ghost; changing nick.')
 
@@ -71,8 +71,8 @@ class NickServHandler(object):
             return
 
     def irc_ERR_NICKNAMEINUSE(self, bot):
-        # The bot's usual nick is in use by someone else.  If ghost-killing is 
-        # enabled, ask NickServ to ghost the other user after we've finished 
+        # The bot's usual nick is in use by someone else.  If ghost-killing is
+        # enabled, ask NickServ to ghost the other user after we've finished
         # signing on.
         log.msg('Nick in use by another user.')
         if self.signed_on:
@@ -85,7 +85,7 @@ class NickServHandler(object):
             log.msg('Asking NickServ to kill ghost with configured nick.')
             bot.msg(self.mask.split('!', 1)[0],
                     'ghost %s %s' % (self.configured_nick, self.password))
-       
+
         log.msg('Changing to configured nick in 10 seconds.')
         self.nick_change_call = reactor.callLater(10, bot.setNick,
                                                   self.configured_nick)

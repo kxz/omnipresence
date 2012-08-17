@@ -40,11 +40,11 @@ class AnimeSearch(WebCommand):
     # (2) "do.update" must be passed, or "noalias" is ignored.
     url = ('http://anidb.net/perl-bin/animedb.pl?show=animelist&adb.search=%s&'
            'orderby.ucnt=0.2&do.update=update&noalias=1')
-    
+
     def reply(self, response, bot, prefix, reply_target, channel, args):
         results = []
         soup = BeautifulSoup(response[1])
-        
+
         # We may get one of three differently-formatted responses
         # depending on the number of results: if there are no results,
         # an animelist page with a notice; if there are multiple
@@ -57,7 +57,7 @@ class AnimeSearch(WebCommand):
         # "multiple result" case.
         animelist = soup.find('table', 'animelist')
         anime_all = soup.find('div', 'anime_all')
-        
+
         if animelist:
             # Skip the first header row and grab the second row.
             for row in animelist('tr')[1:]:
@@ -74,7 +74,7 @@ class AnimeSearch(WebCommand):
                 if '-' in anime['enddate']:
                     anime['enddate'] = ''
                 results.append(anime)
-        
+
         # Now for the "single result" case.
         elif anime_all:
             type_cell = row_value(anime_all, 'type').split(', ')
@@ -86,7 +86,7 @@ class AnimeSearch(WebCommand):
                       'name': txt(soup.find('h1', 'anime'))[7:],
                       'atype': type_cell[0]
                     }
-            
+
             anime['episodes'] = ''
             if len(type_cell) > 1:
                 anime['episodes'] = type_cell[1].split()[0]
@@ -102,7 +102,7 @@ class AnimeSearch(WebCommand):
                 # Anime aired on a single day.
                 anime['airdate'] = year_cell
                 anime['enddate'] = anime['airdate']
-            
+
             # Try to get the permanent rating first; if it's "N/A", then
             # move to the temporary rating.
             rating = row_value(anime_all, 'rating')
@@ -111,13 +111,13 @@ class AnimeSearch(WebCommand):
             # Get rid of the "(weighted)" note.
             anime['rating'] = ' '.join(rating.split()[:2])
             results.append(anime)
-        
+
         # And all other cases.
         else:
             bot.reply(prefix, channel, 'AniDB: No results were found for '
                                        '\x02%s\x02.' % args[1])
             return
-        
+
         messages = []
         for i, anime in enumerate(results):
             message = u'AniDB: ({0}/{1}) \x02{2}\x02 \u2014 {3}'.format(
@@ -140,7 +140,7 @@ class AnimeSearch(WebCommand):
                 message += u' \u2014 rated {0}'.format(anime['rating'].strip())
             message += u' \u2014 http://anidb.net/a{0}'.format(anime['aid'].strip())
             messages.append(message)
-        
+
         bot.reply(reply_target, channel, u'\n'.join(messages))
 
 anime = AnimeSearch()

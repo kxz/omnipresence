@@ -47,7 +47,7 @@ class Feed(object):
     seen_items = None
     last_update = None
     parsed = None
-    
+
     def __init__(self, url):
         self.url = url
         self.channels = set()
@@ -64,22 +64,22 @@ class RSSNotifier(object):
     """
     implements(IPlugin, ICommand, IHandler)
     name = 'rss'
-    
+
     """A dictionary mapping feed identifiers to a `Feed` instance."""
     feeds = None
-    
+
     """The time between feed updates, in minutes."""
     update_interval = 10
-    
+
     """The `LoopingCall` instance used to schedule updates."""
     scheduler = None
-    
+
     # Ick.
     _bot = None
-    
+
     def __init__(self):
         self.feeds = {}
-    
+
     def connectionMade(self, bot):
         self._bot = bot
         if self.factory.config.has_section('rss'):
@@ -107,7 +107,7 @@ class RSSNotifier(object):
                                           self.update_interval * 60,
                                           now=False))
                 return l
-    
+
     def update(self):
         log.msg('Updating RSS feeds')
         for identifier, feed in self.feeds.iteritems():
@@ -115,7 +115,7 @@ class RSSNotifier(object):
             d.addCallback(self.initialize, identifier)
             d.addCallback(self.broadcast, identifier)
             d.addErrback(self.error, identifier)
-    
+
     def initialize(self, (headers, content), identifier):
         feed = feedparser.parse(content)
         self.feeds[identifier].parsed = feed
@@ -129,7 +129,7 @@ class RSSNotifier(object):
             log.msg('Found %d new items in feed %s' % (len(new_items),
                                                        identifier))
         return new_items
-    
+
     def broadcast(self, new_items, identifier):
         if new_items:
             feed_title = force_unicode(self.feeds[identifier].parsed.feed.get(
@@ -144,12 +144,12 @@ class RSSNotifier(object):
 
     def error(self, failure, identifier):
         log.err(failure, 'Error updating feed %s' % identifier)
-    
+
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split()
         available_feeds = filter(lambda x: channel in self.feeds[x].channels,
                                  self.feeds)
-        
+
         if len(args) < 2:
             if available_feeds:
                 bot.reply(reply_target, channel,
@@ -161,7 +161,7 @@ class RSSNotifier(object):
                 bot.reply(reply_target, channel,
                           'No feeds available in this channel.')
             return
-        
+
         identifier = args[1]
         if identifier not in available_feeds:
             bot.reply(prefix, channel, 'Unrecognized feed identifier '
@@ -174,7 +174,7 @@ class RSSNotifier(object):
             return
         feed = self.feeds[identifier].parsed
         feed_title = force_unicode(feed.feed.get('title', identifier))
-        
+
         if len(args) == 2:
             messages = [u'RSS: \x02{0}\x02'.format(feed_title)]
             if 'link' in feed.feed:
@@ -187,7 +187,7 @@ class RSSNotifier(object):
             messages.append(u'{0} items'.format(len(feed.entries)))
             bot.reply(reply_target, channel, u' \u2014 '.join(messages))
             return
-        
+
         item = None
         try:
             item_number = int(args[2], 10)
@@ -202,7 +202,7 @@ class RSSNotifier(object):
                       '(valid values: \x021\x02 through \x02{2}\x02).' \
                        .format(args[2], identifier, len(feed.entries)))
             return
-        
+
         bot.reply(reply_target, channel,
                   u'RSS: \x02{0}\x02 item #{1}: {2}'.format(
                     feed_title, item_number, format_item(item, show_date=True)))

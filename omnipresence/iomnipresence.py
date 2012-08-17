@@ -17,7 +17,7 @@ class IHandler(Interface):
 class ICommand(Interface):
     """A command that is invoked in response to specially-formatted IRC
     messages.
-    
+
     The docstring is used to provide documentation for the ``help``
     command plugin, with ``%s`` standing in for the keyword assigned by
     the bot's configuration.  Generally, command docstrings take the

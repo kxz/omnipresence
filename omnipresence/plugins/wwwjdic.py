@@ -18,8 +18,8 @@ class WWWJDICSearch(web.WebCommand):
         if soup.pre:
             results = unicode(soup.pre.string).strip().split(u'\n')
             messages = []
-            # Strip off the trailing slash for the last gloss, then replace 
-            # the first slash with nothing and the remaining ones with 
+            # Strip off the trailing slash for the last gloss, then replace
+            # the first slash with nothing and the remaining ones with
             # semicolons, in an approximation of the Web interface.
             for i, result in enumerate(results):
                 message = result[:-1].strip()

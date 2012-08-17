@@ -19,17 +19,17 @@ class TopicUpdater(object):
     """
     implements(IPlugin, ICommand, IHandler)
     name = 'topic'
-    
+
     topics = {}
     prefixes = {}
-    
+
     def registered(self):
         if self.factory.config.has_section('topic'):
             for (channel, prefix) in self.factory.config.items('topic'):
                 if channel[0] not in irc.CHANNEL_PREFIXES:
                     channel = '#%s' % channel
                 self.prefixes[channel] = prefix
-    
+
     def topicUpdated(self, bot, nick, channel, newTopic):
         self.topics[channel] = newTopic
 
@@ -44,14 +44,14 @@ class TopicUpdater(object):
             bot.reply(prefix, channel, 'Topic messages are not being tracked '
                                        'in %s.' % channel)
             return
-        
+
         message = ''
-        
+
         try:
             message = self.topics[channel].decode(self.factory.encoding)
         except UnicodeDecodeError:
             pass
-        
+
         try:
             new_message = args[1].decode(self.factory.encoding)
         except UnicodeDecodeError:
@@ -60,7 +60,7 @@ class TopicUpdater(object):
                                        'client settings and try again.'
                                         % self.factory.encoding)
             return
-        
+
         if len(new_message) > MAX_MESSAGE_LENGTH:
             bot.reply(prefix, channel, 'Topic messages may not exceed %d '
                                        'characters in length.'
@@ -68,13 +68,13 @@ class TopicUpdater(object):
             return
 
         messages = []
-        
+
         if message:
             messages = message.split(u' | ')
-        
+
         messages.insert(0, u'%s (%s)' % (new_message,
                                          prefix.split('!', 1)[0]))
-        
+
         if channel in self.prefixes:
             while self.prefixes[channel] in messages:
                 messages.remove(self.prefixes[channel])
@@ -86,7 +86,7 @@ class TopicUpdater(object):
                                                 MAX_TOPIC_CHAR_LENGTH,
                                                 MAX_TOPIC_BYTE_LENGTH,
                                                 self.factory.encoding)
-        
+
         if encoded_topic != truncated_topic:
             truncated_topic = '%s...' % truncated_topic
 

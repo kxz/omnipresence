@@ -18,76 +18,76 @@ DATE_FORMAT = '%d-%b-%Y %H:%M:%S'
 class ChannelLogger(object):
     implements(IPlugin, IHandler)
     name = 'chanlog'
-    
+
     handlers = {}
     # Hold on to our own hostmask, because we don't get one when we quit.
     hostmask = ''
-    
+
     def log(self, channel, msg, args):
         channel = ircutil.canonicalize(channel)
-        
+
         if channel not in self.handlers:
             return
-        
+
         self.handlers[channel].emit(logging.LogRecord('chanlog',
                                                       logging.NOTSET, __file__,
                                                       0, msg, args, None))
-    
+
     def registered(self):
         self.log_directory = self.factory.config.get('chanlog', 'directory')
-    
+
     def connectionLost(self, bot, reason):
         self.quit(bot, reason.getErrorMessage() if reason else None)
-        
+
     def privmsg(self, bot, prefix, channel, message):
         nick = prefix.split('!', 1)[0]
         self.log(channel, '<%s> %s', (nick, message))
-        
+
     def joined(self, bot, prefix, channel):
         handler = logging.handlers.WatchedFileHandler(
                       os.path.join(self.log_directory,
                                    ircutil.canonicalize(channel)[1:]))
         handler.setFormatter(logging.Formatter(MESSAGE_FORMAT, DATE_FORMAT))
         self.handlers[ircutil.canonicalize(channel)] = handler
-        
+
         nick, hostmask = prefix.split('!', 1)
         self.hostmask = hostmask
         self.log(channel, '*** %s <%s> has joined %s',
                  (bot.nickname, hostmask, channel))
         log.msg('Starting logging for channel %s.' % channel)
-    
+
     def left(self, bot, prefix, channel):
         self.log(channel, '*** %s <%s> has left %s',
                  (bot.nickname, self.hostmask, channel))
         log.msg('Stopping logging for channel %s.' % channel)
         del self.handlers[ircutil.canonicalize(channel)]
-    
+
     def noticed(self, bot, prefix, channel, message):
         nick = prefix.split('!', 1)[0]
         self.log(channel, '-%s- %s', (nick, message))
-    
+
     def modeChanged(self, bot, prefix, channel, set, modes, args):
         nick = prefix.split('!', 1)[0]
         self.log(channel, '*** %s sets mode: %s',
                  (nick, ircutil.mode_string(set, modes, args)))
-    
+
     def kickedFrom(self, bot, channel, kicker, message):
         self.userKicked(bot, bot.nickname, channel, kicker, message)
         log.msg('Stopping logging for channel %s.' % channel)
         del self.handlers[ircutil.canonicalize(channel)]
-    
+
     def nickChanged(self, bot, nick):
         self.userRenamed(bot, bot.nickname, nick)
-    
+
     def userJoined(self, bot, prefix, channel):
         nick, hostmask = prefix.split('!', 1)
         self.log(channel, '*** %s <%s> has joined %s',
                  (nick, hostmask, channel))
-    
+
     def userLeft(self, bot, prefix, channel):
         nick, hostmask = prefix.split('!', 1)
         self.log(channel, '*** %s <%s> has left %s', (nick, hostmask, channel))
-    
+
     def userQuit(self, bot, prefix, quitMessage):
         nick, hostmask = prefix.split('!', 1)
         for channel in bot.channel_names:
@@ -112,7 +112,7 @@ class ChannelLogger(object):
 
     def topicUpdated(self, bot, nick, channel, newTopic):
         self.log(channel, '*** %s changes topic to %s', (nick, newTopic))
-    
+
     def userRenamed(self, bot, oldname, newname):
         for channel in bot.channel_names:
             if oldname in bot.channel_names[channel]:
@@ -125,26 +125,26 @@ class ChannelLogger(object):
     def topic(self, bot, channel, topic):
         if topic is not None:
             self.topicUpdated(bot, bot.nickname, channel, topic)
-    
+
     def mode(self, bot, chan, set, modes, limit, user, mask):
         # Mode changes get echoed back to us by the server, which
         # triggers modeChanged above, so we don't log them here.
         pass
-    
+
     def msg(self, bot, user, message):
         self.privmsg(bot, bot.nickname, user, message)
 
     def notice(self, bot, user, message):
         self.noticed(bot, bot.nickname, user, message)
-    
+
     def setNick(self, bot, nickname):
         self.userRenamed(bot, bot.nickname, nickname)
-    
+
     def quit(self, bot, message):
         self.userQuit(bot, bot.nickname + '!' + self.hostmask, message)
         log.msg('Stopping logging for all channels.')
         self.handlers = {}
-    
+
     def me(self, bot, channel, action):
         self.action(bot, bot.nickname, channel, action)
 

@@ -6,7 +6,7 @@ from omnipresence import web
 
 class ArtistSearch(web.WebCommand):
     """
-    \x02%s\x02 \x1Fsearch_string\x1F - Perform a Last.fm search for artists 
+    \x02%s\x02 \x1Fsearch_string\x1F - Perform a Last.fm search for artists
     with a name matching the given search string.
     """
     name = 'lastfm'
@@ -16,7 +16,7 @@ class ArtistSearch(web.WebCommand):
 
     def registered(self):
         self.url += self.factory.config.get('lastfm', 'apikey')
-    
+
     def reply(self, response, bot, prefix, reply_target, channel, args):
         data = json.loads(response[1])
         if 'error' in data:
