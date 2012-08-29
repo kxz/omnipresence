@@ -2,7 +2,7 @@
 import os.path
 from subprocess import Popen, PIPE
 
-__version__ = '2.1'
+__version__ = '2.2'
 
 # With thanks to Douglas Creager <https://gist.github.com/300803>;
 # command invocation ported from Git to Mercurial.
