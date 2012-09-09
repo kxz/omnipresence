@@ -19,9 +19,13 @@ class ChannelLogger(object):
     implements(IPlugin, IHandler)
     name = 'chanlog'
 
-    handlers = {}
+    handlers = None
     # Hold on to our own hostmask, because we don't get one when we quit.
-    hostmask = ''
+    hostmask = None
+
+    def __init__(self):
+        self.handlers = {}
+        self.hostmask = ''
 
     def log(self, channel, msg, args):
         channel = ircutil.canonicalize(channel)
@@ -123,12 +127,12 @@ class ChannelLogger(object):
         self.userKicked(bot, nick, channel, bot.nickname, reason)
 
     def topic(self, bot, channel, topic):
-        if topic is not None:
-            self.topicUpdated(bot, bot.nickname, channel, topic)
+        # Topic changes get echoed back to us by the server, which
+        # triggers topicUpdated above, so we don't log them here.
+        pass
 
     def mode(self, bot, chan, set, modes, limit, user, mask):
-        # Mode changes get echoed back to us by the server, which
-        # triggers modeChanged above, so we don't log them here.
+        # Same as with topics; modeChanged gets called on the echo.
         pass
 
     def msg(self, bot, user, message):
