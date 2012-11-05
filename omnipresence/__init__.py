@@ -48,9 +48,9 @@ class IRCClient(irc.IRCClient):
     versionEnv = VERSION_ENV
     sourceURL = SOURCE_URL
 
-    # Ping tracking variables.
+    # Number of PINGs that have been sent since last PONG from server.
     ping_count = 0
-    ping_timer = None
+    heartbeatInterval = 60
 
     # Suspended join queue.
     suspended_joins = None
@@ -67,15 +67,13 @@ class IRCClient(irc.IRCClient):
 
     # Utility methods
 
-    def ping_server(self, servername):
+    def _sendHeartbeat(self):
         if self.ping_count > 2:
             log.err(failure.Failure(),
                     'Sent three PINGs without receiving a PONG reply.')
-            self.ping_timer.stop()
             self.transport.loseConnection()
             return
-
-        self.sendLine('PING ' + servername)
+        irc.IRCClient._sendHeartbeat(self)
         self.ping_count += 1
 
     def suspend_joins(self):
@@ -301,11 +299,6 @@ class IRCClient(irc.IRCClient):
 
     def myInfo(self, servername, version, umodes, cmodes):
         """Called with information about the IRC server at logon."""
-        # Once myInfo is called, we know which server we are connected
-        # to, so we can start performing keep-alive pings.
-        self.ping_count = 0
-        self.ping_timer = task.LoopingCall(self.ping_server, servername)
-        self.ping_timer.start(60, False)
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
