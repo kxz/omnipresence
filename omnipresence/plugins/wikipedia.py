@@ -214,13 +214,14 @@ class RandomArticle(WikipediaPlugin):
 
         defer.returnValue(None)
 
-    def reply(self, pageinfo, *args):
+    def reply(self, pageinfo, bot, prefix, reply_target, channel, args):
         if not pageinfo:
             bot.reply(prefix, channel,
                       'Wikipedia (random): No articles found.')
             return
 
-        super(RandomArticle, self).reply(pageinfo, *args)
+        super(RandomArticle, self).reply(pageinfo, bot, prefix,
+                                         reply_target, channel, args)
 
 
 default = ArticleSearch()
