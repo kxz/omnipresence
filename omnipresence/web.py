@@ -2,7 +2,6 @@
 """Utility methods for retrieving and manipulating data from Web resources."""
 
 import re
-import socket
 try:
     import cStringIO as StringIO
 except ImportError:
@@ -16,8 +15,8 @@ from twisted.internet import defer, protocol, reactor
 from twisted.plugin import IPlugin
 from twisted.python import failure
 from twisted.web import error as tweberror, http
-from twisted.web.client import Agent, ContentDecoderAgent, GzipDecoder, \
-                               RedirectAgent, ResponseFailed
+from twisted.web.client import Agent, ContentDecoderAgent, \
+                               GzipDecoder, ResponseFailed
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -121,11 +120,11 @@ class ResponseBuffer(protocol.Protocol):
         if self.remaining - len(bytes) < 0:
             self.transport.loseConnection()
             self.buffer.close()
-            failure = failure.Failure(BufferSizeExceededError(
+            failure_ = failure.Failure(BufferSizeExceededError(
                 self.max_bytes - self.remaining + len(bytes),
                 self.max_bytes
                 ))
-            self.finished.errback(ResponseFailed([failure], self.response))
+            self.finished.errback(ResponseFailed([failure_], self.response))
             return
 
         self.buffer.write(bytes)
@@ -201,6 +200,7 @@ def decode_html_entities(s):
     """
     return textify_html(s, format_output=False)
 
+
 def textify_html(html, format_output=True):
     """Convert the contents of *html* to a Unicode string.  *html* can
     be either a string containing HTML markup, or a Beautiful Soup tag
@@ -210,6 +210,7 @@ def textify_html(html, format_output=True):
         soup = html
     else:
         soup = BeautifulSoup(html)
+
     def handle_soup(soup, format_output):
         if format_output:
             # Grab the node's tag name, and change the format if necessary.
