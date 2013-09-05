@@ -35,6 +35,12 @@ def find_location(query):
     defer.returnValue((u', '.join(canonical), details['lat'], details['lng']))
 
 def format_location(location, lat, lng):
+    # The GeoNames API occasionally returns strings instead of numeric
+    # values in its JSON output.  Fortunately, coercion is easy.
+    try:
+        lat, lng = float(lat), float(lng)
+    except ValueError:
+        return u'{0} ({1}, {2})'.format(location, lat, lng)
     return u'{0} ({1:.2f}, {2:.2f})'.format(location, lat, lng)
 
 
