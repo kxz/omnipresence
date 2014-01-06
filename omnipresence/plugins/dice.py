@@ -141,7 +141,11 @@ class Dice(object):
                           format_rolls(new_bank.elements())))
             return
         if args[1] == 'clear':
-            del self.banks[(channel, nick)]
+            try:
+                del self.banks[(channel, nick)]
+            except KeyError:
+                # User didn't have a bank to begin with.  Meh.
+                pass
             bot.reply(reply_target, channel, 'Bank cleared.')
             return
         bot.reply(prefix, channel,
