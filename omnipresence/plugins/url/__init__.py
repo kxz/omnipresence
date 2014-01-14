@@ -62,14 +62,10 @@ WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>')]
 
 word_split_re = re.compile(r'(\s+)')
 simple_url_re = re.compile(r'^https?://\w', re.IGNORECASE)
-simple_url_2_re = re.compile(
-  r'^www\.|^(?!http)\w[^@]+\.(com|edu|gov|int|mil|net|org)$', re.IGNORECASE)
 
 def extract_urls(text):
-    """Extracts URL-like strings from *text* and returns them as a list."""
-    urls = []
-    words = word_split_re.split(text)
-    for i, word in enumerate(words):
+    """Return an iterator yielding URLs contained in *text*."""
+    for word in word_split_re.split(text):
         if '.' in word or ':' in word:
             # Deal with punctuation.
             lead, middle, trail = '', word, ''
@@ -86,13 +82,9 @@ def extract_urls(text):
                     and middle.count(closing) == middle.count(opening) + 1):
                     middle = middle[:-len(closing)]
                     trail = closing + trail
-
-            # Add to our list of URLs.
+            # Yield the resulting URL.
             if simple_url_re.match(middle):
-                urls.append(middle)
-            elif simple_url_2_re.match(middle):
-                urls.append('http://%s' % middle)
-    return urls
+                yield middle
 
 def is_private_host(hostname):
     """Check if the given host corresponds to a private network, as
@@ -169,23 +161,10 @@ class URLTitleFetcher(object):
 
         # Everything in here is Unicode.
         message = message.decode(self.factory.encoding, 'ignore')
-
-        urls = extract_urls(message)
         fetchers = []
-
-        for url in urls:
+        for url in extract_urls(message):
             # Perform some basic URL format sanity checks.
             parsed = urlparse.urlparse(url)
-            # The extract_urls method will happily treat strings like
-            # "site:example.com" as a URL, "http://site:example.com",
-            # which is a problem when dealing with e.g. Google searches.
-            # In this case, the resulting port "number" is invalid, so
-            # we check it and bail if we hit an exception.
-            try:
-                parsed.port
-            except ValueError:
-                # Ignore it and move on.
-                continue
             # Make sure we have a valid hostname.
             hostname = parsed.hostname
             if hostname is None:
