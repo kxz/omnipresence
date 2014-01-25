@@ -19,11 +19,12 @@ WEATHER_URL = API_SERVER + '/findNearByWeatherJSON?%s'
 
 
 @defer.inlineCallbacks
-def find_location(query):
+def find_location(query, username):
     """Find a location in the GeoNames database.  Return a Deferred that
     yields a tuple containing a canonical name, latitude, and longitude,
     or ``None`` if no matches could be found."""
-    params = urllib.urlencode({'maxRows': 1, 'style': 'FULL', 'q': query})
+    params = urllib.urlencode({'maxRows': 1, 'style': 'FULL',
+                               'q': query, 'username': username})
     headers, content = yield web.request('GET', SEARCH_URL % params)
     data = json.loads(content)
     if not data.get('geonames'):
@@ -53,6 +54,9 @@ class TimeLookup(object):
     implements(IPlugin, ICommand)
     name = 'time'
 
+    def registered(self):
+        self.username = self.factory.config.get('geonames', 'username')
+
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
 
@@ -69,7 +73,7 @@ class TimeLookup(object):
                                              '%s' % (args[1], time))
             return
 
-        d = find_location(args[1])
+        d = find_location(args[1], self.username)
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
 
@@ -80,7 +84,8 @@ class TimeLookup(object):
                                        'location \x02{0}\x02.'.format(args[1]))
             return
         canonical, lat, lng = location
-        params = urllib.urlencode({'lat': lat, 'lng': lng})
+        params = urllib.urlencode({'lat': lat, 'lng': lng,
+                                   'username': self.username})
         headers, content = yield web.request('GET', TIME_URL % params)
         data = json.loads(content)
         if 'time' not in data:
@@ -100,6 +105,9 @@ class WeatherLookup(object):
     implements(IPlugin, ICommand)
     name = 'weather'
 
+    def registered(self):
+        self.username = self.factory.config.get('geonames', 'username')
+
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split(None, 1)
 
@@ -107,7 +115,7 @@ class WeatherLookup(object):
             bot.reply(prefix, channel, 'Please specify a location.')
             return
 
-        d = find_location(args[1])
+        d = find_location(args[1], self.username)
         d.addCallback(self.reply, bot, prefix, reply_target, channel, args)
         return d
 
@@ -118,7 +126,8 @@ class WeatherLookup(object):
                                        'location \x02{0}\x02.'.format(args[1]))
             return
         canonical, lat, lng = location
-        params = urllib.urlencode({'lat': lat, 'lng': lng})
+        params = urllib.urlencode({'lat': lat, 'lng': lng,
+                                   'username': self.username})
         headers, content = yield web.request('GET', WEATHER_URL % params)
         data = json.loads(content)
         if 'weatherObservation' not in data:
