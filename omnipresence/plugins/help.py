@@ -1,7 +1,8 @@
-from zope.interface import implements
 from twisted.plugin import IPlugin
-from omnipresence.iomnipresence import ICommand
+from zope.interface import implements
+
 from omnipresence import util
+from omnipresence.iomnipresence import ICommand
 
 class HelpCommand(object):
     """
@@ -11,21 +12,24 @@ class HelpCommand(object):
     implements(IPlugin, ICommand)
     name = 'help'
 
+    def _get_help_text(self, args):
+        if args[1] in self.factory.commands:
+            if hasattr(self.factory.commands[args[1]], 'help'):
+                return self.factory.commands[args[1]].help(args)
+            help_text = self.factory.commands[args[1]].__doc__
+            if help_text:
+                help_text = ' '.join(help_text.strip().split())
+            else:
+                help_text = 'No further help is available for \x02%s\x02.'
+        else:
+            help_text = 'There is no command with the keyword \x02%s\x02.'
+        return help_text % args[1]
+
     def execute(self, bot, prefix, reply_target, channel, args):
         args = args.split()
 
         if len(args) > 1 and args[1]:
-            if args[1] in self.factory.commands:
-                help_text = self.factory.commands[args[1]].__doc__
-
-                if help_text:
-                    help_text = ' '.join(help_text.strip().split())
-                else:
-                    help_text = 'No further help is available for \x02%s\x02.'
-            else:
-                help_text = 'There is no command with the keyword \x02%s\x02.'
-
-            help_text = help_text % args[1]
+            help_text = self._get_help_text(args)
         else:
             keywords = sorted(self.factory.commands)
             help_text = (
