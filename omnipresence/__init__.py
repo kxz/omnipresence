@@ -69,9 +69,8 @@ class IRCClient(irc.IRCClient):
 
     def _sendHeartbeat(self):
         if self.ping_count > 2:
-            log.err(failure.Failure(),
-                    'Sent three PINGs without receiving a PONG reply.')
-            self.transport.loseConnection()
+            log.msg('Sent three PINGs without receiving a PONG reply.')
+            self.transport.abortConnection()
             return
         irc.IRCClient._sendHeartbeat(self)
         self.ping_count += 1
