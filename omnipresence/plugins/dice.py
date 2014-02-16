@@ -54,15 +54,7 @@ def roll_dice(dice):
 
 
 class Dice(object):
-    """
-    \x02%s\x02 [\x1Faction\x1F] - With no action, display the dice in
-    your die bank. With \x02show\x02 [\x1Fnick\x1F], show the dice in
-    the die bank belonging to the user with the given nick. With
-    \x02roll\x02 \x1Fdice\x1F, roll the given dice; \x02add\x02
-    additionally adds the result to your die bank. With \x02use\x02
-    \x1Frolls\x1F, remove the given rolls from your die bank. With
-    \x02clear\x02, remove all rolls from your die bank.
-    """
+    """Stores banks of die rolls for use in role-playing games."""
     implements(IPlugin, ICommand)
     name = 'dice'
 
@@ -90,7 +82,7 @@ class Dice(object):
             bot.reply(reply_target, channel,
                       'Bank has {}.'.format(format_rolls(rolls)))
             return
-        if args[1] in ('roll', 'add'):
+        if args[1] in ('roll', 'add', 'new'):
             if len(args) < 3:
                 bot.reply(prefix, channel,
                           'Please specify dice to roll.')
@@ -103,7 +95,9 @@ class Dice(object):
                 bot.reply(prefix, channel, str(e))
                 return
             message = 'Rolled {}.'.format(format_rolls(rolls))
-            if args[1] == 'add':
+            if args[1] in ('add', 'new'):
+                if args[1] == 'new':
+                    self.banks.pop((channel, nick), None)
                 bank = self.banks[(channel, nick)]
                 bank.update(rolls)
                 message += ' Bank now has {}.'.format(
@@ -141,16 +135,63 @@ class Dice(object):
                           format_rolls(new_bank.elements())))
             return
         if args[1] == 'clear':
-            try:
-                del self.banks[(channel, nick)]
-            except KeyError:
-                # User didn't have a bank to begin with.  Meh.
-                pass
+            self.banks.pop((channel, nick), None)
             bot.reply(reply_target, channel, 'Bank cleared.')
             return
         bot.reply(prefix, channel,
                   'Unrecognized subcommand \x02%s\x02.' % args[1])
         return
+
+    def help(self, args):
+        if len(args) < 3:
+            help_text = ('\x02{1}\x02 ['
+                         '\x02add\x02 \x1Fdice\x1F | '
+                         '\x02clear\x02 | '
+                         '\x02new\x02 \x1Fdice\x1F | '
+                         '\x02roll\x02 \x1Fdice\x1F | '
+                         '\x02show\x02 [\x1Fnick\x1F] | '
+                         '\x02use\x02 \x1Frolls\x1F'
+                         '] - Manage your die bank. '
+                         'For more details on a specific action, use '
+                         '\x02{0} {1}\x02 \x1Faction\x1F. '
+                         'For information on dice notation, use '
+                         '\x02{0} {1} notation\x02.')
+        elif args[2] == 'add':
+            help_text = ('\x02{1} {2}\x02 \x1Fdice\x1F - '
+                         'Roll the given dice and add the resulting '
+                         'rolls to your die bank.')
+        elif args[2] == 'clear':
+            help_text = ('\x02{1} {2}\x02 - '
+                         'Remove all rolls from your die bank.')
+        elif args[2] == 'new':
+            help_text = ('\x02{1} {2}\x02 \x1Fdice\x1F - '
+                         'Remove all rolls from your die bank, then '
+                         'roll the given dice and add the resulting '
+                         'rolls to your die bank.')
+        elif args[2] == 'notation':
+            help_text = ('Indicate dice using the standard '
+                         '\x1FA\x1F\x02d\x02\x1FX\x1F notation, where '
+                         '\x1FA\x1F is the number of dice to roll and '
+                         '\x1FX\x1F is the die size. '
+                         'Separate multiple sets of dice with spaces. '
+                         'Positive integers may also be used as dice; '
+                         'they "roll" to themselves.')
+        elif args[2] == 'roll':
+            help_text = ('\x02{1} {2}\x02 \x1Fdice\x1F - '
+                         'Roll the given dice without adding the '
+                         'resulting rolls to your die bank.')
+        elif args[2] == 'show':
+            help_text = ('\x02{1} {2}\x02 [\x1Fnick\x1F] - '
+                         'Show the rolls in the die bank belonging '
+                         'to the user with the given nick, or your own '
+                         'if no nick is provided.')
+        elif args[2] == 'use':
+            help_text = ('\x02{1} {2}\x02 \x1Frolls\x1F - '
+                         'Remove the given rolls from your die bank.')
+        else:
+            help_text = ('There is no \x02{1}\x02 action with the '
+                         'keyword \x02{2}\x02.')
+        return help_text.format(*args)
 
 
 default = Dice()
