@@ -109,12 +109,14 @@ class Dice(object):
                 bot.reply(prefix, channel,
                           'Please specify rolls to use.')
                 return
-            try:
-                rolls = map(int, args[2].split())
-            except ValueError as e:
-                bot.reply(prefix, channel,
-                          '{} is not a valid roll.'.format(str(e)))
-                return
+            rolls = []
+            for roll in args[2].split():
+                try:
+                    rolls.append(int(roll))
+                except ValueError:
+                    bot.reply(prefix, channel,
+                              '{} is not a valid roll.'.format(roll))
+                    return
             # Figure out if the specified rolls actually exist by
             # duplicating the bank, subtracting the rolls from it,
             # and bailing if any of the counts are negative.
