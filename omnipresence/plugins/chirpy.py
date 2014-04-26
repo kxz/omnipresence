@@ -119,13 +119,12 @@ class ChirpyCommand(object):
 
         quote = random.choice(quotes)
         quote_text = quote.body.decode('utf-8').replace('\n', ' ')
-        reply = u'QDB: (#%d, %+d/%d) %s' % (quote.id, quote.rating,
-                                            quote.votes, quote_text)
-
         if self.quote_url:
-            reply += u' \u2014 ' + self.quote_url % quote.id
-
-        bot.reply(reply_target, channel, reply)
+            tag = u'%s \u2014 (%+d/%d)' % (self.quote_url % quote.id,
+                                           quote.rating, quote.votes)
+        else:
+            tag = '(#%d, %+d/%d)' % (quote.id, quote.rating, quote.votes)
+        bot.reply(reply_target, channel, u'QDB: %s %s' % (tag, quote_text))
 
 
 chirpycommand = ChirpyCommand()
