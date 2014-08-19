@@ -16,7 +16,7 @@ setup(name='Omnipresence',
 
       author='Kevin Xiwei Zheng',
       author_email='blankplacement+omnipresence@gmail.com',
-      url='https://bitbucket.org/kxz/omnipresence',
+      url='https://github.com/kxz/omnipresence',
       description='An IRC utility bot',
       license='X11'
 )

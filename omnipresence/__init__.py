@@ -13,7 +13,7 @@ from omnipresence import iomnipresence, plugins, ircutil, util, version
 VERSION_NAME = 'Omnipresence'
 VERSION_NUM = version.__version__
 VERSION_ENV = platform.platform()
-SOURCE_URL = 'https://bitbucket.org/kxz/omnipresence'
+SOURCE_URL = 'https://github.com/kxz/omnipresence'
 
 MAX_REPLY_LENGTH = 256
 
