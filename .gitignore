@@ -8,6 +8,9 @@ _trial_temp
 # Sphinx
 docs/_build
 
+# tox
+.tox
+
 # Packages
 *.egg
 *.egg-info
