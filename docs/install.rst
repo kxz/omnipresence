@@ -12,7 +12,8 @@ Installation can be performed with the provided setup script::
 
 The following dependencies should be automatically installed by the setup script:
 
-* `Twisted <http://twistedmatrix.com/>`_ 12.0.0 or later
+* `Twisted <http://twistedmatrix.com/>`_ 14.0.0 or later
+* `pyOpenSSL <http://pythonhosted.org/pyOpenSSL/>`_ and `service_identity <https://service-identity.readthedocs.org/>`_
 * `SQLObject <http://sqlobject.org/>`_ 0.10 or later
 * `Beautiful Soup <http://www.crummy.com/software/BeautifulSoup/>`_ 4
 
