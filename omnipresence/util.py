@@ -5,7 +5,7 @@ import re
 from twisted.words.protocols import irc
 
 
-DURATION_RE = re.compile('^(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$',
+DURATION_RE = re.compile(r'^(?:(\d+)w)?(?:(\d+)d)?(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$',
                          re.IGNORECASE | re.VERBOSE)
 
 DURATION_GROUPS = ['weeks', 'days', 'hours', 'minutes', 'seconds']
