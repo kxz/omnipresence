@@ -1,7 +1,6 @@
 # -*- test-case-name: omnipresence.test.test_web -*-
 """Utility methods for retrieving and manipulating data from Web resources."""
 
-import re
 try:
     import cStringIO as StringIO
 except ImportError:
@@ -185,9 +184,6 @@ def request(*args, **kwargs):
 #
 # HTML handling methods
 #
-
-HTML_HEX_REFS = re.compile(r'&#x([0-9a-fA-F]+);')
-
 
 def decode_html_entities(s):
     """Convert HTML entities in a string to their Unicode character
