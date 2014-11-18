@@ -8,7 +8,6 @@ except ImportError:
 import sys
 import urllib
 
-from bs4 import BeautifulSoup, NavigableString, Tag
 from twisted.internet import defer, protocol, reactor
 from twisted.plugin import IPlugin
 from twisted.python import failure
@@ -119,62 +118,6 @@ def request(*args, **kwargs):
     d = agent.request(*args, **kwargs)
     d.addCallback(transform_response, **transform_kwargs)
     return d
-
-
-#
-# HTML handling methods
-#
-
-def decode_html_entities(s):
-    """Convert HTML entities in a string to their Unicode character
-    equivalents.  This method is equivalent to::
-
-        textify_html(s, format_output=False)
-
-    .. deprecated:: 2.2
-       Use :py:func:`textify_html` instead.
-    """
-    return textify_html(s, format_output=False)
-
-
-def textify_html(html, format_output=True):
-    """Convert the contents of *html* to a Unicode string.  *html* can
-    be either a string containing HTML markup, or a Beautiful Soup tag
-    object.  If *format_output* is ``True``, IRC formatting codes are
-    added to simulate common element styles."""
-    if isinstance(html, BeautifulSoup) or isinstance(html, Tag):
-        soup = html
-    else:
-        soup = BeautifulSoup(html)
-
-    def handle_soup(soup, format_output):
-        if format_output:
-            # Grab the node's tag name, and change the format if necessary.
-            if soup.name in (u'b', u'strong'):
-                fmt = u'\x02{0}\x02'
-            elif soup.name in (u'i', u'u', u'em', u'cite', u'var'):
-                fmt = u'\x16{0}\x16'
-            elif soup.name == u'sup':
-                fmt = u'^{0}'
-            elif soup.name == u'sub':
-                fmt = u'_{0}'
-            else:
-                fmt = u'{0}'
-
-            # Recurse into the node's contents.
-            contents = u''
-            for k in soup.contents:
-                if isinstance(k, NavigableString):
-                    contents += unicode(k)
-                elif hasattr(k, 'name'):  # is another soup element
-                    contents += handle_soup(k, format_output)
-            return fmt.format(contents)
-        else:
-            return u''.join(soup.strings)
-
-    # Don't strip whitespace until the very end, in order to avoid
-    # misparsing constructs like <span>hello<b> world</b></span>.
-    return u' '.join(handle_soup(soup, format_output).split()).strip()
 
 
 #

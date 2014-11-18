@@ -33,9 +33,12 @@ setup(
         'Twisted>=14.0.0',
         'pyOpenSSL',
         'service_identity',
-        'sqlobject>=0.10',
-        'beautifulsoup4'],
+        'sqlobject>=0.10'],
+    extras_require={
+        'html': [
+            'beautifulsoup4']},
     tests_require=[
+        'beautifulsoup4',
         'tox'],
     cmdclass={
         'test': Tox},
