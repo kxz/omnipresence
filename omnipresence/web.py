@@ -7,15 +7,14 @@ except ImportError:
     import StringIO
 import sys
 import urllib
-import urlparse
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 from twisted.internet import defer, protocol, reactor
 from twisted.plugin import IPlugin
 from twisted.python import failure
-from twisted.web import error as tweberror, http
-from twisted.web.client import Agent, ContentDecoderAgent, \
-                               GzipDecoder, ResponseFailed
+from twisted.web.client import (Agent, ContentDecoderAgent,
+                                RedirectAgent, GzipDecoder,
+                                ResponseFailed)
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -34,67 +33,6 @@ USER_AGENT = ('Omnipresence/{0} (+bot; '
 #
 # HTTP request machinery
 #
-
-# While we're waiting for <http://twistedmatrix.com/trac/ticket/5435>...
-class RedirectTrackingAgent(object):
-    """A version of :py:class:`twisted.web.client.RedirectAgent` that
-    adds the ultimate resolved location of the resource as a response
-    header ``X-Omni-Location``."""
-
-    def __init__(self, agent, redirectLimit=20):
-        self._agent = agent
-        self._redirectLimit = redirectLimit
-
-    def request(self, method, uri, headers=None, bodyProducer=None):
-        """
-        Send a client request following HTTP redirects.
-        """
-        deferred = self._agent.request(method, uri, headers, bodyProducer)
-        return deferred.addCallback(
-            self._handleResponse, method, uri, uri, headers, 0)
-
-    def _handleRedirect(self, response, method, uri,
-                        location, headers, redirectCount):
-        """
-        Handle a redirect response, checking the number of redirects already
-        followed, and extracting the location header fields.
-        """
-        if redirectCount >= self._redirectLimit:
-            err = tweberror.InfiniteRedirection(
-                response.code,
-                'Infinite redirection detected',
-                location=uri)
-            raise ResponseFailed([failure.Failure(err)], response)
-        locationHeaders = response.headers.getRawHeaders('location', [])
-        if not locationHeaders:
-            err = tweberror.RedirectWithNoLocation(
-                response.code, 'No location header field', uri)
-            raise ResponseFailed([failure.Failure(err)], response)
-        # Join the new location with the old one, in order to handle
-        # Location headers that contain relative URIs.
-        location = urlparse.urljoin(location, locationHeaders[0])
-        deferred = self._agent.request(method, location, headers)
-        return deferred.addCallback(self._handleResponse,
-            method, uri, location, headers, redirectCount + 1)
-
-    def _handleResponse(self, response, method, uri,
-                        location, headers, redirectCount):
-        """
-        Handle the response, making another request if it indicates a redirect.
-        """
-        if response.code in (http.MOVED_PERMANENTLY, http.FOUND,
-                             http.TEMPORARY_REDIRECT):
-            if method not in ('GET', 'HEAD'):
-                err = tweberror.PageRedirect(response.code, location=uri)
-                raise ResponseFailed([failure.Failure(err)], response)
-            return self._handleRedirect(response, method, uri,
-                                        location, headers, redirectCount)
-        elif response.code == http.SEE_OTHER:
-            return self._handleRedirect(response, 'GET', uri,
-                                        location, headers, redirectCount)
-        response.headers.addRawHeader('X-Omni-Location', location)
-        return response
-
 
 class BufferSizeExceededError(Exception):
     def __init__(self, actual_size, buffer_size):
@@ -133,7 +71,7 @@ class ResponseBuffer(protocol.Protocol):
         self.finished.callback(self.buffer.getvalue())
 
 
-agent = ContentDecoderAgent(RedirectTrackingAgent(Agent(reactor)),
+agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
                             [('gzip', GzipDecoder)])
 
 
@@ -141,6 +79,8 @@ def transform_response(response, **kwargs):
     """Return an httplib2-style ``(headers, content)`` tuple from the
     given Twisted Web response."""
     headers = dict((k, v[0]) for k, v in response.headers.getAllRawHeaders())
+    # Add the ultimately requested URL as a custom X-header.
+    headers['X-Omni-Location'] = response.request.absoluteURI
     # Calling deliverBody causes the response's Content-Length header to
     # be overwritten with how much of the body was actually delivered.
     # In some cases, the original value is needed, so we store it in a
