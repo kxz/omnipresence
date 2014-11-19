@@ -211,7 +211,7 @@ class URLTitleFetcher(object):
         # Fetch the title from a title processor if one is available for
         # the response's Content-Type, or craft a default one.
         hostname_tag = None
-        title = u'No title found.'
+        title = None
         headers, content = yield web.request('GET', url.encode('utf8'),
                                              max_bytes=MAX_DOWNLOAD_SIZE)
         ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
@@ -231,8 +231,8 @@ class URLTitleFetcher(object):
                     raise tweberror.InfiniteRedirection(
                             599, 'Too many soft redirects',
                             location=processed.location)
-            title = processed or title
-        else:
+            title = processed
+        if title is None:
             title = u'{0} document'.format(ctype or u'Unknown')
             clength = headers.get('X-Omni-Length')
             if clength:
