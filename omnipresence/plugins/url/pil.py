@@ -16,7 +16,12 @@ class PILTitleProcessor(object):
     supported_content_types = ['image/png', 'image/gif', 'image/jpeg']
 
     def process(self, headers, content):
-        pbuffer = Image.open(StringIO.StringIO(content))
+        try:
+            pbuffer = Image.open(StringIO.StringIO(content))
+        except IOError:
+            # The image content is invalid.  It might be our fault for
+            # truncating the image too early.  Who knows?
+            return None
         width, height = pbuffer.size
         format = pbuffer.format
         clength = headers.get('X-Omni-Length')
