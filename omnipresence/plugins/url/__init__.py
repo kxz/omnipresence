@@ -9,7 +9,8 @@ import urlparse
 from twisted.internet import defer, error, threads
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import log
-from twisted.web import error as tweberror
+from twisted.web.client import ResponseFailed
+from twisted.web.error import InfiniteRedirection
 from zope.interface import implements, Interface, Attribute
 
 from omnipresence import plugins, web
@@ -27,6 +28,7 @@ MAX_DOWNLOAD_SIZE = 65536
 
 """The maximum number of "soft" redirects that will be followed."""
 MAX_SOFT_REDIRECTS = 2
+
 
 #
 # Utility methods
@@ -228,7 +230,7 @@ class URLTitleFetcher(object):
                                                       location, hostname,
                                                       redirect_count + 1)
                 else:
-                    raise tweberror.InfiniteRedirection(
+                    raise InfiniteRedirection(
                             599, 'Too many soft redirects',
                             location=processed.location)
             title = processed
@@ -262,8 +264,18 @@ class URLTitleFetcher(object):
         defer.returnValue((hostname_tag, title))
 
     def make_error_reply(self, failure, hostname):
-        log.err(failure, 'Encountered an error in URL processing.')
-        return (hostname, u'Error: {0:s}'.format(failure.value))
+        message = None
+        if failure.check(ResponseFailed):
+            if any(f.check(InfiniteRedirection)
+                   for f in failure.value.reasons):
+                message = u'Encountered too many redirects.'
+            else:
+                message = u'Received incomplete response from server.'
+        elif failure.check(socket.error, error.ConnectError):
+            message = u'Could not connect to server.'
+        else:
+            log.err(failure, 'Encountered an error in URL processing.')
+        return (hostname, u'Error: {0:s}'.format(message or failure.value))
 
     def reply(self, results, bot, prefix, channel):
         for i, result in enumerate(results):
