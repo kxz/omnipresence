@@ -230,9 +230,9 @@ class URLTitleFetcher(object):
                                                       location, hostname,
                                                       redirect_count + 1)
                 else:
-                    raise InfiniteRedirection(
+                    raise ResponseFailed([InfiniteRedirection(
                             599, 'Too many soft redirects',
-                            location=processed.location)
+                            location=processed.location)])
             title = processed
         if title is None:
             title = u'{0} document'.format(ctype or u'Unknown')
