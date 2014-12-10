@@ -5,7 +5,7 @@ from omnipresence.iomnipresence import IHandler
 from twisted.python import log
 
 import logging
-import logging.handlers
+from logging.handlers import TimedRotatingFileHandler
 import os
 import time
 
@@ -29,13 +29,10 @@ class ChannelLogger(object):
 
     def log(self, channel, msg, args):
         channel = ircutil.canonicalize(channel)
-
         if channel not in self.handlers:
             return
-
-        self.handlers[channel].emit(logging.LogRecord('chanlog',
-                                                      logging.NOTSET, __file__,
-                                                      0, msg, args, None))
+        self.handlers[channel].emit(logging.LogRecord(
+            'chanlog', logging.NOTSET, __file__, 0, msg, args, None))
 
     def registered(self):
         self.log_directory = self.factory.config.get('chanlog', 'directory')
@@ -48,9 +45,15 @@ class ChannelLogger(object):
         self.log(channel, '<%s> %s', (nick, message))
 
     def joined(self, bot, prefix, channel):
-        handler = logging.handlers.WatchedFileHandler(
-                      os.path.join(self.log_directory,
-                                   ircutil.canonicalize(channel)[1:]))
+        when = self.factory.config.getdefault('chanlog', 'when', 'midnight')
+        interval = self.factory.config.getdefault('chanlog', 'interval', 0)
+        backupCount = self.factory.config.getdefault(
+            'chanlog', 'backup_count', 30)
+
+        handler = TimedRotatingFileHandler(
+            os.path.join(self.log_directory,
+                         ircutil.canonicalize(channel)[1:]),
+            when=when, interval=interval, backupCount=backupCount)
         handler.setFormatter(logging.Formatter(MESSAGE_FORMAT, DATE_FORMAT))
         self.handlers[ircutil.canonicalize(channel)] = handler
 
