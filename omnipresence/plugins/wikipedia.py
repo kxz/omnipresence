@@ -166,7 +166,7 @@ class ArticleSearch(WikipediaPlugin):
                               'inprop': 'url',
                               'exchars': 256 })
 
-        if 'pages' in ftext['query']:
+        if 'pages' in ftext.get('query', {}):
             for pageinfo in ftext['query']['pages'].itervalues():
                 defer.returnValue((pageinfo['fullurl'],
                                    pageinfo['extract'], u' (full-text)'))
