@@ -32,18 +32,7 @@ class IRCClient(irc.IRCClient):
         specific nickname, for commands directed at a single user.
         Despite their names, parameters with either name will usually
         take both channels and nicks as values.  To distinguish between
-        the two in a callback, use the Twisted constant
-        :py:const:`CHANNEL_PREFIXES`::
-
-            from twisted.words.protocols import irc
-
-            class Handler(object):
-                # ...
-                def callback(self, prefix, channel):
-                    if channel[0] in irc.CHANNEL_PREFIXES:
-                        # addressed to a channel
-                    else:
-                        # addressed to the bot specifically
+        the two in a callback, use :py:meth:`~.IRCClient.is_channel`.
     """
     # Instance variables handled by t.w.p.irc.IRCClient.
     versionName = VERSION_NAME
@@ -70,6 +59,14 @@ class IRCClient(irc.IRCClient):
         self.message_buffers = {'@': {}}
 
     # Utility methods
+
+    def is_channel(self, name):
+        """Return True if *name* belongs to a channel, according to the
+        server-provided list of channel prefixes, or False otherwise.
+        """
+        # FIXME:  If the server provides a list of channel prefixes, use
+        # that instead of Twisted's built-in one.
+        return name[0] in irc.CHANNEL_PREFIXES
 
     def suspend_joins(self):
         """Suspend all channel joins until :py:meth:`resume_joins` is
@@ -118,7 +115,7 @@ class IRCClient(irc.IRCClient):
             # If the channel doesn't start with an IRC channel prefix, treat
             # the event as a private one.  Some networks send notices to "AUTH"
             # when performing ident lookups, for example.
-            if channel[0] not in irc.CHANNEL_PREFIXES:
+            if not self.is_channel(channel):
                 channel = '@'
 
             try:
@@ -156,7 +153,7 @@ class IRCClient(irc.IRCClient):
             # The message doesn't start with any of the given command prefixes.
             # Continue command parsing if this is a private message; otherwise,
             # bail out.
-            if channel[0] in irc.CHANNEL_PREFIXES:
+            if self.is_channel(channel):
                 return
 
             # Strip excess leading and trailing whitespace for
@@ -174,7 +171,7 @@ class IRCClient(irc.IRCClient):
         # Handle command redirection in the form of "args > nickname",
         # as long as the command is invoked in a public channel.
         reply_target = prefix
-        if '>' in message and channel[0] in irc.CHANNEL_PREFIXES:
+        if '>' in message and self.is_channel(channel):
             (message, reply_target) = message.rsplit('>', 1)
             message = message.strip()
             reply_target = reply_target.strip()
@@ -312,7 +309,7 @@ class IRCClient(irc.IRCClient):
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
-        if channel[0] not in irc.CHANNEL_PREFIXES:
+        if not self.is_channel(channel):
             log.msg('Message from %s for %s: %s' % (prefix, channel, message))
 
         self.call_handlers('privmsg', channel, [prefix, channel, message])
@@ -335,7 +332,7 @@ class IRCClient(irc.IRCClient):
     def noticed(self, prefix, channel, message):
         """Called when we receive a notice from another user.  Behaves
         largely the same as :py:meth:`privmsg`."""
-        if channel[0] not in irc.CHANNEL_PREFIXES:
+        if not self.is_channel(channel):
             log.msg('Notice from %s for %s: %s' % (prefix, channel, message))
 
         self.call_handlers('noticed', channel, [prefix, channel, message])
@@ -614,7 +611,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             # Since "#" can't be used to start a line in the configuration file
             # (it gets parsed as a comment by ConfigParser), add "#" to the
             # beginning of any channel name that's not special (i.e. "@").
-            if channel[0] not in irc.CHANNEL_PREFIXES and channel != '@':
+            if not self.is_channel(channel) and channel != '@':
                 channel = '#' + channel
             channel = ircutil.canonicalize(channel)
             self.handlers[channel] = []
