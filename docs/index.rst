@@ -9,10 +9,10 @@ Contents
 
 .. toctree::
    :maxdepth: 2
-   
+
    install
    plugins
-   api/index
+   api
 
 Indices and tables
 ------------------

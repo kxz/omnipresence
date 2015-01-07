@@ -49,8 +49,8 @@ def by_name(name):
     * ``'ascii'`` treats the letters *A-Z* as uppercase versions of the
       letters *a-z*.
     * ``'strict-rfc1459'`` uses the ``'ascii'`` case mappings, further
-      treating *{}|* as the lowercase versions of *[]\\*.  This matches
-      the rules specified in :rfc:`1459#section-2.2`.
+      treating *{}|* as the lowercase versions of *\\[\\]\\\\*.  This
+      matches the rules specified in :rfc:`1459#section-2.2`.
     * ``'rfc1459'`` uses the ``'strict-rfc1459'`` case mappings, further
       treating *~* as the lowercase version of *^*.  This corresponds to
       most servers' actual implementation of the RFC 1459 rules.

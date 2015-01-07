@@ -73,13 +73,13 @@ class Message(namedtuple('Message',
     in :rfc:`1459#section-4`; Omnipresence also specifies some custom
     types for internal event handling.
 
-    The following attributes are present on all :py:class:`.Message`
+    The following attributes are present on all :py:class:`~.Message`
     objects:
 
     * *connection* is the :py:class:`~.IRCClient` instance on which the
       message was received.  It is equivalent to the *bot* argument in
-      old-style :py:class:`~.IHandler` and :py:class:`~.ICommand`
-      callbacks.
+      old-style :py:class:`~omnipresence.iomnipresence.IHandler` and
+      :py:class:`~omnipresence.iomnipresence.ICommand` callbacks.
     * *actor* is a :py:class:`~.Hostmask` corresponding to the message
       prefix, indicating the message's true origin.
     * *action* is a string containing the message type, explained below.
