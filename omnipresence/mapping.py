@@ -2,7 +2,7 @@
 """Operations on IRC case mappings."""
 
 
-import string
+from string import maketrans, ascii_lowercase, ascii_uppercase
 
 
 class CaseMapping(object):
@@ -10,32 +10,33 @@ class CaseMapping(object):
     given a mapping of characters from *lower* to *upper*."""
 
     def __init__(self, lower, upper):
-        self.lower_trans = string.maketrans(upper, lower)
-        self.upper_trans = string.maketrans(lower, upper)
+        self.lower_trans = maketrans(upper, lower)
+        self.upper_trans = maketrans(lower, upper)
 
-    def equates(self, a, b):
+    def equates(self, one, two):
         """Return a boolean value indicating whether *a* and *b* are
         equal under this case mapping."""
-        return a.translate(self.lower_trans) == b.translate(self.lower_trans)
+        return (one.translate(self.lower_trans) ==
+                two.translate(self.lower_trans))
 
-    def lower(self, s):
-        """Return a copy of *s* with uppercase characters converted to
-        lowercase according to this case mapping."""
-        return s.translate(self.lower_trans)
+    def lower(self, string):
+        """Return a copy of *string* with uppercase characters converted
+        to lowercase according to this case mapping."""
+        return string.translate(self.lower_trans)
 
-    def upper(self, s):
-        """Return a copy of *s* with lowercase characters converted to
-        uppercase according to this case mapping."""
-        return s.translate(self.upper_trans)
+    def upper(self, string):
+        """Return a copy of *string* with lowercase characters converted
+        to uppercase according to this case mapping."""
+        return string.translate(self.upper_trans)
 
 
 CASE_MAPPINGS = {
-    'ascii':          CaseMapping(string.ascii_lowercase,
-                                  string.ascii_uppercase),
-    'rfc1459':        CaseMapping(string.ascii_lowercase + r'|{}~',
-                                  string.ascii_uppercase + r'\[]^'),
-    'strict-rfc1459': CaseMapping(string.ascii_lowercase + r'|{}',
-                                  string.ascii_uppercase + r'\[]'),
+    'ascii':          CaseMapping(ascii_lowercase,
+                                  ascii_uppercase),
+    'rfc1459':        CaseMapping(ascii_lowercase + r'|{}~',
+                                  ascii_uppercase + r'\[]^'),
+    'strict-rfc1459': CaseMapping(ascii_lowercase + r'|{}',
+                                  ascii_uppercase + r'\[]'),
 }
 
 

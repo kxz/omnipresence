@@ -12,7 +12,7 @@ def _mask_as_regex(mask):
     string *mask*."""
     pattern = ''
     backslash = False  # was the last character a backslash?
-    for c in mask:
+    for char in mask:
         if backslash:
             # The RFC doesn't state this explicitly, but the provided
             # BNF syntax defines the backslash as an escape character
@@ -27,20 +27,20 @@ def _mask_as_regex(mask):
             # asterisk, not two backslashes followed by any sequence of
             # characters, but someone who comes up with a mask like that
             # doesn't deserve to use this function.
-            if c == '*' or c == '?':
-                pattern += '\\' + c
+            if char == '*' or char == '?':
+                pattern += '\\' + char
             else:
-                pattern += '\\\\' + re.escape(c)
+                pattern += '\\\\' + re.escape(char)
             backslash = False
         else:
-            if c == '\\':
+            if char == '\\':
                 backslash = True
-            elif c == '*':
+            elif char == '*':
                 pattern += '.*'
-            elif c == '?':
+            elif char == '?':
                 pattern += '.'
             else:
-                pattern += re.escape(c)
+                pattern += re.escape(char)
     # Anchoring the regex with '\A' and '\Z' ensures that the pattern
     # matches the entire string, not just a portion.
     return re.compile(r'\A' + pattern + r'\Z')
@@ -77,15 +77,16 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
         equal ``None`` are assumed to match all possible values for that
         component.
         """
+        # pylint: disable=invalid-name
         me = self
         if isinstance(other, str):
             other = Hostmask.from_string(other)
-        me, other = map(
-            lambda x: x._replace(
+        me, other = (
+            x._replace(
                 nick=case_mapping.lower(x.nick) if case_mapping else x.nick,
                 user=x.user.lower() if x.user else None,
-                host=x.host.lower() if x.host else None),
-            (me, other))
+                host=x.host.lower() if x.host else None)
+            for x in (me, other))
         for mine, theirs in itertools.izip(me, other):
             if mine is None or theirs is None:
                 continue
