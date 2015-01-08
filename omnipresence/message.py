@@ -141,10 +141,11 @@ class Message(namedtuple('Message',
         return self.connection
 
     def extract_command(self, prefixes=None):
-        """Attempt to extract a command invocation, preceded by at most
-        one of the given prefixes in the iterable *prefixes* if it is
-        provided, from this message.  If an invocation is found, return
-        it; otherwise, return ``None``."""
+        """Attempt to extract a command invocation from this message.
+        *prefixes* is an iterable of strings; if provided and non-empty,
+        messages are only considered to have invocations if they begin
+        with exactly one prefix.  Return any invocation found as a new
+        :py:class:`~.Message`, or ``None`` otherwise."""
         if self.action != 'privmsg':
             return
         # We don't care about formatting in looking for commands.
