@@ -11,7 +11,9 @@ from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols import irc
 
-from omnipresence import iomnipresence, plugins, ircutil, util
+from . import plugins, ircutil
+from .iomnipresence import IHandler, ICommand
+from .message import truncate_unicode
 
 
 VERSION_NAME = 'Omnipresence'
@@ -211,13 +213,14 @@ class IRCClient(irc.IRCClient):
         _always_ broken on newlines, which can be useful for creating
         commands that progressively give more information.
         """
+        # FIXME:  Unify this with message.chunk.  In particular, note
+        # how newlines are handled specially in this implementation.
+        #
         # _Always_ split on a newline.
         to_send, sep, to_buffer = message.partition('\n')
         if isinstance(to_send, unicode):
-            truncated = util.truncate_unicode(to_send,
-                                              MAX_REPLY_LENGTH,  # in chars
-                                              MAX_REPLY_LENGTH,  # in bytes
-                                              self.factory.encoding)
+            truncated = truncate_unicode(
+                to_send, MAX_REPLY_LENGTH, self.factory.encoding)
             if truncated.decode(self.factory.encoding) != to_send:
                 # Try and find whitespace to split the message on.
                 truncated = truncated.rsplit(None, 1)[0]
@@ -601,7 +604,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         found_handlers = {}
         enabled_handler_names = set()
 
-        for handler in getPlugins(iomnipresence.IHandler, plugins):
+        for handler in getPlugins(IHandler, plugins):
             handler.factory = self
             found_handlers[handler.name] = handler
 
@@ -637,7 +640,7 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         found_commands = {}
         enabled_command_names = set()
 
-        for command in getPlugins(iomnipresence.ICommand, plugins):
+        for command in getPlugins(ICommand, plugins):
             command.factory = self
             found_commands[command.name] = command
 
