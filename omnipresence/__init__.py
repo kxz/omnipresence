@@ -591,11 +591,10 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         # channels based on the specified configuration options.
         self.handlers = {}
         found_handlers = {}
+        enabled_handler_names = set()
 
         for handler in getPlugins(iomnipresence.IHandler, plugins):
             handler.factory = self
-            if hasattr(handler, 'registered'):
-                getattr(handler, 'registered')()
             found_handlers[handler.name] = handler
 
         channels = self.config.options('channels')
@@ -616,16 +615,22 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
                         log.err(None, 'Could not find handler with name "%s".'
                                        % handler_name)
                         raise
+                    else:
+                        enabled_handler_names.add(handler_name)
+
+        for handler_name in enabled_handler_names:
+            handler = found_handlers[handler_name]
+            if hasattr(handler, 'registered'):
+                handler.registered()
 
         # Load command plug-ins through twisted.plugin, then map commands to
         # keywords based on the specified configuration options.
         self.commands = {}
         found_commands = {}
+        enabled_command_names = set()
 
         for command in getPlugins(iomnipresence.ICommand, plugins):
             command.factory = self
-            if hasattr(command, 'registered'):
-                getattr(command, 'registered')()
             found_commands[command.name] = command
 
         for (keyword, command_name) in self.config.items('commands'):
@@ -639,6 +644,13 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
                 log.err(None, 'Could not find command with name "%s".'
                                % command_name)
                 raise
+            else:
+                enabled_command_names.add(command_name)
+
+        for command_name in enabled_command_names:
+            command = found_commands[command_name]
+            if hasattr(command, 'registered'):
+                command.registered()
 
     def startedConnecting(self, connector):
         log.msg('Attempting to connect to server.')
