@@ -59,7 +59,7 @@ class IRCClient(irc.IRCClient):
     def __init__(self):
         self.channel_names = {}
         self.message_buffers = {'@': {}}
-        log.info('Assuming default CASEMAPPING "rfc1459"')
+        log.msg('Assuming default CASEMAPPING "rfc1459"')
         self.case_mapping = mapping.by_name('rfc1459')
 
     # Utility methods
@@ -329,9 +329,9 @@ class IRCClient(irc.IRCClient):
             try:
                 self.case_mapping = mapping.by_name(name)
             except ValueError:
-                log.info('Ignoring unsupported server CASEMAPPING "%s"', name)
+                log.msg('Ignoring unsupported server CASEMAPPING "%s"', name)
             else:
-                log.info('Using server-provided CASEMAPPING "%s"', name)
+                log.msg('Using server-provided CASEMAPPING "%s"', name)
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
