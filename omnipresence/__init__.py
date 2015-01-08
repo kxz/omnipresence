@@ -324,14 +324,15 @@ class IRCClient(irc.IRCClient):
         """Called when the server sends information about supported
         features."""
         # Update the connection case mapping if one is available.
-        name = self.supported.getFeature('CASEMAPPING')
-        if name is not None:
+        case_mappings = self.supported.getFeature('CASEMAPPING')
+        if case_mappings:
+            name = case_mappings[0]
             try:
                 self.case_mapping = mapping.by_name(name)
             except ValueError:
-                log.msg('Ignoring unsupported server CASEMAPPING "%s"', name)
+                log.msg('Ignoring unsupported server CASEMAPPING "%s"' % name)
             else:
-                log.msg('Using server-provided CASEMAPPING "%s"', name)
+                log.msg('Using server-provided CASEMAPPING "%s"' % name)
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
