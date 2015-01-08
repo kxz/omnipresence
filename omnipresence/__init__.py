@@ -1,3 +1,7 @@
+# -*- test-case-name: omnipresence.test.test_connection -*-
+"""The Omnipresence IRC utility bot."""
+
+
 import platform
 import re
 
