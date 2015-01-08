@@ -3,21 +3,36 @@
 
 from collections import defaultdict
 
+from twisted.internet.task import Clock, LoopingCall
 from twisted.test.proto_helpers import StringTransport
 from twisted.trial import unittest
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
 from .. import IRCClient
+from ..config import OmnipresenceConfigParser
 
 
 class DummyFactory(object):
     # TODO:  Refactor IRCClient/Connection so that this isn't necessary.
-    handlers = defaultdict(list)
+
+    def __init__(self):
+        self.handlers = defaultdict(list)
+        self.config = OmnipresenceConfigParser()
+        self.config.add_section('channels')
+
+    def resetDelay(self):
+        pass
+
+
+class AbortableStringTransport(StringTransport):
+    # <https://twistedmatrix.com/trac/ticket/6530>
+    def abortConnection(self):
+        self.loseConnection()
 
 
 class AbstractConnectionTestCase(unittest.TestCase):
     def setUp(self):
-        self.transport = StringTransport()
+        self.transport = AbortableStringTransport()
         self.connection = IRCClient()
         self.connection.factory = DummyFactory()
         self.connection.nickname = 'nick'
@@ -111,3 +126,22 @@ class NameTrackingTestCase(AbstractConnectionTestCase):
     def test_leave(self):
         self.connection.leave('#foo')
         self.assertFalse('#foo' in self.connection.channel_names)
+
+
+class PingTimeoutTestCase(AbstractConnectionTestCase):
+    def setUp(self):
+        super(PingTimeoutTestCase, self).setUp()
+        self.connection.clock = Clock()
+
+    def test_ping_timeout(self):
+        self.connection.irc_RPL_WELCOME('remote.test', [])
+        self.connection.clock.advance(self.connection.heartbeatInterval)
+        self.assertFalse(self.transport.disconnecting)
+        self.connection.irc_PONG('remote.test', [])
+        # LoopingCall doesn't like just advancing the clock all at once.
+        # I'm not sure if this is a bug in Twisted or not.
+        for _ in xrange(self.connection.max_ping_count):
+            self.connection.clock.advance(self.connection.heartbeatInterval)
+        self.assertFalse(self.transport.disconnecting)
+        self.connection.clock.advance(self.connection.heartbeatInterval)
+        self.assertTrue(self.transport.disconnecting)

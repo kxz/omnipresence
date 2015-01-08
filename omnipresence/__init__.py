@@ -54,7 +54,9 @@ class IRCClient(irc.IRCClient):
 
     # Number of PINGs that have been sent since last PONG from server.
     ping_count = 0
+    max_ping_count = 3
     heartbeatInterval = 60
+    clock = None  # for unit testing
 
     # Suspended join queue.
     suspended_joins = None
@@ -70,14 +72,6 @@ class IRCClient(irc.IRCClient):
         self.message_buffers = {'@': {}}
 
     # Utility methods
-
-    def _sendHeartbeat(self):
-        if self.ping_count > 2:
-            log.msg('Sent three PINGs without receiving a PONG reply.')
-            self.transport.abortConnection()
-            return
-        irc.IRCClient._sendHeartbeat(self)
-        self.ping_count += 1
 
     def suspend_joins(self):
         """Suspend all channel joins until :py:meth:`resume_joins` is
@@ -299,6 +293,21 @@ class IRCClient(irc.IRCClient):
         log.msg('Disconnected from server.')
 
     # Inherited from twisted.words.protocols.irc.IRCClient
+
+    def _createHeartbeat(self):
+        heartbeat = irc.IRCClient._createHeartbeat(self)
+        if self.clock is not None:
+            heartbeat.clock = self.clock
+        return heartbeat
+
+    def _sendHeartbeat(self):
+        if self.ping_count >= self.max_ping_count:
+            log.msg('Sent %d PINGs without receiving a PONG reply.' %
+                    self.max_ping_count)
+            self.transport.abortConnection()
+            return
+        irc.IRCClient._sendHeartbeat(self)
+        self.ping_count += 1
 
     def myInfo(self, servername, version, umodes, cmodes):
         """Called with information about the IRC server at logon."""
