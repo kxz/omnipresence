@@ -11,7 +11,7 @@ from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols import irc
 
-from . import plugins, ircutil
+from . import mapping, plugins, ircutil
 from .iomnipresence import IHandler, ICommand
 from .message import truncate_unicode
 
@@ -59,8 +59,18 @@ class IRCClient(irc.IRCClient):
     def __init__(self):
         self.channel_names = {}
         self.message_buffers = {'@': {}}
+        log.info('Assuming default CASEMAPPING "rfc1459"')
+        self.case_mapping = mapping.by_name('rfc1459')
 
     # Utility methods
+
+    def _lower(self, string):
+        """Convenience alias for ``self.case_mapping.lower``."""
+        return self.case_mapping.lower(string)
+
+    def _upper(self, string):
+        """Convenience alias for ``self.case_mapping.upper``."""
+        return self.case_mapping.upper(string)
 
     def is_channel(self, name):
         """Return True if *name* belongs to a channel, according to the
@@ -309,6 +319,19 @@ class IRCClient(irc.IRCClient):
 
     def myInfo(self, servername, version, umodes, cmodes):
         """Called with information about the IRC server at logon."""
+
+    def isupport(self, options):
+        """Called when the server sends information about supported
+        features."""
+        # Update the connection case mapping if one is available.
+        name = self.supported.getFeature('CASEMAPPING')
+        if name is not None:
+            try:
+                self.case_mapping = mapping.by_name(name)
+            except ValueError:
+                log.info('Ignoring unsupported server CASEMAPPING "%s"', name)
+            else:
+                log.info('Using server-provided CASEMAPPING "%s"', name)
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
