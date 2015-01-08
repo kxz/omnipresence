@@ -189,3 +189,55 @@ class Message(namedtuple('Message',
         is not a public channel; otherwise, return ``False``."""
         return not (self.venue is None or
                     self.connection.is_channel(self.venue))
+
+
+def truncate_unicode(string, byte_limit, encoding='utf-8'):
+    """Truncate a Unicode *string* so that it fits within *byte_limit*
+    when encoded using *encoding*.  Return the truncated string as a
+    byte string."""
+    # Per Denis Otkidach on SO <http://stackoverflow.com/a/1820949>.
+    encoded = string.encode(encoding)[:byte_limit]
+    return encoded.decode(encoding, 'ignore').encode(encoding)
+
+
+def chunk(string, encoding='utf-8', max_length=256):
+    """Return an iterator that progressively yields chunks of at most
+    *max_length* bytes from *string*.  When possible, breaks are made at
+    whitespace, instead of in the middle of words.  If *string* is a
+    Unicode string, the given *encoding* is used to convert it to a byte
+    string and calculate the chunk length.  Any mIRC-style formatting
+    codes present are repeated at the beginning of each subsequent chunk
+    until they are overridden.
+
+    Omnipresence uses this function internally to perform message
+    buffering, as its name implies.  Plugin authors should not need to
+    call this function themselves."""
+    remaining = string
+    while remaining:
+        if isinstance(remaining, unicode):
+            # See if the encoded string is longer than the maximum
+            # reply length by truncating it and then comparing it to
+            # the original.  If so, place the rest in the buffer.
+            truncated = truncate_unicode(remaining, max_length, encoding)
+            if truncated.decode(encoding) == remaining:
+                remaining = ''
+            else:
+                # Try and find whitespace to split the string on.
+                truncated = truncated.rsplit(None, 1)[0]
+                remaining = remaining[len(truncated.decode(encoding)):]
+        else:
+            # We don't have to be so careful about length comparisons
+            # with byte strings; just use slice notation.
+            if len(remaining) <= max_length:
+                truncated = remaining
+                remaining = ''
+            else:
+                truncated = remaining[:max_length].rsplit(None, 1)[0]
+                remaining = remaining[len(truncated):]
+        truncated = truncated.strip()
+        remaining = ''.join(unclosed_formatting(truncated)) + remaining.strip()
+        # If all that's left are formatting codes, there's basically no
+        # real content remaining in the string.
+        if not remove_formatting(remaining):
+            remaining = ''
+        yield truncated
