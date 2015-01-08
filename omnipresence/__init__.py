@@ -66,9 +66,9 @@ class IRCClient(irc.IRCClient):
         """Return True if *name* belongs to a channel, according to the
         server-provided list of channel prefixes, or False otherwise.
         """
-        # FIXME:  If the server provides a list of channel prefixes, use
-        # that instead of Twisted's built-in one.
-        return name[0] in irc.CHANNEL_PREFIXES
+        # We can assume the CHANTYPES feature will always be present,
+        # since Twisted gives it a default value.
+        return name[0] in self.supported.getFeature('CHANTYPES')
 
     def suspend_joins(self):
         """Suspend all channel joins until :py:meth:`resume_joins` is
