@@ -634,10 +634,14 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         channels = self.config.options('channels')
         for channel in channels:
             handler_names = self.config.getspacelist('channels', channel)
-            # Since "#" can't be used to start a line in the configuration file
-            # (it gets parsed as a comment by ConfigParser), add "#" to the
-            # beginning of any channel name that's not special (i.e. "@").
-            if not self.is_channel(channel) and channel != '@':
+            # Add "#" to the beginning of any channel name that's not
+            # special (i.e. "@") for convenience.
+            #
+            # We can't use is_channel or _lower, since no IRCClient
+            # instance exists yet.  The channel name canonicalization,
+            # at least, should probably be moved into IRCClient itself
+            # for the sake of consistency.
+            if not channel[0] in irc.CHANNEL_PREFIXES and channel != '@':
                 channel = '#' + channel
             channel = ircutil.canonicalize(channel)
             self.handlers[channel] = []
