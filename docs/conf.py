@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.abspath('..'))
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.todo',
               'sphinx.ext.coverage',
+              'sphinx.ext.intersphinx',
               'sphinx.ext.viewcode',
               'repoze.sphinx.autointerface']
 
@@ -221,3 +222,5 @@ man_pages = [
     ('index', 'omnipresence', u'Omnipresence Documentation',
      [u'Kevin Xiwei Zheng'], 1)
 ]
+
+intersphinx_mapping = {'python': ('http://docs.python.org/2.7', None)}
