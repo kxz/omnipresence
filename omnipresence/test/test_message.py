@@ -32,40 +32,55 @@ class FormattingTestCase(unittest.TestCase):
 
 
 class ExtractionTestCase(unittest.TestCase):
-    prototype = Message(None, 'nick!user@host', 'privmsg')
+    def setUp(self):
+        self.connection = DummyConnection()
+        self.prototype = Message(self.connection, 'nick!user@host', 'privmsg')
 
-    def sample(self, *args, **kwargs):
-        return self.prototype._replace(*args, **kwargs)
+    def _extract(self, content):
+        return self.prototype._replace(content=content).extract_command(
+            prefixes=['!', 'bot:', 'bot,'])
 
-    def test_extraction(self):
-        e = functools.partial(Message.extract_command,
-                              prefixes=['!', 'bot:', 'bot,'])
-        self.assertEqual(
-            e(self.sample(action='topic')),
-            None)
-        self.assertEqual(
-            e(self.sample(content='ipsum')),
-            None)
-        self.assertEqual(
-            e(self.sample(content='!help')),
-            self.sample(action='command', target='nick',
-                        subaction='help', content=''))
-        self.assertEqual(
-            e(self.sample(content='bot: help')),
-            self.sample(action='command', target='nick',
-                        subaction='help', content=''))
-        self.assertEqual(
-            e(self.sample(content='bot, help me')),
-            self.sample(action='command', target='nick',
-                        subaction='help', content='me'))
-        self.assertEqual(
-            e(self.sample(content='!help >')),
-            self.sample(action='command', target='nick',
-                        subaction='help', content=''))
-        self.assertEqual(
-            e(self.sample(content='!help > other')),
-            self.sample(action='command', target='other',
-                        subaction='help', content=''))
+    def test_ignore_non_privmsg(self):
+        self.assertIsNone(Message(
+            self.connection, 'nick!user@host', 'topic').extract_command())
+
+    def test_ignore_missing_prefix(self):
+        self.assertIsNone(self._extract('ipsum'))
+
+    def test_simple_command(self):
+        msg = self._extract('!help')
+        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.target, 'nick')
+        self.assertEqual(msg.subaction, 'help')
+        self.assertEqual(msg.content, '')
+
+    def test_simple_command_with_long_prefix(self):
+        msg = self._extract('bot: help')
+        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.target, 'nick')
+        self.assertEqual(msg.subaction, 'help')
+        self.assertEqual(msg.content, '')
+
+    def test_command_with_arguments(self):
+        msg = self._extract('bot, help me')
+        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.target, 'nick')
+        self.assertEqual(msg.subaction, 'help')
+        self.assertEqual(msg.content, 'me')
+
+    def test_command_redirection(self):
+        msg = self._extract('!help > other')
+        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.target, 'other')
+        self.assertEqual(msg.subaction, 'help')
+        self.assertEqual(msg.content, '')
+
+    def test_empty_command_redirection(self):
+        msg = self._extract('!help >')
+        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.target, 'nick')
+        self.assertEqual(msg.subaction, 'help')
+        self.assertEqual(msg.content, '')
 
 
 class BufferingTestCase(unittest.TestCase):
