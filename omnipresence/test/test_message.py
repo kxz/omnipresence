@@ -11,6 +11,7 @@ from ..hostmask import Hostmask
 from ..message import (Message, chunk,
                        remove_formatting as rm,
                        unclosed_formatting as uc)
+from ._helpers import DummyConnection
 
 
 class FormattingTestCase(unittest.TestCase):
@@ -29,6 +30,64 @@ class FormattingTestCase(unittest.TestCase):
                          frozenset(['\x032,12']))
         self.assertEqual(uc('\x02a\x0F\x1Fm\x033et'),
                          frozenset(['\x1F', '\x033']))
+
+
+class RawParsingTestCase(unittest.TestCase):
+    def setUp(self):
+        self.connection = DummyConnection()
+
+    def _from_raw(self, raw):
+        return Message.from_raw(self.connection, raw)
+
+    def test_channel_message(self):
+        msg = self._from_raw(':nick!user@host PRIVMSG #foo :lorem ipsum')
+        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        self.assertEqual(msg.action, 'privmsg')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(self.private)
+
+    def test_private_message(self):
+        msg = self._from_raw(':nick!user@host PRIVMSG foo :lorem ipsum')
+        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        self.assertEqual(msg.action, 'privmsg')
+        self.assertEqual(msg.venue, 'foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertTrue(self.private)
+
+    def test_channel_notice(self):
+        msg = self._from_raw(':nick!user@host NOTICE #foo :lorem ipsum')
+        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        self.assertEqual(msg.action, 'notice')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(self.private)
+
+    def test_private_notice(self):
+        msg = self._from_raw(':nick!user@host NOTICE foo :lorem ipsum')
+        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        self.assertEqual(msg.action, 'notice')
+        self.assertEqual(msg.venue, 'foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertTrue(self.private)
+
+    def test_unknown(self):
+        msg = self._from_raw(':nick!user@host NONSENSE a b c :foo bar')
+        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        self.assertEqual(msg.action, 'unknown')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertEqual(msg.subaction, 'NONSENSE')
+        self.assertEqual(msg.content, 'a b c :foo bar')
+        self.assertFalse(msg.private)
 
 
 class ExtractionTestCase(unittest.TestCase):
