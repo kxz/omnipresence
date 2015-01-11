@@ -49,23 +49,23 @@ class ExtractionTestCase(unittest.TestCase):
         self.assertEqual(
             e(self.sample(content='!help')),
             self.sample(action='command', target='nick',
-                        content=('help', '')))
+                        subaction='help', content=''))
         self.assertEqual(
             e(self.sample(content='bot: help')),
             self.sample(action='command', target='nick',
-                        content=('help', '')))
+                        subaction='help', content=''))
         self.assertEqual(
             e(self.sample(content='bot, help me')),
             self.sample(action='command', target='nick',
-                        content=('help', 'me')))
+                        subaction='help', content='me'))
         self.assertEqual(
             e(self.sample(content='!help >')),
             self.sample(action='command', target='nick',
-                        content=('help', '')))
+                        subaction='help', content=''))
         self.assertEqual(
             e(self.sample(content='!help > other')),
             self.sample(action='command', target='other',
-                        content=('help', '')))
+                        subaction='help', content=''))
 
 
 class BufferingTestCase(unittest.TestCase):

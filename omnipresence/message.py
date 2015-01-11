@@ -67,7 +67,8 @@ def unclosed_formatting(s):
 
 class Message(namedtuple('Message',
                          ('connection', 'actor', 'action',
-                          'venue', 'target', 'content'))):
+                          'venue', 'target', 'subaction', 'content',
+                          'raw'))):
     """Represents a message, loosely defined as an event to which
     plugins can respond.  Most message types correspond to those defined
     in :rfc:`1459#section-4`; Omnipresence also specifies some custom
@@ -76,60 +77,96 @@ class Message(namedtuple('Message',
     The following attributes are present on all :py:class:`~.Message`
     objects:
 
-    * *connection* is the :py:class:`~.IRCClient` instance on which the
-      message was received.  It is equivalent to the *bot* argument in
-      old-style :py:class:`~omnipresence.iomnipresence.IHandler` and
-      :py:class:`~omnipresence.iomnipresence.ICommand` callbacks.
-    * *actor* is a :py:class:`~.Hostmask` corresponding to the message
-      prefix, indicating the message's true origin.
-    * *action* is a string containing the message type, explained below.
+    .. py:attribute:: connection
 
-    The remaining three attributes are optional; their presence and
-    meaning depend on the message type.  An attribute is set to ``None``
-    if and only if it is not used by the current message type.
+       The :py:class:`~.IRCClient` instance on which the message was
+       received.  It is equivalent to the *bot* argument in old-style
+       :py:class:`~omnipresence.iomnipresence.IHandler` and
+       :py:class:`~omnipresence.iomnipresence.ICommand` callbacks.
+
+    .. py:attribute:: actor
+
+       A :py:class:`~.Hostmask` corresponding to the message prefix,
+       indicating the message's true origin.
+
+    .. py:attribute:: action
+
+       A string containing the message type, explained below.
+
+    The remaining attributes are optional; their presence and meaning
+    depend on the message type.  An attribute is ``None`` if and only if
+    it is not used by the current message type, and a string value
+    otherwise.
+
+    :py:class:`~.Message` objects are instances of
+    :py:class:`collections.namedtuple`, and thus immutable.  To create a
+    new object based on the attributes of an existing one, use
+    :py:meth:`~collections.namedtuple._replace`.
 
     Note that all string values are byte strings, not Unicode strings,
     and must be appropriately decoded when necessary.
 
     Omnipresence supports messages of the following types:
 
-    ``privmsg``
-        Represents a typical message, or PRIVMSG according to the IRC
-        protocol.  *venue* is the nick or channel name of the recipient;
-        *content* is the text of the message as a string.  *target* is
-        not used.
+    .. describe:: privmsg
 
-    ``notice``
-        Represents a notice.  All attributes are as for the ``privmsg``
-        type.
+       Represents a typical message to a user or channel.  *venue* is
+       the nick or channel name of the recipient; *content* is the text
+       of the message.  *subaction* and *target* are not used.
 
-    ``command``
-        Represents a command invocation.  *venue* is as for the
-        ``privmsg`` type; *target* is the reply redirection target, or
-        the actor's nick if none was specified; and *content* is a
-        2-tuple containing the command keyword followed by a string
-        containing any trailing arguments.
+       The :py:attr:`private` property can be used to determine whether
+       a message was sent to a single user or a channel.
+
+    .. describe:: notice
+
+       Represents a notice.  All attributes are as for the ``privmsg``
+       type.
+
+    .. describe:: command
+
+       Represents a command invocation.  *venue* is as for the
+       ``privmsg`` type; *target* is a string containing the reply
+       redirection target, or the actor's nick if none was specified;
+       *subaction* is the command keyword; and *content* is a string
+       containing any trailing arguments.
+
+    .. describe:: unknown
+
+       Represents an unrecognized message type.  *subaction* is the
+       IRC command name; *content* is a string containing any trailing
+       arguments.  *venue* and *target* are not used.
     """
 
     def __new__(cls,
                 connection, actor, action,
-                venue=None, target=None, content=None):
+                venue=None, target=None, subaction=None, content=None):
         if isinstance(actor, str):
             actor = Hostmask.from_string(actor)
         return super(Message, cls).__new__(
-            cls, connection, actor, action, venue, target, content)
+            cls, connection, actor,
+            action, venue, target, subaction, content,
+            raw=None)
 
     @classmethod
-    def from_raw(cls, raw):
+    def from_raw(cls, connection, raw):
         """Parse a raw IRC message string and return a corresponding
         :py:class:`~.Message` object."""
+        # return cls(connection, raw=raw, **parser.parse(connection, raw))
         raise NotImplementedError
 
     def to_raw(self):
-        """Return this message as a raw IRC message string."""
-        # TODO:  What should be done about command messages?
+        """Return this message as a raw IRC message string.  If this
+        object was created using :py:meth:`.Message.from_raw`, the raw
+        string that was originally provided is returned; otherwise, one
+        is constructed from this object's fields.  This method is not
+        supported for ``command`` messages, since they are artificially
+        created.
+        """
+        if self.raw is not None:
+            return self.raw
+        if self.action == 'command':
+            raise ValueError('command messages have no raw IRC representation')
         raise NotImplementedError
-    __str__ = to_raw
 
     @property
     def bot(self):
@@ -181,8 +218,8 @@ class Message(namedtuple('Message',
             content, target = (x.strip() for x in content.rsplit('>', 1))
         if not target:
             target = self.actor.nick
-        return self._replace(
-            action='command', target=target, content=(keyword, content))
+        return self._replace(action='command', target=target,
+                             subaction=keyword, content=content)
 
     @property
     def private(self):
