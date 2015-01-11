@@ -90,7 +90,7 @@ class BufferingTestCase(unittest.TestCase):
         return re.sub(r'\s+', ' ', s).strip()
 
     def test_type(self):
-        self.assertRaises(TypeError, chunk(42))
+        self.assertRaises(TypeError, chunk, 42)
 
     def test_trivial(self):
         self.assertEqual(list(chunk('')), [])
