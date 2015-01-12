@@ -1,42 +1,10 @@
 """Unit tests for core connection functionality."""
 
 
-from collections import defaultdict
-
-from twisted.internet.task import Clock, LoopingCall
-from twisted.test.proto_helpers import StringTransport
-from twisted.trial import unittest
+from twisted.internet.task import Clock
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
-from .. import IRCClient
-from ..config import OmnipresenceConfigParser
-
-
-class DummyFactory(object):
-    # TODO:  Refactor IRCClient/Connection so that this isn't necessary.
-
-    def __init__(self):
-        self.handlers = defaultdict(list)
-        self.config = OmnipresenceConfigParser()
-        self.config.add_section('channels')
-
-    def resetDelay(self):
-        pass
-
-
-class AbortableStringTransport(StringTransport):
-    # <https://twistedmatrix.com/trac/ticket/6530>
-    def abortConnection(self):
-        self.loseConnection()
-
-
-class AbstractConnectionTestCase(unittest.TestCase):
-    def setUp(self):
-        self.transport = AbortableStringTransport()
-        self.connection = IRCClient()
-        self.connection.factory = DummyFactory()
-        self.connection.nickname = 'nick'
-        self.connection.makeConnection(self.transport)
+from ._helpers import AbstractConnectionTestCase
 
 
 class JoinSuspensionTestCase(AbstractConnectionTestCase):
