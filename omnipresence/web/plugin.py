@@ -6,7 +6,7 @@ import urllib
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence.iomnipresence import ICommand
+from ..iomnipresence import ICommand
 
 
 class WebCommand(object):

@@ -14,7 +14,7 @@ from twisted.web.client import (Agent, ContentDecoderAgent,
                                 ResponseFailed)
 from twisted.web.http_headers import Headers
 
-from omnipresence import VERSION_NUM
+from .. import VERSION_NUM
 
 
 USER_AGENT = ('Omnipresence/{0} (+bot; '
