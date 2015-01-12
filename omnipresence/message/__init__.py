@@ -182,18 +182,10 @@ def truncate_unicode(string, byte_limit, encoding='utf-8'):
     return encoded.decode(encoding, 'ignore').encode(encoding)
 
 
-def chunk(string, encoding='utf-8', max_length=256):
-    """Return an iterator that progressively yields chunks of at most
-    *max_length* bytes from *string*.  When possible, breaks are made at
-    whitespace, instead of in the middle of words.  If *string* is a
-    Unicode string, the given *encoding* is used to convert it to a byte
-    string and calculate the chunk length.  Any mIRC-style formatting
-    codes present are repeated at the beginning of each subsequent chunk
-    until they are overridden.
-
-    Omnipresence uses this function internally to perform message
-    buffering, as its name implies.  Plugin authors should not need to
-    call this function themselves."""
+def _chunk(string, encoding='utf-8', max_length=256):
+    """The actual implementation of :py:meth:`~.chunk`.  This is in a
+    separate function so that some errors can be raised on invocation
+    rather than waiting for a call to :py:func:`next`."""
     remaining = string
     while remaining:
         if isinstance(remaining, unicode):
@@ -223,3 +215,21 @@ def chunk(string, encoding='utf-8', max_length=256):
         if not remove_formatting(remaining):
             remaining = ''
         yield truncated
+
+
+def chunk(string, encoding='utf-8', max_length=256):
+    """Return an iterator that progressively yields chunks of at most
+    *max_length* bytes from *string*.  When possible, breaks are made at
+    whitespace, instead of in the middle of words.  If *string* is a
+    Unicode string, the given *encoding* is used to convert it to a byte
+    string and calculate the chunk length.  Any mIRC-style formatting
+    codes present are repeated at the beginning of each subsequent chunk
+    until they are overridden.
+
+    Omnipresence uses this function internally to perform message
+    buffering.  Plugin authors should not need to call this function
+    themselves."""
+    if not isinstance(string, basestring):
+        raise TypeError('cannot chunk non-string of type ' +
+                        type(string).__name__)
+    return _chunk(string, encoding=encoding, max_length=max_length)
