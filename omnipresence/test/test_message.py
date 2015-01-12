@@ -47,7 +47,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
         self.assertEqual(msg.content, 'lorem ipsum')
-        self.assertFalse(self.private)
+        self.assertFalse(msg.private)
 
     def test_private_message(self):
         msg = self._from_raw(':nick!user@host PRIVMSG foo :lorem ipsum')
@@ -57,7 +57,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
         self.assertEqual(msg.content, 'lorem ipsum')
-        self.assertTrue(self.private)
+        self.assertTrue(msg.private)
 
     def test_channel_notice(self):
         msg = self._from_raw(':nick!user@host NOTICE #foo :lorem ipsum')
@@ -67,7 +67,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
         self.assertEqual(msg.content, 'lorem ipsum')
-        self.assertFalse(self.private)
+        self.assertFalse(msg.private)
 
     def test_private_notice(self):
         msg = self._from_raw(':nick!user@host NOTICE foo :lorem ipsum')
@@ -77,7 +77,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
         self.assertEqual(msg.content, 'lorem ipsum')
-        self.assertTrue(self.private)
+        self.assertTrue(msg.private)
 
     def test_unknown(self):
         msg = self._from_raw(':nick!user@host NONSENSE a b c :foo bar')

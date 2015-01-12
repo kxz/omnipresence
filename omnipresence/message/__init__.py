@@ -5,7 +5,8 @@
 from collections import namedtuple
 import re
 
-from .hostmask import Hostmask
+from ..hostmask import Hostmask
+from .parser import parse as parse_raw
 
 
 #: A regex matching mIRC-style formatting control codes.
@@ -151,8 +152,8 @@ class Message(namedtuple('Message',
     def from_raw(cls, connection, raw):
         """Parse a raw IRC message string and return a corresponding
         :py:class:`~.Message` object."""
-        # return cls(connection, raw=raw, **parser.parse(connection, raw))
-        raise NotImplementedError
+        return super(Message, cls).__new__(
+            cls, connection, raw=raw, **parse_raw(raw))
 
     def to_raw(self):
         """Return this message as a raw IRC message string.  If this
