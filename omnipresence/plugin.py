@@ -1,4 +1,12 @@
+# -*- test-case-name: omnipresence.test.test_plugin
 """Omnipresence event plugin framework."""
+
+
+import importlib
+
+
+#: The root package name to use for relative plugin module searches.
+PLUGIN_ROOT = 'omnipresence.plugins'
 
 
 class EventPlugin(object):
@@ -41,3 +49,17 @@ class EventPlugin(object):
         # XXX:  Maybe this should just be @plugin.on('cmdhelp').
         self.help = function
         return function
+
+
+def load_plugin(name):
+    """Load and return an :py:meth:`~.EventPlugin`, given the *name*
+    used to refer to it in an Omnipresence configuration file."""
+    module_name, _, member_name = name.partition('/')
+    if not member_name:
+        member_name = 'default'
+    module = importlib.import_module(module_name, package=PLUGIN_ROOT)
+    member = getattr(module, member_name)
+    if not isinstance(member, EventPlugin):
+        raise TypeError('{} is {}, not EventPlugin'.format(
+            name, type(member).__name__))
+    return member
