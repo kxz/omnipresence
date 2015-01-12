@@ -9,7 +9,7 @@ import re
 
 from . import mapping
 from .hostmask import Hostmask
-from .message import remove_formatting, unclosed_formatting
+from .message.formatting import remove_formatting, unclosed_formatting
 
 
 def canonicalize(name, casemapping='rfc1459'):

@@ -2,34 +2,13 @@
 """Unit tests for IRC message handling."""
 
 
-import functools
 import re
 
 from twisted.trial import unittest
 
 from ..hostmask import Hostmask
-from ..message import (Message, chunk,
-                       remove_formatting as rm,
-                       unclosed_formatting as uc)
+from ..message import Message, chunk
 from ._helpers import DummyConnection
-
-
-class FormattingTestCase(unittest.TestCase):
-    def test_removal(self):
-        self.assertEqual(rm('lorem ipsum'), 'lorem ipsum')
-        self.assertEqual(rm('lorem \x03ipsum'), 'lorem ipsum')
-        self.assertEqual(rm('dolor \x032,12sit'), 'dolor sit')
-        self.assertEqual(rm('\x02a\x0Fm\x033et'), 'amet')
-
-    def test_unclosed(self):
-        self.assertEqual(uc('lorem ipsum'), frozenset())
-        self.assertEqual(uc('lorem \x03ipsum'), frozenset())
-        self.assertEqual(uc('dolor \x032,12sit'),
-                         frozenset(['\x032,12']))
-        self.assertEqual(uc('dolor \x031,12\x032sit'),
-                         frozenset(['\x032,12']))
-        self.assertEqual(uc('\x02a\x0F\x1Fm\x033et'),
-                         frozenset(['\x1F', '\x033']))
 
 
 class RawParsingTestCase(unittest.TestCase):
