@@ -14,12 +14,7 @@ class Message(namedtuple('Message',
                           'venue', 'target', 'subaction', 'content',
                           'raw'))):
     """Represents a message, loosely defined as an event to which
-    plugins can respond.  Most message types correspond to those defined
-    in :rfc:`1459#section-4`; Omnipresence also specifies some custom
-    types for internal event handling.
-
-    The following attributes are present on all :py:class:`~.Message`
-    objects:
+    plugins can respond.  Messages have the following basic attributes:
 
     .. py:attribute:: connection
 
@@ -35,50 +30,23 @@ class Message(namedtuple('Message',
 
     .. py:attribute:: action
 
-       A string containing the message type, explained below.
+       A string containing the :ref:`message type <message-types>`.
 
-    The remaining attributes are optional; their presence and meaning
-    depend on the message type.  An attribute is ``None`` if and only if
-    it is not used by the current message type, and a string value
-    otherwise.
+    .. py:attribute:: venue
+                      target
+                      subaction
+                      content
 
-    :py:class:`~.Message` is a :py:func:`collections.namedtuple` type,
-    and thus its instances are immutable.  To create a new object based
-    on the attributes of an existing one, use an instance's
-    :py:meth:`~collections.somenamedtuple._replace` method.
+       Optional attributes, whose presence and meaning depend on the
+       message type.  An attribute is ``None`` if and only if it is not
+       used by the current message type, and a string value otherwise.
 
-    Note that all string values are byte strings, not Unicode strings,
-    and must be appropriately decoded when necessary.
+    .. py:attribute:: raw
 
-    Omnipresence supports messages of the following types:
-
-    .. describe:: privmsg
-
-       Represents a typical message to a user or channel.  *venue* is
-       the nick or channel name of the recipient; *content* is the text
-       of the message.  *subaction* and *target* are not used.
-
-       The :py:attr:`private` property can be used to determine whether
-       a message was sent to a single user or a channel.
-
-    .. describe:: notice
-
-       Represents a notice.  All attributes are as for the ``privmsg``
-       type.
-
-    .. describe:: command
-
-       Represents a command invocation.  *venue* is as for the
-       ``privmsg`` type; *target* is a string containing the reply
-       redirection target, or the actor's nick if none was specified;
-       *subaction* is the command keyword; and *content* is a string
-       containing any trailing arguments.
-
-    .. describe:: unknown
-
-       Represents an unrecognized message type.  *subaction* is the
-       IRC command name; *content* is a string containing any trailing
-       arguments.  *venue* and *target* are not used.
+       If this message was created using :py:meth:`.Message.from_raw`,
+       the original raw IRC message string passed to that function.
+       Otherwise, ``None``.  Note that this behaves slightly differently
+       from the :py:meth:`~.to_raw` method.
     """
 
     def __new__(cls,
