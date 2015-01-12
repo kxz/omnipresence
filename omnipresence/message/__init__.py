@@ -42,10 +42,10 @@ class Message(namedtuple('Message',
     it is not used by the current message type, and a string value
     otherwise.
 
-    :py:class:`~.Message` objects are instances of
-    :py:class:`collections.namedtuple`, and thus immutable.  To create a
-    new object based on the attributes of an existing one, use
-    :py:meth:`~collections.namedtuple._replace`.
+    :py:class:`~.Message` is a :py:func:`collections.namedtuple` type,
+    and thus its instances are immutable.  To create a new object based
+    on the attributes of an existing one, use an instance's
+    :py:meth:`~collections.somenamedtuple._replace` method.
 
     Note that all string values are byte strings, not Unicode strings,
     and must be appropriately decoded when necessary.

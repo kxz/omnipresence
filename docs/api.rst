@@ -11,7 +11,13 @@ Messages
 --------
 
 .. automodule:: omnipresence.message
-   :members: Message, remove_formatting, unclosed_formatting
+   :members: Message
+
+Message formatting
+~~~~~~~~~~~~~~~~~~
+
+.. automodule:: omnipresence.message.formatting
+   :members: remove_formatting, unclosed_formatting
 
 Hostmasks
 ---------
@@ -25,14 +31,14 @@ Case mappings
 .. automodule:: omnipresence.mapping
    :members: CaseMapping, by_name
 
-Web utility methods
--------------------
+Web resource interactions
+-------------------------
 
 .. automodule:: omnipresence.web
    :members: WebCommand, request, textify_html
 
-Other helper methods
---------------------
+Human-readable output helpers
+-----------------------------
 
-.. automodule:: omnipresence.util
+.. automodule:: omnipresence.humanize
    :members:

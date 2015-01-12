@@ -123,7 +123,7 @@ class ExtractionTestCase(unittest.TestCase):
 
 class BufferingTestCase(unittest.TestCase):
     def collapse(self, s):
-        """Return *s* with runs of whitespace self.collapsed to a single
+        """Return *s* with runs of whitespace collapsed to a single
         space, and any preceding or trailing whitespace removed."""
         return re.sub(r'\s+', ' ', s).strip()
 

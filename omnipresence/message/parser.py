@@ -1,4 +1,5 @@
-# XXX:  Docstring.
+"""A raw message parser implementation for Message.from_raw()."""
+# pylint: disable=missing-docstring
 
 
 from twisted.words.protocols.irc import parsemsg, X_DELIM
@@ -7,14 +8,14 @@ from ..hostmask import Hostmask
 
 
 class RawMessageParser(object):
-    # XXX:  Docstring.
-
     _optionals = ['venue', 'target', 'subaction', 'content']
 
     def __init__(self):
         self.functions = {}
 
     def command(self, *commands):
+        """A decorator that registers a function as a parameter parser
+        for messages of the types given in *commands*."""
         def decorator(function):
             for command in commands:
                 self.functions[command] = function
@@ -22,6 +23,9 @@ class RawMessageParser(object):
         return decorator
 
     def parse(self, raw):
+        """Return a dict representation of a raw IRC message string,
+        in the form of keyword arguments for the :py:meth:`~.Message`
+        constructor (sans *connection*)."""
         prefix, command, params = parsemsg(raw)
         kwargs = {field: None for field in self._optionals}
         kwargs['actor'] = Hostmask.from_string(prefix)
