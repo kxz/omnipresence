@@ -2,21 +2,20 @@
 """The Omnipresence IRC utility bot."""
 
 
-import platform
 import re
 
+import pkg_resources
 import sqlobject
 from twisted.internet import defer, protocol, task, threads
 from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols import irc
 
-from omnipresence import iomnipresence, plugins, ircutil, util, version
+from omnipresence import iomnipresence, plugins, ircutil, util
 
 
 VERSION_NAME = 'Omnipresence'
-VERSION_NUM = version.__version__
-VERSION_ENV = platform.platform()
+VERSION_NUM = pkg_resources.require('omnipresence')[0].version
 SOURCE_URL = 'https://github.com/kxz/omnipresence'
 
 MAX_REPLY_LENGTH = 256
@@ -49,7 +48,6 @@ class IRCClient(irc.IRCClient):
     # Instance variables handled by t.w.p.irc.IRCClient.
     versionName = VERSION_NAME
     versionNum = VERSION_NUM
-    versionEnv = VERSION_ENV
     sourceURL = SOURCE_URL
 
     # Number of PINGs that have been sent since last PONG from server.

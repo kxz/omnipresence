@@ -17,25 +17,26 @@ class Tox(test):
         sys.exit(errno)
 
 
-execfile('omnipresence/version.py')
-setup(name='Omnipresence',
-      version=__version__,
-      packages=find_packages() + ['twisted.plugins'],
-      package_data={'twisted': 'plugins/omnipresence_plugin.py'},
-      zip_safe=False,
-
-      install_requires=['Twisted>=14.0.0',
-                        'pyOpenSSL',
-                        'service_identity',
-                        'sqlobject>=0.10',
-                        'beautifulsoup4'],
-      tests_require=['tox'],
-
-      cmdclass={'test': Tox},
-
-      author='Kevin Xiwei Zheng',
-      author_email='blankplacement+omnipresence@gmail.com',
-      url='https://github.com/kxz/omnipresence',
-      description='An IRC utility bot',
-      license='X11'
-)
+setup(
+    name='omnipresence',
+    description='An IRC utility bot',
+    version='2.4-dev',
+    author='Kevin Xiwei Zheng',
+    author_email='blankplacement+omnipresence@gmail.com',
+    url='https://github.com/kxz/omnipresence',
+    license='X11',
+    packages=find_packages() + ['twisted.plugins'],
+    package_data={
+        'twisted': [
+            'plugins/omnipresence_plugin.py']},
+    install_requires=[
+        'Twisted>=14.0.0',
+        'pyOpenSSL',
+        'service_identity',
+        'sqlobject>=0.10',
+        'beautifulsoup4'],
+    tests_require=[
+        'tox'],
+    cmdclass={
+        'test': Tox},
+    zip_safe=False)

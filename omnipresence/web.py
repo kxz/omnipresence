@@ -18,8 +18,8 @@ from twisted.web.client import (Agent, ContentDecoderAgent,
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
+from omnipresence import VERSION_NUM
 from omnipresence.iomnipresence import ICommand
-from omnipresence.version import __version__
 
 #
 # Constants
@@ -27,7 +27,7 @@ from omnipresence.version import __version__
 
 USER_AGENT = ('Omnipresence/{0} (+bot; '
               'https://bitbucket.org/kxz/omnipresence)' \
-               .format(__version__))
+               .format(VERSION_NUM))
 
 
 #
