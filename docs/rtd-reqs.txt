@@ -1,1 +1,3 @@
+# This opaquely named file is being moved to requirements.txt and will
+# be deleted for the next release after 2.3.
 repoze.sphinx.autointerface
