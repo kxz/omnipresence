@@ -1,6 +1,25 @@
 # -*- test-case-name: omnipresence.test.test_plugin
 """Omnipresence event plugin framework."""
 
+# A brief digression on why event plugins aren't Twisted plugins:
+#
+# - Twisted's plugin discovery is designed to find and import every
+#   plugin found under the target package.  Such behavior is perfectly
+#   reasonable when you really *are* looking for as many plugins as
+#   possible, but not so much when you have explicit instructions from
+#   the user on what plugins to enable.
+#
+# - Twisted handles import errors encountered during discovery by just
+#   logging them and moving on.  It's not possible to implement more
+#   sophisticated error handling without reimplementing large parts of
+#   the plugin library.
+#
+# - The Twisted plugin API is far too Java-like for a Python library.
+#   Plugins are classes (not objects, *classes*) that are expected to
+#   implement a zope.interface.
+#
+# - Decorators are pretty cool, don't you think?
+
 
 import importlib
 
