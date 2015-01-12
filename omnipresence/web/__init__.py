@@ -1,7 +1,10 @@
-"""Utilities for retrieving and manipulating data from Web resources."""
+"""Operations on Web resources."""
 
 
 from .http import request
 from .plugin import WebCommand
 
-__all__ = ['request', 'WebCommand']
+try:
+    from .html import textify as textify_html
+except ImportError:
+    pass
