@@ -32,7 +32,15 @@ class DummyFactory(object):
     def __init__(self):
         self.handlers = defaultdict(list)
         self.config = OmnipresenceConfigParser()
+        self.config.add_section('core')
+        self.config.set('core', 'nickname', 'Omnipresence')
+        self.config.set('core', 'database', 'sqlite:/:memory:')
+        self.config.set('core', 'command_prefixes', '')
         self.config.add_section('channels')
+        self.config.set('channels', '@', '')
+        self.config.add_section('commands')
+        self.config.set('commands', 'more', 'more')
+        self.config.set('commands', 'help', 'help')
 
     def resetDelay(self):
         pass

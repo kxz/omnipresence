@@ -42,9 +42,13 @@ class RawMessageParser(object):
 
 _parser = RawMessageParser()
 
+@_parser.command('QUIT', 'PING', 'NICK')
+def parse_undirected_messages(params):
+    return {'content': params[0]}
+
 @_parser.command('PRIVMSG', 'NOTICE')
-def parse_privmsg(params):
-    # Ignore CTCP messages.
+def parse_directed_messages(params):
+    # Ignore CTCP messages for now.
     if params[1].startswith(X_DELIM):
         return None
     return {'venue': params[0], 'content': params[1]}

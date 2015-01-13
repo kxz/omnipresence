@@ -13,7 +13,7 @@ from twisted.words.protocols import irc
 
 from . import mapping, plugins, ircutil
 from .iomnipresence import IHandler, ICommand
-from .message import truncate_unicode
+from .message import Message, truncate_unicode
 
 
 VERSION_NAME = 'Omnipresence'
@@ -61,6 +61,8 @@ class IRCClient(irc.IRCClient):
         self.message_buffers = {'@': {}}
         log.msg('Assuming default CASEMAPPING "rfc1459"')
         self.case_mapping = mapping.by_name('rfc1459')
+        # See self.add_event_plugin().
+        self.event_plugins = {}
 
     # Utility methods
 
@@ -594,6 +596,42 @@ class IRCClient(irc.IRCClient):
 
     def endNames(self, channel):
         self.call_handlers('endNames', channel, [channel])
+
+    # Temporary shadow implementation of event plugins.  No support for
+    # command messages quite yet.
+
+    def add_event_plugin(self, plugin, channels):
+        for channel in channels:
+            self.event_plugins.setdefault(channel, []).append(plugin)
+        if plugin.registered is not None:
+            plugin.registered(plugin, self)
+
+    # Overrides irc.IRCClient.lineReceived.
+    def lineReceived(self, line):
+        msg = Message.from_raw(self, line)
+        if msg.action in ('nick', 'quit'):
+            # Forward nick changes and quits only to plugins enabled in
+            # at least one channel where the actor was present.
+            venues = [channel for channel, names
+                      in self.channel_names.iteritems()
+                      if msg.actor.nick in names]
+        else:
+            venues = [msg.venue]
+        callbacks = set()
+        # XXX:  This loop is hideously inefficient.
+        for venue in venues:
+            for plugin_venue, plugins in self.event_plugins.iteritems():
+                if not self.case_mapping.equates(venue, plugin_venue):
+                    continue
+                for plugin in plugins:
+                    if msg.action in plugin.callbacks:
+                        callbacks.add(plugin.callbacks[msg.action])
+        for callback in callbacks:
+            callback(plugin, msg)
+        # Got to call this afterward for now so we can use channel_names
+        # above.  This will become less unusual once "before" events are
+        # implemented.
+        irc.IRCClient.lineReceived(self, line)
 
 
 class IRCClientFactory(protocol.ReconnectingClientFactory):
