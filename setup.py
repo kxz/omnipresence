@@ -27,12 +27,15 @@ setup(
     license='X11',
     packages=find_packages() + ['twisted.plugins'],
     package_data={
+        'omnipresence': [
+            'test/data/*'],
         'twisted': [
             'plugins/omnipresence_plugin.py']},
     install_requires=[
         'Twisted>=14.0.0',
         'pyOpenSSL',
         'service_identity',
+        'PyYAML',
         'SQLObject>=0.10'],
     extras_require={
         'html': [
