@@ -1,5 +1,6 @@
 # -*- coding: utf-8
 """Unit tests for IRC message handling."""
+# pylint: disable=missing-docstring,too-few-public-methods
 
 
 import re

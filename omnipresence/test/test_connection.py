@@ -1,4 +1,5 @@
 """Unit tests for core connection functionality."""
+# pylint: disable=missing-docstring,too-few-public-methods
 
 
 from twisted.internet.task import Clock

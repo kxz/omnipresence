@@ -1,3 +1,7 @@
+"""Unit tests for HTML conversions."""
+# pylint: disable=missing-docstring,too-few-public-methods
+
+
 from __future__ import unicode_literals
 
 from bs4 import BeautifulSoup

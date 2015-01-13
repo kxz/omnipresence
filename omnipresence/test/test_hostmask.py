@@ -1,4 +1,5 @@
 """Unit tests for IRC hostmask handling."""
+# pylint: disable=missing-docstring,too-few-public-methods
 
 
 from twisted.trial import unittest
