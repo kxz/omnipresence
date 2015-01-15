@@ -1,14 +1,15 @@
+# -*- test-case-name: omnipresence.test.test_humanize
 """Functions for presenting data in human-readable forms."""
 
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 
 
 def ago(then, now=None):
     """Given a :py:class:`~datetime.datetime` object, return an English
     string giving an approximate relative time, such as "5 days ago"."""
-    if not now:
+    if not now:  # then when?
         now = datetime.now()
     delta = now - then
     if delta.days == 0:
@@ -23,14 +24,13 @@ def ago(then, now=None):
         if delta.seconds < 7200:
             return 'an hour ago'
         return '{} hours ago'.format(delta.seconds / 3600)
-    elif delta.days == 1:
+    if delta.days == 1:
         return 'yesterday'
-    elif delta.days < 7:
+    if delta.days < 7:
         return '{} days ago'.format(delta.days)
-    elif delta.days < 14:
+    if delta.days < 14:
         return 'a week ago'
-    else:
-        return '{} weeks ago'.format(delta.days / 7)
+    return '{} weeks ago'.format(delta.days / 7)
 
 
 def andify(seq, two_comma=False):
@@ -56,26 +56,34 @@ def duration_to_timedelta(duration):
     """Convert a duration string of the form "_w_d_h_m_s" into a
     :py:class:`~datetime.timedelta` object."""
     match = DURATION_RE.match(duration)
-    if match is not None:
-        kwargs = dict(((DURATION_GROUPS[i], int(value, 10))
-                       for (i, value) in enumerate(match.groups('0'))))
-        return datetime.timedelta(**kwargs)
-    return datetime.timedelta(0)
+    if match is None:
+        return timedelta()
+    kwargs = dict(((DURATION_GROUPS[i], int(value, 10))
+                   for (i, value) in enumerate(match.groups('0'))))
+    return timedelta(**kwargs)
 
 
 def readable_duration(duration):
     """Convert a duration string of the form "_w_d_h_m_s" to a plain
     English representation such as "2 weeks, 5 days, and 20 hours"."""
     match = DURATION_RE.match(duration)
-    if match is not None:
-        components = []
-        for i, value in enumerate(match.groups()):
-            if not value:
-                continue
-            unit = DURATION_GROUPS[i]
-            value = int(value, 10)
+    if match is None:
+        return 'instant'
+    components = []
+    for i, value in enumerate(match.groups()):
+        if not value:
+            continue
+        unit = DURATION_GROUPS[i]
+        value = int(value, 10)
+        if value == 1:
             # Thankfully, all of these words are simple plurals.
-            components.append(unit[:-1] if value == 1
-                              else '{} {}'.format(value, unit))
-        return andify(components)
-    return 'instant'
+            if components:
+                # Add the value: "2 weeks, 1 day, 3 hours".
+                component = '1 {}'.format(unit[:-1])
+            else:
+                # Skip the value: "past day" instead of "past 1 day".
+                component = unit[:-1]
+        else:
+            component = '{} {}'.format(value, unit)
+        components.append(component)
+    return andify(components)
