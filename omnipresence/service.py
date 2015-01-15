@@ -12,7 +12,7 @@ from twisted.internet import ssl
 from twisted.python import usage
 
 from . import IRCClientFactory
-from .config import OmnipresenceConfigParser
+from .config import ConfigParser
 
 
 class Options(usage.Options):
@@ -23,7 +23,7 @@ class Options(usage.Options):
 def makeService(options):
     """Return a Twisted service object connecting a new IRCClientFactory
     instance to an appropriate TCP or SSL connection."""
-    config = OmnipresenceConfigParser()
+    config = ConfigParser()
     config.read(os.path.join(os.getcwd(), options['config_path']))
     factory = IRCClientFactory(config)
     server = config.get('core', 'server')
