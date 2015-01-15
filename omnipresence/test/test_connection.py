@@ -2,7 +2,6 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from twisted.internet.task import Clock
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
 from ._helpers import AbstractConnectionTestCase
@@ -99,18 +98,20 @@ class NameTrackingTestCase(AbstractConnectionTestCase):
 
 class PingTimeoutTestCase(AbstractConnectionTestCase):
     def setUp(self):
-        super(PingTimeoutTestCase, self).setUp()
-        self.connection.clock = Clock()
+        super(PingTimeoutTestCase, self).setUp(sign_on=False)
+
+    def test_signon_timeout(self):
+        self.assertFalse(self.transport.disconnecting)
+        self.connection.reactor.advance(self.connection.max_lag +
+                                        self.connection.heartbeatInterval)
+        self.assertTrue(self.transport.disconnecting)
 
     def test_ping_timeout(self):
         self.connection.irc_RPL_WELCOME('remote.test', [])
-        self.connection.clock.advance(self.connection.heartbeatInterval)
+        self.connection.reactor.advance(self.connection.max_lag)
         self.assertFalse(self.transport.disconnecting)
         self.connection.irc_PONG('remote.test', [])
-        # LoopingCall doesn't like just advancing the clock all at once.
-        # I'm not sure if this is a bug in Twisted or not.
-        for _ in xrange(self.connection.max_ping_count):
-            self.connection.clock.advance(self.connection.heartbeatInterval)
+        self.connection.reactor.advance(self.connection.max_lag)
         self.assertFalse(self.transport.disconnecting)
-        self.connection.clock.advance(self.connection.heartbeatInterval)
+        self.connection.reactor.advance(self.connection.heartbeatInterval)
         self.assertTrue(self.transport.disconnecting)

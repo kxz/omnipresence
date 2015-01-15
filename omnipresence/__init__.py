@@ -6,7 +6,7 @@ import re
 
 import pkg_resources
 import sqlobject
-from twisted.internet import defer, protocol, task, threads
+from twisted.internet import defer, protocol, reactor, task, threads
 from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols import irc
@@ -41,28 +41,58 @@ class IRCClient(irc.IRCClient):
     versionNum = VERSION_NUM
     sourceURL = SOURCE_URL
 
-    # Number of PINGs that have been sent since last PONG from server.
-    ping_count = 0
-    max_ping_count = 3
+    #: The maximum acceptable lag, in seconds.  If this amount of time
+    #: elapses following a PING from the client with no PONG response
+    #: from the server, the connection has timed out.  (The timeout
+    #: check only occurs at every :py:attr:`~.heartbeatInterval`, so
+    #: actual disconnection intervals may vary by up to one heartbeat.)
+    max_lag = 150
+
+    #: The number of seconds to wait between sending successive PINGs
+    #: to the server.  This overrides a class variable in Twisted's
+    #: implementation, hence the unusual capitalization.
     heartbeatInterval = 60
-    clock = None  # for unit testing
 
-    # Suspended join queue.
-    suspended_joins = None
+    def __init__(self, factory):
+        #: The :py:class:`IRCClientFactory` that created this client.
+        self.factory = factory
 
-    # Dictionary mapping channels to the nicks present in each channel.
-    channel_names = None
+        # Various instance variables provided by Twisted's IRCClient.
+        self.nickname = factory.config.getdefault('core', 'nickname',
+                                                  default=VERSION_NAME)
+        self.password = factory.config.getdefault('core', 'password')
+        self.realname = factory.config.getdefault('core', 'realname')
+        self.username = factory.config.getdefault('core', 'username')
+        self.userinfo = factory.config.getdefault('core', 'userinfo')
 
-    # Message buffers for long messages.
-    message_buffers = None
+        #: The reactor in use on this client.  This may be overridden
+        #: when a deterministic clock is needed, such as in unit tests.
+        self.reactor = reactor
 
-    def __init__(self):
+        #: The time of the last PONG seen from the server.
+        self.last_pong = None
+
+        #: An :py:class:`~twisted.internet.interfaces.IDelayedCall` used
+        #: to detect timeouts that occur after connecting to the server,
+        #: but before receiving the ``RPL_WELCOME`` message that starts
+        #: the normal PING heartbeat.
+        self.signon_timeout = None
+
+        #: A mapping of channels to the set of nicks present in each
+        #: channel.
         self.channel_names = {}
+
+        #: A mapping of channels to a mapping containing message buffers
+        #: for each channel, keyed by nick.
         self.message_buffers = {'@': {}}
         log.msg('Assuming default CASEMAPPING "rfc1459"')
         self.case_mapping = mapping.by_name('rfc1459')
         # See self.add_event_plugin().
         self.event_plugins = {}
+
+        #: If joins are suspended, a set containing the channels to join
+        #: when joins are resumed.  Otherwise, :py:data:`None`.
+        self.suspended_joins = None
 
     # Utility methods
 
@@ -284,7 +314,7 @@ class IRCClient(irc.IRCClient):
                                              failure.getErrorMessage()))
         log.err(failure, 'Command "%s" encountered an error.' % keyword)
 
-    # Inherited from twisted.internet.protocol.BaseProtocol
+    # Connection maintenance
 
     def connectionMade(self):
         """Called when a connection has been successfully made to the
@@ -292,8 +322,33 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('connectionMade', None)
         irc.IRCClient.connectionMade(self)
         log.msg('Connected to server.')
+        self.signon_timeout = self.reactor.callLater(
+            self.max_lag, self.signon_timed_out)
 
-    # Inherited from twisted.internet.protocol.Protocol
+    def signon_timed_out(self):
+        """Called when a timeout occurs after connecting to the server,
+        but before receiving the ``RPL_WELCOME`` message that starts the
+        normal PING heartbeat."""
+        log.msg('Sign-on timeout (%d seconds); disconnecting' % self.max_lag)
+        self.transport.abortConnection()
+
+    def _createHeartbeat(self):
+        heartbeat = irc.IRCClient._createHeartbeat(self)
+        heartbeat.clock = self.reactor
+        return heartbeat
+
+    def _sendHeartbeat(self):
+        lag = self.reactor.seconds() - self.last_pong
+        if lag > self.max_lag:
+            log.msg('Ping timeout (%d > %d seconds); disconnecting' %
+                    (lag, self.max_lag))
+            self.transport.abortConnection()
+            return
+        irc.IRCClient._sendHeartbeat(self)
+
+    def startHeartbeat(self):
+        self.last_pong = self.reactor.seconds()
+        irc.IRCClient.startHeartbeat(self)
 
     def connectionLost(self, reason):
         """Called when the connection to the IRC server has been lost
@@ -302,22 +357,7 @@ class IRCClient(irc.IRCClient):
         irc.IRCClient.connectionLost(self, reason)
         log.msg('Disconnected from server.')
 
-    # Inherited from twisted.words.protocols.irc.IRCClient
-
-    def _createHeartbeat(self):
-        heartbeat = irc.IRCClient._createHeartbeat(self)
-        if self.clock is not None:
-            heartbeat.clock = self.clock
-        return heartbeat
-
-    def _sendHeartbeat(self):
-        if self.ping_count >= self.max_ping_count:
-            log.msg('Sent %d PINGs without receiving a PONG reply.' %
-                    self.max_ping_count)
-            self.transport.abortConnection()
-            return
-        irc.IRCClient._sendHeartbeat(self)
-        self.ping_count += 1
+    # Callbacks inherited from twisted.words.protocols.irc.IRCClient
 
     def myInfo(self, servername, version, umodes, cmodes):
         """Called with information about the IRC server at logon."""
@@ -377,7 +417,8 @@ class IRCClient(irc.IRCClient):
     def signedOn(self):
         """Called after successfully signing on to the server."""
         log.msg('Successfully signed on to server.')
-
+        if self.signon_timeout:
+            self.signon_timeout.cancel()
         # Resetting the connection delay when a successful connection is
         # made, instead of at IRC sign-on, overlooks situations such as
         # host bans where the server accepts a connection and then
@@ -385,7 +426,6 @@ class IRCClient(irc.IRCClient):
         # should continue to increase, especially if the problem is that
         # there are too many connections!
         self.factory.resetDelay()
-
         self.call_handlers('signedOn', None)
         for channel in self.factory.config.options('channels'):
             # Skip over "@", which has a special meaning to the bot.
@@ -568,7 +608,7 @@ class IRCClient(irc.IRCClient):
     # IRC methods not defined by t.w.p.irc.IRCClient
 
     def irc_PONG(self, prefix, secs):
-        self.ping_count = 0
+        self.last_pong = self.reactor.seconds()
 
     def names(self, *channels):
         """Ask the IRC server for a list of nicknames in the given
@@ -733,15 +773,4 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         log.msg('Attempting to connect to server.')
 
     def buildProtocol(self, addr):
-        p = self.protocol()
-        p.factory = self
-
-        p.nickname = self.config.get('core', 'nickname')
-
-        # Optional instance variables for irc.IRCClient.
-        p.password = self.config.getdefault('core', 'password', None)
-        p.realname = self.config.getdefault('core', 'realname', None)
-        p.username = self.config.getdefault('core', 'username', None)
-        p.userinfo = self.config.getdefault('core', 'userinfo', None)
-
-        return p
+        return self.protocol(self)

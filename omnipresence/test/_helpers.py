@@ -4,12 +4,13 @@
 
 from collections import defaultdict
 
+from twisted.internet.task import Clock
 from twisted.test.proto_helpers import StringTransport
 from twisted.trial import unittest
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from .. import IRCClient
-from ..config import OmnipresenceConfigParser
+from ..config import ConfigParser
 
 
 #
@@ -31,9 +32,9 @@ class DummyFactory(object):
 
     def __init__(self):
         self.handlers = defaultdict(list)
-        self.config = OmnipresenceConfigParser()
+        self.config = ConfigParser()
         self.config.add_section('core')
-        self.config.set('core', 'nickname', 'Omnipresence')
+        # self.config.set('core', 'nickname', 'Omnipresence')
         self.config.set('core', 'database', 'sqlite:/:memory:')
         self.config.set('core', 'command_prefixes', '')
         self.config.add_section('channels')
@@ -58,9 +59,11 @@ class DummyConnection(object):
 #
 
 class AbstractConnectionTestCase(unittest.TestCase):
-    def setUp(self):
+    def setUp(self, sign_on=True):
         self.transport = AbortableStringTransport()
-        self.connection = IRCClient()
-        self.connection.factory = DummyFactory()
-        self.connection.nickname = 'nick'
+        self.connection = IRCClient(DummyFactory())
+        self.connection.reactor = Clock()
         self.connection.makeConnection(self.transport)
+        if sign_on:
+            # The heartbeat is started here, not in signedOn().
+            self.connection.irc_RPL_WELCOME('remote.test', [])
