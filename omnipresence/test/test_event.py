@@ -42,6 +42,10 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.assertFalse(self.plugin.seen[0].private)
 
     def test_privmsg_casemapping(self):
+        # This will no longer be a direct part of the event delegation
+        # code once the new settings machinery works, but it might not
+        # be a bad idea to keep this around as an integration test with
+        # various settings for the case mapping.
         self._send('PRIVMSG #FOO :lorem ipsum')
         self.assertEqual(len(self.plugin.seen), 1)
         self.assertEqual(self.plugin.seen[0].actor,

@@ -1,36 +1,37 @@
-# -*- test-case-name: omnipresence.test.test_settings -*-
-"""Configuration file parsing and representation."""
-
-
 import yaml
 
 
-class Settings(object):
-    """Represents a bot's configuration."""
+class ConfigurationError(Exception):
+    pass
+
+
+def parse_key(key):
+    """Split a key string into a tuple consisting of a command and a
+    list of arguments.  Raise :py:class:`~.ConfigurationError` if the
+    key is invalid."""
+    try:
+        args = shlex.split(key)
+    except ValueError:
+        raise ConfigurationError('unparsable key: {}',format(key))
+    try:
+        command = args.pop(0)
+    except IndexError:
+        raise ConfigurationError('empty key')
+    return (command, args)
+
+
+class ConnectionSettings(object):
+    # XXX:  Docstring.
 
     def __init__(self, settings_dict):
-        pass
+        raise NotImplementedError
 
-    @classmethod
-    def from_yaml(cls, yaml):
-        """Return a new :py:class:`~.Settings` object based on a YAML
-        string or open file object pointing to a YAML file."""
-        return cls(yaml.load(yaml_file))
-
-    @classmethod
-    def from_v2_file(cls, config_file):
-        """Return a new :py:class:`~.Settings` object based on an open
-        file object pointing to an Omnipresence 2.x configuration file.
-        """
+    def set_case_mapping(self, case_mapping):
         raise NotImplementedError
 
     # Core settings
 
-    def connections(self):
-        """Return a list of connection names."""
-        raise NotImplementedError
-
-    def channels(self, connection_name):
+    def autojoin_channels(self):
         """Return a list of channels to automatically join."""
         raise NotImplementedError
 
@@ -77,3 +78,45 @@ class Settings(object):
         """Return a bool indicating whether the given plugin should
         ignore events from *hostmask*."""
         raise NotImplementedError
+
+    # def plugins_responding_to(self, msg): ...
+    # take into account both enabled plugins and ignore rules
+
+    # validation on bot start or reload:
+    # (1) check that all plugins exist
+    # (2) actually instantiate and attach plugin objects
+
+
+class BotSettings(object):
+    # XXX:  Docstring.
+
+    def __init__(self, settings_dict):
+        #: A mapping from connection names, as given in *settings_dict*,
+        #: to :py:class:`~.ConnectionSettings` objects.
+        self.connections = {}
+        # Split the settings into global and connection-specific dicts.
+        bot_dict = {}
+        connections_dict = {}
+        for key, value in settings_dict.iteritems():
+            command, args = parse_key(key)
+            if command != 'connection':
+                bot_dict[key] = value
+                continue
+            try:
+                connection_name = args.pop(0)
+            except IndexError:
+                raise ConfigurationError(
+                    '"connection" command without connection name')
+            if args:
+                raise ConfigurationError(
+                    'too many arguments to "connection" command: ' + key)
+            connections_dict[connection_name] = value
+        for name, connection_dict in connections_dict.itervalues():
+            connection_dict.update(bot_dict)
+            self.connections[name] = ConnectionSettings(connection_dict)
+
+    @classmethod
+    def from_yaml(cls, yaml_):
+        """Return a new :py:class:`~.Settings` object based on a YAML
+        string or open file object pointing to a YAML file."""
+        return cls(yaml.load(yaml_))
