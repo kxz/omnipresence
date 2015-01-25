@@ -4,22 +4,18 @@
 
 import re
 
-import pkg_resources
 import sqlobject
 from twisted.internet import defer, protocol, reactor, task, threads
 from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols.irc import IRCClient, CHANNEL_PREFIXES
 
-from . import mapping, plugins, ircutil
+from . import __version__, __source__, mapping, plugins, ircutil
 from .iomnipresence import IHandler, ICommand
 from .message import Message, truncate_unicode
 
 
-VERSION_NAME = 'Omnipresence'
-VERSION_NUM = pkg_resources.require('omnipresence')[0].version
-SOURCE_URL = 'https://github.com/kxz/omnipresence'
-
+#: The maximum length of a single command reply, in bytes.
 MAX_REPLY_LENGTH = 256
 
 
@@ -37,9 +33,9 @@ class Connection(IRCClient):
         the two in a callback, use :py:meth:`~.Connection.is_channel`.
     """
     # Instance variables handled by IRCClient.
-    versionName = VERSION_NAME
-    versionNum = VERSION_NUM
-    sourceURL = SOURCE_URL
+    versionName = 'Omnipresence'
+    versionNum = __version__
+    sourceURL = __source__
 
     #: The maximum acceptable lag, in seconds.  If this amount of time
     #: elapses following a PING from the client with no PONG response
@@ -59,7 +55,7 @@ class Connection(IRCClient):
 
         # Various instance variables provided by Twisted's IRCClient.
         self.nickname = factory.config.getdefault('core', 'nickname',
-                                                  default=VERSION_NAME)
+                                                  default=self.versionName)
         self.password = factory.config.getdefault('core', 'password')
         self.realname = factory.config.getdefault('core', 'realname')
         self.username = factory.config.getdefault('core', 'username')

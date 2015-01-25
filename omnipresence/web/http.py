@@ -14,13 +14,11 @@ from twisted.web.client import (Agent, ContentDecoderAgent,
                                 ResponseFailed)
 from twisted.web.http_headers import Headers
 
-from ..connection import VERSION_NUM
+from .. import __version__, __source__
 
 
-USER_AGENT = ('Omnipresence/{0} (+bot; '
-              'https://bitbucket.org/kxz/omnipresence)' \
-               .format(VERSION_NUM))
-"""The default HTTP user agent."""
+#: The default HTTP user agent.
+USER_AGENT = 'Omnipresence/{} (+bot; {})'.format(__version__, __source__)
 
 
 class BufferSizeExceededError(Exception):
