@@ -4,7 +4,6 @@
 
 from twisted.trial import unittest
 
-from .. import IRCClient
 from ..hostmask import Hostmask
 from ..plugin import EventPlugin
 from .helpers import AbstractConnectionTestCase

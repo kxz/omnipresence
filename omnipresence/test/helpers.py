@@ -9,8 +9,8 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.trial import unittest
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
-from .. import IRCClient
 from ..config import ConfigParser
+from ..connection import Connection
 
 
 #
@@ -26,9 +26,9 @@ class AbortableStringTransport(StringTransport):
 
 
 class DummyFactory(object):
-    """A class that simulates the behavior of an IRCClientFactory."""
-    # TODO:  Refactor IRCClient/Connection so that this isn't necessary
-    # for connection tests.
+    """A class that simulates the behavior of a ConnectionFactory."""
+    # TODO:  Refactor Connection so that this isn't necessary for
+    # connection tests.
 
     def __init__(self):
         self.handlers = defaultdict(list)
@@ -61,7 +61,7 @@ class DummyConnection(object):
 class AbstractConnectionTestCase(unittest.TestCase):
     def setUp(self, sign_on=True):
         self.transport = AbortableStringTransport()
-        self.connection = IRCClient(DummyFactory())
+        self.connection = Connection(DummyFactory())
         self.connection.reactor = Clock()
         self.connection.makeConnection(self.transport)
         if sign_on:

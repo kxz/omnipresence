@@ -11,8 +11,8 @@ from twisted.application.internet import SSLClient, TCPClient
 from twisted.internet import ssl
 from twisted.python import usage
 
-from . import IRCClientFactory
 from .config import ConfigParser
+from .connection import ConnectionFactory
 
 
 class Options(usage.Options):
@@ -21,11 +21,11 @@ class Options(usage.Options):
 
 
 def makeService(options):
-    """Return a Twisted service object connecting a new IRCClientFactory
-    instance to an appropriate TCP or SSL connection."""
+    """Return a Twisted service object attaching a new ConnectionFactory
+    instance to an appropriate TCP or SSL transport."""
     config = ConfigParser()
     config.read(os.path.join(os.getcwd(), options['config_path']))
-    factory = IRCClientFactory(config)
+    factory = ConnectionFactory(config)
     server = config.get('core', 'server')
     port = config.getint('core', 'port')
     if config.getboolean('core', 'ssl'):

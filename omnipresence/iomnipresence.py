@@ -4,10 +4,9 @@ class IHandler(Interface):
     """A handler that responds to IRC events passed to it by the bot.
     There are no required methods for this interface, since handlers may
     implement only a subset of available events.  Callbacks are
-    generally the same as those defined in
-    :py:class:`omnipresence.IRCClient`, except that an instance of the
-    bot protocol class is provided as the second argument (after
-    *self*)."""
+    generally the same as those defined in :py:class:`~.Connection`,
+    except that an instance of the bot protocol class is provided as the
+    second argument (after *self*)."""
 
     name = Attribute("""
         The name used to refer to this handler in the configuration
@@ -53,7 +52,7 @@ class ICommand(Interface):
         """Invoked when a command message is seen.
 
         :param bot: The current bot protocol instance.
-        :type bot: :py:class:`omnipresence.IRCClient`
+        :type bot: :py:class:`~.Connection`
         :param str prefix: The ``nick@user!host`` prefix of the user
             that invoked this command.
         :param str reply_target: The target of command output
@@ -69,14 +68,14 @@ class ICommand(Interface):
             arg1 arg2"``).
 
         Generally, a command's :py:meth:`execute` method should either
-        call the bot's :py:meth:`~omnipresence.IRCClient.reply` method
-        and (implicitly) return ``None``; or create a Twisted
+        call the bot's :py:meth:`~Connection.reply` method and
+        (implicitly) return ``None``; or create a Twisted
         :py:class:`~twisted.internet.defer.Deferred` object, add a
-        callback that calls :py:meth:`~omnipresence.IRCClient.reply`,
-        and return that :py:class:`~twisted.internet.defer.Deferred`
-        (see :ref:`using-deferreds`).  An error handler will be
-        automatically added that replies with the associated value of
-        any exceptions that are not handled by the command itself.
+        callback that calls :py:meth:`~Connection.reply`, and return
+        that :py:class:`~twisted.internet.defer.Deferred` (see
+        :ref:`using-deferreds`).  An error handler will be automatically
+        added that replies with the associated value of any exceptions
+        that are not handled by the command itself.
 
         Most command plugins shipped with Omnipresence send error or
         "no-result" replies to *prefix*, giving the invoking user a

@@ -41,7 +41,7 @@ Handler plugins are expected to implement both :py:class:`twisted.plugin.IPlugin
    .. py:method:: registered()
 
       An optional callback, fired when the plugin is initialized.
-      At this point, an :py:class:`omnipresence.IRCClientFactory` object has been assigned to the ``self.factory`` object attribute, which can be used to read configuration data (through :py:data:`~omnipresence.IRCClientFactory.config`).
+      At this point, a :py:class:`omnipresence.ConnectionFactory` object has been assigned to the ``self.factory`` object attribute, which can be used to read configuration data (through :py:data:`~omnipresence.ConnectionFactory.config`).
 
 Command plugins
 ---------------

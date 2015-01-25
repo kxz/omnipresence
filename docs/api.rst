@@ -4,8 +4,8 @@ API reference
 Core IRC client
 ---------------
 
-.. automodule:: omnipresence
-   :members: IRCClient
+.. automodule:: omnipresence.connection
+   :members: Connection
 
 Messages
 --------
