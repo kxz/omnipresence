@@ -652,8 +652,7 @@ class Connection(IRCClient):
         if plugin.registered is not None:
             plugin.registered(plugin, self)
 
-    # Overrides IRCClient.lineReceived.
-    def lineReceived(self, line):
+    def fire_events(self, line):
         msg = Message.from_raw(self, line)
         if msg.action in ('nick', 'quit'):
             # Forward nick changes and quits only to plugins enabled in
@@ -670,10 +669,17 @@ class Connection(IRCClient):
                     callbacks.add(plugin.callbacks[msg.action])
         for callback in callbacks:
             callback(plugin, msg)
-        # Got to call this afterward for now so we can use channel_names
-        # above.  This will become less unusual once "before" events are
-        # implemented.
+
+    # Overrides IRCClient.lineReceived.
+    def lineReceived(self, line):
+        self.fire_events(line)
         IRCClient.lineReceived(self, line)
+
+    # Overrides IRCClient.sendLine.
+    def sendLine(self, line):
+        # Fake a prefix for the message parser's convenience.
+        self.fire_events(':{} {}'.format(self.nickname, line))
+        IRCClient.sendLine(self, line)
 
 
 class ConnectionFactory(protocol.ReconnectingClientFactory):

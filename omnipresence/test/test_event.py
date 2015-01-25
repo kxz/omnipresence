@@ -33,12 +33,23 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
     def test_privmsg(self):
         self._send('PRIVMSG #foo :lorem ipsum')
         self.assertEqual(len(self.plugin.seen), 1)
-        self.assertEqual(self.plugin.seen[0].actor,
+        last_seen = self.plugin.seen[0]
+        self.assertEqual(last_seen.actor,
                          Hostmask('other', 'user', 'host'))
-        self.assertEqual(self.plugin.seen[0].action, 'privmsg')
-        self.assertEqual(self.plugin.seen[0].venue, '#foo')
-        self.assertEqual(self.plugin.seen[0].content, 'lorem ipsum')
-        self.assertFalse(self.plugin.seen[0].private)
+        self.assertEqual(last_seen.action, 'privmsg')
+        self.assertEqual(last_seen.venue, '#foo')
+        self.assertEqual(last_seen.content, 'lorem ipsum')
+        self.assertFalse(last_seen.private)
+
+    def test_own_privmsg(self):
+        self.connection.sendLine('PRIVMSG #foo :lorem ipsum')
+        self.assertEqual(len(self.plugin.seen), 1)
+        last_seen = self.plugin.seen[0]
+        self.assertTrue(last_seen.actor.matches(self.connection.nickname))
+        self.assertEqual(last_seen.action, 'privmsg')
+        self.assertEqual(last_seen.venue, '#foo')
+        self.assertEqual(last_seen.content, 'lorem ipsum')
+        self.assertFalse(last_seen.private)
 
     def test_privmsg_casemapping(self):
         # This will no longer be a direct part of the event delegation
@@ -47,24 +58,26 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         # various settings for the case mapping.
         self._send('PRIVMSG #FOO :lorem ipsum')
         self.assertEqual(len(self.plugin.seen), 1)
-        self.assertEqual(self.plugin.seen[0].actor,
+        last_seen = self.plugin.seen[0]
+        self.assertEqual(last_seen.actor,
                          Hostmask('other', 'user', 'host'))
-        self.assertEqual(self.plugin.seen[0].action, 'privmsg')
-        self.assertEqual(self.plugin.seen[0].venue, '#FOO')
-        self.assertEqual(self.plugin.seen[0].content, 'lorem ipsum')
-        self.assertFalse(self.plugin.seen[0].private)
+        self.assertEqual(last_seen.action, 'privmsg')
+        self.assertEqual(last_seen.venue, '#FOO')
+        self.assertEqual(last_seen.content, 'lorem ipsum')
+        self.assertFalse(last_seen.private)
 
     def test_visible_quit(self):
         self.connection.joined(self.connection.nickname, '#foo')
         self.connection.channel_names['#foo'].add('other')
         self._send('QUIT :Client Quit')
         self.assertEqual(len(self.plugin.seen), 1)
-        self.assertEqual(self.plugin.seen[0].actor,
+        last_seen = self.plugin.seen[0]
+        self.assertEqual(last_seen.actor,
                          Hostmask('other', 'user', 'host'))
-        self.assertEqual(self.plugin.seen[0].action, 'quit')
-        self.assertIsNone(self.plugin.seen[0].venue)
-        self.assertEqual(self.plugin.seen[0].content, 'Client Quit')
-        self.assertFalse(self.plugin.seen[0].private)
+        self.assertEqual(last_seen.action, 'quit')
+        self.assertIsNone(last_seen.venue)
+        self.assertEqual(last_seen.content, 'Client Quit')
+        self.assertFalse(last_seen.private)
 
     def test_visible_quit_call_once(self):
         for channel in ('#foo', '#bar'):
@@ -76,6 +89,18 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
     def test_invisible_quit(self):
         self._send('QUIT :Client Quit')
         self.assertEqual(len(self.plugin.seen), 0)
+
+    def test_own_quit(self):
+        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.channel_names['#foo'].add(self.connection.nickname)
+        self.connection.sendLine('QUIT :Client Quit')
+        self.assertEqual(len(self.plugin.seen), 1)
+        last_seen = self.plugin.seen[0]
+        self.assertTrue(last_seen.actor.matches(self.connection.nickname))
+        self.assertEqual(last_seen.action, 'quit')
+        self.assertIsNone(last_seen.venue)
+        self.assertEqual(last_seen.content, 'Client Quit')
+        self.assertFalse(last_seen.private)
 
 
 class DeferredCallbackTestCase(AbstractConnectionTestCase):
