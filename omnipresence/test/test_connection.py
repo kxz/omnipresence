@@ -4,7 +4,7 @@
 
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
-from ._helpers import AbstractConnectionTestCase
+from .helpers import AbstractConnectionTestCase
 
 
 class JoinSuspensionTestCase(AbstractConnectionTestCase):

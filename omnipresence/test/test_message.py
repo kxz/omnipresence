@@ -9,7 +9,7 @@ from twisted.trial import unittest
 
 from ..hostmask import Hostmask
 from ..message import Message, chunk
-from ._helpers import DummyConnection
+from .helpers import DummyConnection
 
 
 class RawParsingTestCase(unittest.TestCase):

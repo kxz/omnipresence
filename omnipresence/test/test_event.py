@@ -7,7 +7,7 @@ from twisted.trial import unittest
 from .. import IRCClient
 from ..hostmask import Hostmask
 from ..plugin import EventPlugin
-from ._helpers import AbstractConnectionTestCase
+from .helpers import AbstractConnectionTestCase
 
 
 class EventDelegationTestCase(AbstractConnectionTestCase):
