@@ -4,6 +4,8 @@
 
 from string import maketrans, ascii_lowercase, ascii_uppercase
 
+from twisted.python.util import InsensitiveDict
+
 
 class CaseMapping(object):
     """Provides convenience methods for bidirectional string translation
@@ -61,3 +63,20 @@ def by_name(name):
     if name in CASE_MAPPINGS:
         return CASE_MAPPINGS[name]
     raise ValueError('unrecognized case mapping "{0}"'.format(name))
+
+
+class CaseMappedDict(InsensitiveDict):
+    """A dictionary whose keys are treated case-insensitively according
+    to a :py:class:`.CaseMapping` provided on instantiation."""
+
+    def __init__(self, initial=None, case_mapping=CASE_MAPPINGS['rfc1459']):
+        self.case_mapping = case_mapping
+        InsensitiveDict.__init__(self, initial, preserve=1)
+
+    def _lowerOrReturn(self, key):
+        """Return a lowercase version of *key* according to the case
+        mapping in effect for this object."""
+        # Why would anyone use this for non-string keys?  Whatever.
+        if isinstance(key, basestring):
+            return self.case_mapping.lower(key)
+        return key
