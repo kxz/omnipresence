@@ -74,6 +74,10 @@ class Connection(IRCClient):
         #: the normal PING heartbeat.
         self.signon_timeout = None
 
+        log.msg('Assuming default CASEMAPPING "rfc1459"')
+        #: The case mapping currently in effect on this connection.
+        self.case_mapping = mapping.by_name('rfc1459')
+
         #: A mapping of channels to the set of nicks present in each
         #: channel.
         self.channel_names = {}
@@ -81,16 +85,20 @@ class Connection(IRCClient):
         #: A mapping of channels to a mapping containing message buffers
         #: for each channel, keyed by nick.
         self.message_buffers = {'@': {}}
-        log.msg('Assuming default CASEMAPPING "rfc1459"')
-        self.case_mapping = mapping.by_name('rfc1459')
+
         # See self.add_event_plugin().
-        self.event_plugins = {}
+        self.event_plugins = self._case_mapped_dict()
 
         #: If joins are suspended, a set containing the channels to join
         #: when joins are resumed.  Otherwise, :py:data:`None`.
         self.suspended_joins = None
 
     # Utility methods
+
+    def _case_mapped_dict(self, initial=None):
+        """Return a :py:class:`~.CaseMappedDict` using this connection's
+        current case mapping."""
+        return mapping.CaseMappedDict(initial, case_mapping=self.case_mapping)
 
     def _lower(self, string):
         """Convenience alias for ``self.case_mapping.lower``."""
@@ -371,6 +379,8 @@ class Connection(IRCClient):
                 log.msg('Ignoring unsupported server CASEMAPPING "%s"' % name)
             else:
                 log.msg('Using server-provided CASEMAPPING "%s"' % name)
+                self.event_plugins = self._case_mapped_dict(
+                    self.event_plugins.items())
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
@@ -654,14 +664,10 @@ class Connection(IRCClient):
         else:
             venues = [msg.venue]
         callbacks = set()
-        # XXX:  This loop is hideously inefficient.
         for venue in venues:
-            for plugin_venue, plugins in self.event_plugins.iteritems():
-                if not self.case_mapping.equates(venue, plugin_venue):
-                    continue
-                for plugin in plugins:
-                    if msg.action in plugin.callbacks:
-                        callbacks.add(plugin.callbacks[msg.action])
+            for plugin in self.event_plugins.get(venue, []):
+                if msg.action in plugin.callbacks:
+                    callbacks.add(plugin.callbacks[msg.action])
         for callback in callbacks:
             callback(plugin, msg)
         # Got to call this afterward for now so we can use channel_names
