@@ -649,8 +649,7 @@ class Connection(IRCClient):
     def endNames(self, channel):
         self.call_handlers('endNames', channel, [channel])
 
-    # Temporary shadow implementation of event plugins.  No support for
-    # command messages quite yet.
+    # Temporary shadow implementation of event plugins.
 
     def add_event_plugin(self, plugin, channels):
         """Register an event plugin.  *channels* is a dict mapping
