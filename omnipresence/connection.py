@@ -657,8 +657,7 @@ class Connection(IRCClient):
         for channel, keywords in channels.iteritems():
             self.event_plugins.setdefault(channel, [])
             self.event_plugins[channel].append((plugin, keywords))
-        plugin.respond_to(Message(
-            connection=self, action='registration', actor=self.nickname))
+        plugin.respond_to(Message(connection=self, action='registration'))
 
     def respond_to(self, msg):
         """Fire the appropriate event plugin callbacks for *msg*."""

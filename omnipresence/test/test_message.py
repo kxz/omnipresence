@@ -73,7 +73,7 @@ class RawParsingTestCase(unittest.TestCase):
 class ExtractionTestCase(unittest.TestCase):
     def setUp(self):
         self.connection = DummyConnection()
-        self.prototype = Message(self.connection, 'nick!user@host', 'privmsg')
+        self.prototype = Message(self.connection, 'privmsg', 'nick!user@host')
 
     def _extract(self, content):
         return self.prototype._replace(content=content).extract_command(

@@ -13,7 +13,7 @@ ARTIFICIAL_ACTIONS = set(['command', 'cmdhelp', 'registration'])
 
 
 class Message(namedtuple('Message',
-                         ('connection', 'actor', 'action',
+                         ('connection', 'action', 'actor',
                           'venue', 'target', 'subaction', 'content',
                           'raw'))):
     """Represents a message, loosely defined as an event to which
@@ -26,14 +26,15 @@ class Message(namedtuple('Message',
        :py:class:`~omnipresence.iomnipresence.IHandler` and
        :py:class:`~omnipresence.iomnipresence.ICommand` callbacks.
 
-    .. py:attribute:: actor
-
-       A :py:class:`~.Hostmask` corresponding to the message prefix,
-       indicating the message's true origin.
-
     .. py:attribute:: action
 
        A string containing the :ref:`message type <message-types>`.
+
+    .. py:attribute:: actor
+
+       A :py:class:`~.Hostmask` corresponding to the message prefix,
+       indicating the message's true origin.  This is :py:data:`None`
+       for ``registration`` messages.
 
     .. py:attribute:: venue
                       target
@@ -41,25 +42,26 @@ class Message(namedtuple('Message',
                       content
 
        Optional attributes, whose presence and meaning depend on the
-       message type.  An attribute is ``None`` if and only if it is not
-       used by the current message type, and a string value otherwise.
+       message type.  An attribute is :py:data:`None` if and only if it
+       is not used by the current message type, and a string value
+       otherwise.
 
     .. py:attribute:: raw
 
        If this message was created using :py:meth:`.Message.from_raw`,
        the original raw IRC message string passed to that function.
-       Otherwise, ``None``.  Note that this behaves slightly differently
-       from the :py:meth:`~.to_raw` method.
+       Otherwise, :py:data:`None`.  Note that this behaves slightly
+       differently from the :py:meth:`~.to_raw` method.
     """
 
     def __new__(cls,
-                connection, actor, action,
+                connection, action, actor=None,
                 venue=None, target=None, subaction=None, content=None):
         if isinstance(actor, str):
             actor = Hostmask.from_string(actor)
         return super(Message, cls).__new__(
-            cls, connection, actor,
-            action, venue, target, subaction, content,
+            cls, connection, action, actor,
+            venue, target, subaction, content,
             raw=None)
 
     @classmethod
