@@ -17,12 +17,13 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         def registered(plugin, bot):
             plugin.seen = []
 
-        @self.plugin.on('privmsg', 'quit')
+        @self.plugin.on('privmsg', 'command', 'quit')
         def callback(plugin, msg):
             plugin.seen.append(msg)
 
         super(EventDelegationTestCase, self).setUp()
-        self.connection.add_event_plugin(self.plugin, ['#foo', '#bar'])
+        self.connection.add_event_plugin(
+            self.plugin, {'#foo': ['spam'], '#bar': []})
 
     def _send(self, line):
         self.connection.lineReceived(':other!user@host ' + line)
@@ -65,6 +66,27 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.assertEqual(last_seen.venue, '#FOO')
         self.assertEqual(last_seen.content, 'lorem ipsum')
         self.assertFalse(last_seen.private)
+
+    def test_command_enabled(self):
+        self._send('PRIVMSG #foo :!spam ham eggs')
+        self.assertEqual(len(self.plugin.seen), 2)
+        last_seen = self.plugin.seen[1]
+        self.assertEqual(last_seen.actor,
+                         Hostmask('other', 'user', 'host'))
+        self.assertEqual(last_seen.action, 'command')
+        self.assertEqual(last_seen.venue, '#foo')
+        self.assertEqual(last_seen.target, 'other')
+        self.assertEqual(last_seen.subaction, 'spam')
+        self.assertEqual(last_seen.content, 'ham eggs')
+        self.assertFalse(last_seen.private)
+
+    def test_command_disabled(self):
+        self._send('PRIVMSG #bar :!spam ham eggs')
+        self.assertEqual(len(self.plugin.seen), 1)  # no command message
+
+    def test_command_self(self):
+        self.connection.sendLine('PRIVMSG #foo :!spam ham eggs')
+        self.assertEqual(len(self.plugin.seen), 1)  # no command message
 
     def test_visible_quit(self):
         self.connection.joined(self.connection.nickname, '#foo')

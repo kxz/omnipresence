@@ -647,13 +647,16 @@ class Connection(IRCClient):
     # command messages quite yet.
 
     def add_event_plugin(self, plugin, channels):
-        for channel in channels:
-            self.event_plugins.setdefault(channel, []).append(plugin)
+        """Register an event plugin.  *channels* is a dict mapping
+        channel names to lists of keywords."""
+        for channel, keywords in channels.iteritems():
+            self.event_plugins.setdefault(channel, [])
+            self.event_plugins[channel].append((plugin, keywords))
         if plugin.registered is not None:
             plugin.registered(plugin, self)
 
-    def fire_events(self, line):
-        msg = Message.from_raw(self, line)
+    def fire_events(self, msg):
+        """Fire the appropriate event plugin callbacks for *msg*."""
         if msg.action in ('nick', 'quit'):
             # Forward nick changes and quits only to plugins enabled in
             # at least one channel where the actor was present.
@@ -664,21 +667,35 @@ class Connection(IRCClient):
             venues = [msg.venue]
         callbacks = set()
         for venue in venues:
-            for plugin in self.event_plugins.get(venue, []):
+            for plugin, keywords in self.event_plugins.get(venue, []):
+                if msg.action == 'command' and msg.subaction not in keywords:
+                    continue
                 if msg.action in plugin.callbacks:
                     callbacks.add(plugin.callbacks[msg.action])
         for callback in callbacks:
             callback(plugin, msg)
+        # Extract any command invocations and fire events for them.
+        if not msg.actor.matches(self.nickname):
+            if msg.private:
+                command_prefixes = None
+            else:
+                defaults = {'current_nickname': self.nickname}
+                command_prefixes = self.factory.config.getspacelist(
+                    'core', 'command_prefixes', False, defaults)
+            command_msg = msg.extract_command(prefixes=command_prefixes)
+            if command_msg is not None:
+                self.fire_events(command_msg)
 
     # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):
-        self.fire_events(line)
+        self.fire_events(Message.from_raw(self, line))
         IRCClient.lineReceived(self, line)
 
     # Overrides IRCClient.sendLine.
     def sendLine(self, line):
-        # Fake a prefix for the message parser's convenience.
-        self.fire_events(':{} {}'.format(self.nickname, line))
+        self.fire_events(Message.from_raw(
+            # Fake a prefix for the message parser's convenience.
+            self, ':{} {}'.format(self.nickname, line)))
         IRCClient.sendLine(self, line)
 
 
