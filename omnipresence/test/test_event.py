@@ -125,5 +125,38 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.assertFalse(last_seen.private)
 
 
+class EventOrderingTestCase(AbstractConnectionTestCase):
+    def setUp(self):
+        self.plugin_one = EventPlugin()
+
+        @self.plugin_one.on('privmsg')
+        def callback(plugin, msg):
+            if not msg.actor.matches(msg.connection.nickname):
+                msg.connection.msg(msg.venue, 'dolor sit amet')
+
+        self.plugin_two = EventPlugin()
+
+        @self.plugin_two.on_registration
+        def registered(plugin, bot):
+            plugin.seen = []
+
+        @self.plugin_two.on('privmsg')
+        def callback(plugin, msg):
+            plugin.seen.append(msg)
+
+        super(EventOrderingTestCase, self).setUp()
+        self.connection.add_event_plugin(self.plugin_one, {'#foo': []})
+        self.connection.add_event_plugin(self.plugin_two, {'#foo': []})
+
+    def _send(self, line):
+        self.connection.lineReceived(':other!user@host ' + line)
+
+    def test_ordering(self):
+        self._send('PRIVMSG #foo :lorem ipsum')
+        self.assertEqual(len(self.plugin_two.seen), 2)
+        self.assertEqual(self.plugin_two.seen[0].content, 'lorem ipsum')
+        self.assertEqual(self.plugin_two.seen[1].content, 'dolor sit amet')
+
+
 class DeferredCallbackTestCase(AbstractConnectionTestCase):
     pass

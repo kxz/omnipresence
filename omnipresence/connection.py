@@ -89,6 +89,11 @@ class Connection(IRCClient):
         # See self.add_event_plugin().
         self.event_plugins = self._case_mapped_dict()
 
+        #: If the bot is currently firing callbacks, a queue of
+        #: :py:class:`.Message` objects for which the bot has yet to
+        #: fire callbacks.  Otherwise, :py:data:`None`.
+        self.message_queue = None
+
         #: If joins are suspended, a set containing the channels to join
         #: when joins are resumed.  Otherwise, :py:data:`None`.
         self.suspended_joins = None
@@ -657,34 +662,45 @@ class Connection(IRCClient):
 
     def fire_events(self, msg):
         """Fire the appropriate event plugin callbacks for *msg*."""
-        if msg.action in ('nick', 'quit'):
-            # Forward nick changes and quits only to plugins enabled in
-            # at least one channel where the actor was present.
-            venues = [channel for channel, names
-                      in self.channel_names.iteritems()
-                      if msg.actor.nick in names]
-        else:
-            venues = [msg.venue]
-        callbacks = set()
-        for venue in venues:
-            for plugin, keywords in self.event_plugins.get(venue, []):
-                if msg.action == 'command' and msg.subaction not in keywords:
-                    continue
-                if msg.action in plugin.callbacks:
-                    callbacks.add(plugin.callbacks[msg.action])
-        for callback in callbacks:
-            callback(plugin, msg)
-        # Extract any command invocations and fire events for them.
-        if not msg.actor.matches(self.nickname):
-            if msg.private:
-                command_prefixes = None
+        if self.message_queue is not None:
+            # We're already firing callbacks.  Bail.
+            self.message_queue.append(msg)
+            return
+        self.message_queue = [msg]
+        while self.message_queue:
+            msg = self.message_queue.pop(0)
+            if msg.action in ('nick', 'quit'):
+                # Forward nick changes and quits only to plugins enabled
+                # in at least one channel where the actor was present.
+                venues = [channel for channel, names
+                          in self.channel_names.iteritems()
+                          if msg.actor.nick in names]
             else:
-                defaults = {'current_nickname': self.nickname}
-                command_prefixes = self.factory.config.getspacelist(
-                    'core', 'command_prefixes', False, defaults)
-            command_msg = msg.extract_command(prefixes=command_prefixes)
-            if command_msg is not None:
-                self.fire_events(command_msg)
+                venues = [msg.venue]
+            plugins = set()
+            for venue in venues:
+                for plugin, keywords in self.event_plugins.get(venue, []):
+                    if (msg.action == 'command' and
+                            msg.subaction not in keywords):
+                        continue
+                    plugins.add(plugin)
+            for plugin in plugins:
+                if msg.action in plugin.callbacks:
+                    plugin.callbacks[msg.action](plugin, msg)
+            # Extract any command invocations and fire events for them.
+            if not msg.actor.matches(self.nickname):
+                if msg.private:
+                    command_prefixes = None
+                else:
+                    defaults = {'current_nickname': self.nickname}
+                    command_prefixes = self.factory.config.getspacelist(
+                        'core', 'command_prefixes', False, defaults)
+                command_msg = msg.extract_command(prefixes=command_prefixes)
+                if command_msg is not None:
+                    # Get the command message in immediately after the
+                    # current privmsg, as they come from the same event.
+                    self.message_queue.insert(0, command_msg)
+        self.message_queue = None
 
     # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):
