@@ -17,11 +17,39 @@ class RawParsingTestCase(unittest.TestCase):
         self.connection = DummyConnection()
 
     def _from_raw(self, raw):
-        return Message.from_raw(self.connection, raw)
+        msg = Message.from_raw(self.connection, ':nick!user@host ' + raw)
+        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        return msg
+
+    def test_quit(self):
+        msg = self._from_raw('QUIT :lorem ipsum')
+        self.assertEqual(msg.action, 'quit')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(msg.private)
+
+    def test_ping(self):
+        msg = self._from_raw('PING :token')
+        self.assertEqual(msg.action, 'ping')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'token')
+        self.assertFalse(msg.private)
+
+    def test_nick(self):
+        msg = self._from_raw('NICK :other')
+        self.assertEqual(msg.action, 'nick')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'other')
+        self.assertFalse(msg.private)
 
     def test_channel_message(self):
-        msg = self._from_raw(':nick!user@host PRIVMSG #foo :lorem ipsum')
-        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        msg = self._from_raw('PRIVMSG #foo :lorem ipsum')
         self.assertEqual(msg.action, 'privmsg')
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
@@ -30,8 +58,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertFalse(msg.private)
 
     def test_private_message(self):
-        msg = self._from_raw(':nick!user@host PRIVMSG foo :lorem ipsum')
-        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        msg = self._from_raw('PRIVMSG foo :lorem ipsum')
         self.assertEqual(msg.action, 'privmsg')
         self.assertEqual(msg.venue, 'foo')
         self.assertIsNone(msg.target)
@@ -40,8 +67,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertTrue(msg.private)
 
     def test_channel_notice(self):
-        msg = self._from_raw(':nick!user@host NOTICE #foo :lorem ipsum')
-        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        msg = self._from_raw('NOTICE #foo :lorem ipsum')
         self.assertEqual(msg.action, 'notice')
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
@@ -50,8 +76,7 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertFalse(msg.private)
 
     def test_private_notice(self):
-        msg = self._from_raw(':nick!user@host NOTICE foo :lorem ipsum')
-        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        msg = self._from_raw('NOTICE foo :lorem ipsum')
         self.assertEqual(msg.action, 'notice')
         self.assertEqual(msg.venue, 'foo')
         self.assertIsNone(msg.target)
@@ -59,9 +84,62 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertEqual(msg.content, 'lorem ipsum')
         self.assertTrue(msg.private)
 
+    def test_topic(self):
+        msg = self._from_raw('TOPIC #foo :lorem ipsum')
+        self.assertEqual(msg.action, 'topic')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(msg.private)
+
+    def test_join(self):
+        msg = self._from_raw('JOIN #foo')
+        self.assertEqual(msg.action, 'join')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertIsNone(msg.content)
+        self.assertFalse(msg.private)
+
+    def test_part(self):
+        msg = self._from_raw('PART #foo :lorem ipsum')
+        self.assertEqual(msg.action, 'part')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(msg.private)
+
+    def test_part_without_message(self):
+        msg = self._from_raw('PART #foo')
+        self.assertEqual(msg.action, 'part')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, '')
+        self.assertFalse(msg.private)
+
+    def test_mode(self):
+        msg = self._from_raw('MODE #foo +mo other')
+        self.assertEqual(msg.action, 'mode')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, '+mo other')
+        self.assertFalse(msg.private)
+
+    def test_kick(self):
+        msg = self._from_raw('KICK #foo other :lorem ipsum')
+        self.assertEqual(msg.action, 'kick')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertEqual(msg.target, 'other')
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(msg.private)
+
     def test_unknown(self):
-        msg = self._from_raw(':nick!user@host NONSENSE a b c :foo bar')
-        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        msg = self._from_raw('NONSENSE a b c :foo bar')
         self.assertEqual(msg.action, 'unknown')
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)

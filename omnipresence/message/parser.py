@@ -8,7 +8,7 @@ from ..hostmask import Hostmask
 
 
 class RawMessageParser(object):
-    _optionals = ['venue', 'target', 'subaction', 'content']
+    _optionals = ['actor', 'venue', 'target', 'subaction', 'content']
 
     def __init__(self):
         self.functions = {}
@@ -40,17 +40,33 @@ class RawMessageParser(object):
         return kwargs
 
 
-_parser = RawMessageParser()
+parser = RawMessageParser()
 
-@_parser.command('QUIT', 'PING', 'NICK')
-def parse_undirected_messages(params):
+@parser.command('QUIT', 'PING', 'NICK')
+def parse_undirected_message(params):
     return {'content': params[0]}
 
-@_parser.command('PRIVMSG', 'NOTICE')
-def parse_directed_messages(params):
-    # Ignore CTCP messages for now.
-    if params[1].startswith(X_DELIM):
-        return None
+@parser.command('TOPIC')
+def parse_directed_message(params):
     return {'venue': params[0], 'content': params[1]}
 
-parse = _parser.parse
+@parser.command('PRIVMSG', 'NOTICE')
+def parse_ctcpable_directed_message(params):
+    # Ignore CTCP messages for now.  XXX:  Gotta parse them for actions.
+    if params[1].startswith(X_DELIM):
+        return None
+    return parse_directed_message(params)
+
+@parser.command('JOIN')
+def parse_join(params):
+    return {'venue': params[0]}
+
+@parser.command('PART', 'MODE')
+def parse_part_mode(params):
+    return {'venue': params[0], 'content': ' '.join(params[1:])}
+
+@parser.command('KICK')
+def parse_kick(params):
+    return {'venue': params[0], 'target': params[1], 'content': params[2]}
+
+parse = parser.parse

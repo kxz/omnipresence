@@ -43,16 +43,43 @@ Messages
 Message types
 ~~~~~~~~~~~~~
 
-Omnipresence generates messages of the following types.
-Most correspond to those defined in :rfc:`1459#section-4`, with the
-addition of some custom types for internal event handling.
 A message's type is stored in its :py:attr:`~.Message.action` attribute.
+The following message types directly correspond to incoming or outgoing
+IRC messages (also see :rfc:`1459#section-4`):
 
-.. describe:: registration
+.. describe:: join
 
-   Passed to a plugin instance to indicate that it has been attached to
-   a running bot.
-   No optional attributes are given.
+   Represents a channel join.
+   :py:attr:`~.Message.venue` is the channel being joined.
+
+.. describe:: kick
+
+   Represents a kick.
+   :py:attr:`~.Message.venue` is the channel the kick took place in.
+   :py:attr:`~.Message.target` is the nick of the kicked user.
+   :py:attr:`~.Message.content` is the kick message.
+
+.. describe:: mode
+
+   Represents a mode change.
+   :py:attr:`~.Message.venue` is the affected channel or nick.
+   :py:attr:`~.Message.content` is the mode change string.
+
+.. describe:: nick
+
+   Represents a nick change.
+   :py:attr:`~.Message.content` is the new nick.
+
+.. describe:: notice
+
+   Represents a notice.
+   All attributes are as for the ``privmsg`` type.
+
+.. describe:: part
+
+   Represents a channel part.
+   :py:attr:`~.Message.venue` is the channel being departed from.
+   :py:attr:`~.Message.content` is the part message.
 
 .. describe:: privmsg
 
@@ -61,13 +88,26 @@ A message's type is stored in its :py:attr:`~.Message.action` attribute.
    recipient; :py:attr:`~.Message.private` can also be used to determine
    whether a message was sent to a single user or a channel.
    :py:attr:`~.Message.content` is the text of the message.
-   :py:attr:`~.Message.subaction` and :py:attr:`~.Message.target` are
-   not used.
 
-.. describe:: notice
+.. describe:: quit
 
-   Represents a notice.
-   All attributes are as for the ``privmsg`` type.
+   Represents a client quit from the IRC network.
+   :py:attr:`~.Message.content` is the quit message.
+
+.. describe:: unknown
+
+   Represents a message not of one of the above types.
+   :py:attr:`~.Message.subaction` is the IRC command name or numeric.
+   :py:attr:`~.Message.content` is a string containing any trailing
+   arguments.
+
+Omnipresence defines additional message types for synthetic events:
+
+.. describe:: registration
+
+   Passed to a plugin instance to indicate that it has been attached to
+   a running bot.
+   No optional attributes are given.
 
 .. describe:: command
 
@@ -89,14 +129,6 @@ A message's type is stored in its :py:attr:`~.Message.action` attribute.
    :py:attr:`~.Message.content` is a string containing any trailing
    arguments.
 
-.. describe:: unknown
-
-   Represents a message not of one of the above types.
-   :py:attr:`~.Message.subaction` is the IRC command name.
-   :py:attr:`~.Message.content` is a string containing any trailing
-   arguments.
-   :py:attr:`~.Message.venue` and :py:attr:`~.Message.target` are not
-   used.
 
 Message formatting
 ~~~~~~~~~~~~~~~~~~
