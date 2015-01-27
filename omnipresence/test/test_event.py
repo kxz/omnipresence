@@ -176,5 +176,25 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
         self.assertEqual(self.plugin_two.seen[2].content, 'dolor sit amet')
 
 
+class CallbackOptionsTestCase(AbstractConnectionTestCase):
+    def setUp(self):
+        self.plugin = EventPlugin()
+
+        @self.plugin.on('registration')
+        def registered(plugin, msg):
+            plugin.seen = []
+
+        @self.plugin.on('privmsg', ignore_bot=True)
+        def callback(plugin, msg):
+            plugin.seen.append(msg)
+
+        super(CallbackOptionsTestCase, self).setUp()
+        self.connection.add_event_plugin(self.plugin, {'#foo': []})
+
+    def test_ignore_bot(self):
+        self.connection.sendLine('PRIVMSG #foo :lorem ipsum')
+        self.assertEqual(len(self.plugin.seen), 0)
+
+
 class DeferredCallbackTestCase(AbstractConnectionTestCase):
     pass
