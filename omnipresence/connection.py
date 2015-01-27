@@ -6,6 +6,7 @@ import re
 
 import sqlobject
 from twisted.internet import defer, protocol, reactor, task, threads
+from twisted.internet.defer import DeferredList
 from twisted.plugin import getPlugins
 from twisted.python import failure, log
 from twisted.words.protocols.irc import IRCClient, CHANNEL_PREFIXES
@@ -660,12 +661,14 @@ class Connection(IRCClient):
         plugin.respond_to(Message(connection=self, action='registration'))
 
     def respond_to(self, msg):
-        """Fire the appropriate event plugin callbacks for *msg*."""
+        """Start the appropriate event plugin callbacks for *msg*, and
+        return a :py:class:`twisted.internet.defer.DeferredList`."""
         if self.message_queue is not None:
             # We're already firing callbacks.  Bail.
             self.message_queue.append(msg)
             return
         self.message_queue = [msg]
+        deferreds = []
         while self.message_queue:
             msg = self.message_queue.pop(0)
             if msg.action in ('nick', 'quit'):
@@ -684,7 +687,7 @@ class Connection(IRCClient):
                         continue
                     plugins.add(plugin)
             for plugin in plugins:
-                plugin.respond_to(msg)
+                deferreds.append(plugin.respond_to(msg))
             # Extract any command invocations and fire events for them.
             if not msg.actor.matches(self.nickname):
                 if msg.private:
@@ -699,6 +702,7 @@ class Connection(IRCClient):
                     # current privmsg, as they come from the same event.
                     self.message_queue.insert(0, command_msg)
         self.message_queue = None
+        return DeferredList(deferreds)
 
     # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):

@@ -2,9 +2,13 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
+import gc
+
+from twisted.internet.defer import Deferred
 from twisted.trial import unittest
 
 from ..hostmask import Hostmask
+from ..message import Message
 from ..plugin import EventPlugin
 from .helpers import AbstractConnectionTestCase
 
@@ -197,4 +201,40 @@ class CallbackOptionsTestCase(AbstractConnectionTestCase):
 
 
 class DeferredCallbackTestCase(AbstractConnectionTestCase):
-    pass
+    def setUp(self):
+        self.plugin = EventPlugin()
+
+        @self.plugin.on('registration')
+        def registered(plugin, msg):
+            plugin.seen = []
+
+        @self.plugin.on('privmsg')
+        def callback(plugin, msg):
+            deferred = Deferred()
+            deferred.addCallback(plugin.seen.append)
+            if msg.content == 'failure':
+                self.connection.reactor.callLater(1, deferred.errback,
+                                                  Exception())
+            else:
+                self.connection.reactor.callLater(1, deferred.callback, msg)
+            return deferred
+
+        super(DeferredCallbackTestCase, self).setUp()
+        self.connection.add_event_plugin(self.plugin, {'#foo': []})
+
+    def test_deferred_callback(self):
+        deferred = self.connection.respond_to(Message.from_raw(
+            self.connection, 'PRIVMSG #foo :lorem ipsum'))
+        deferred.addCallback(
+            lambda _: self.assertEqual(len(self.plugin.seen), 1))
+        self.connection.reactor.advance(2)
+        return deferred
+
+    def test_default_errback(self):
+        deferred = self.connection.respond_to(Message.from_raw(
+            self.connection, 'PRIVMSG #foo :failure'))
+        self.connection.reactor.advance(2)
+        # <http://stackoverflow.com/a/3252306>
+        gc.collect()
+        self.assertEqual(len(self.flushLoggedErrors()), 1)
+        return deferred

@@ -25,6 +25,9 @@ from collections import defaultdict
 import importlib
 import types
 
+from twisted.internet.defer import DeferredList, maybeDeferred
+from twisted.python import log
+
 
 #: The root package name to use for relative plugin module searches.
 PLUGIN_ROOT = 'omnipresence.plugins'
@@ -38,6 +41,10 @@ class EventPlugin(object):
         #: A mapping of actions to lists of ``(callback, options)``
         #: tuples.
         self.__callbacks = defaultdict(list)
+
+        #: The plugin's optional log name.  This is usually set to the
+        #: Omnipresence configuration name by :py:meth:`~.load_plugin`.
+        self.name = 'plugin'
 
     def on(self, *actions, **options):
         """Return a decorator that registers a function as a callback to
@@ -57,12 +64,18 @@ class EventPlugin(object):
         return decorator
 
     def respond_to(self, msg):
-        """Fire any callbacks this plugin defines for *msg*."""
+        """Start any callbacks this plugin defines for *msg*, and return
+        a :py:class:`twisted.internet.defer.DeferredList`."""
+        deferreds = []
         for callback, options in self.__callbacks[msg.action]:
             if (options.get('ignore_bot') and
                     msg.actor.matches(msg.connection.nickname)):
                 continue
-            callback(msg)
+            deferred = maybeDeferred(callback, msg)
+            deferred.addErrback(log.err,
+                'Error in %s responding to %s' % (self.name, msg))
+            deferreds.append(deferred)
+        return DeferredList(deferreds)
 
 
 def load_plugin(name):
@@ -76,4 +89,5 @@ def load_plugin(name):
     if not isinstance(member, EventPlugin):
         raise TypeError('{} is {}, not EventPlugin'.format(
             name, type(member).__name__))
+    member.name = 'plugin ' + name
     return member
