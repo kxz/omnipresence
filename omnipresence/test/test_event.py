@@ -13,8 +13,8 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
     def setUp(self):
         self.plugin = EventPlugin()
 
-        @self.plugin.on_registration
-        def registered(plugin, bot):
+        @self.plugin.on('registration')
+        def registered(plugin, msg):
             plugin.seen = []
 
         @self.plugin.on('privmsg', 'command', 'quit')
@@ -129,8 +129,8 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
     def setUp(self):
         self.plugin_one = EventPlugin()
 
-        @self.plugin_one.on_registration
-        def registered(plugin, bot):
+        @self.plugin_one.on('registration')
+        def registered(plugin, msg):
             plugin.quote = 'dolor sit amet'
 
         @self.plugin_one.on('privmsg')
@@ -140,8 +140,8 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
 
         self.plugin_two = EventPlugin()
 
-        @self.plugin_two.on_registration
-        def registered(plugin, bot):
+        @self.plugin_two.on('registration')
+        def registered(plugin, msg):
             plugin.seen = []
 
         @self.plugin_two.on('privmsg', 'command')

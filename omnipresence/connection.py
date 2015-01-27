@@ -657,10 +657,10 @@ class Connection(IRCClient):
         for channel, keywords in channels.iteritems():
             self.event_plugins.setdefault(channel, [])
             self.event_plugins[channel].append((plugin, keywords))
-        if plugin.registered is not None:
-            plugin.registered(plugin, self)
+        plugin.respond_to(Message(
+            connection=self, action='registration', actor=self.nickname))
 
-    def fire_events(self, msg):
+    def respond_to(self, msg):
         """Fire the appropriate event plugin callbacks for *msg*."""
         if self.message_queue is not None:
             # We're already firing callbacks.  Bail.
@@ -685,8 +685,7 @@ class Connection(IRCClient):
                         continue
                     plugins.add(plugin)
             for plugin in plugins:
-                if msg.action in plugin.callbacks:
-                    plugin.callbacks[msg.action](plugin, msg)
+                plugin.respond_to(msg)
             # Extract any command invocations and fire events for them.
             if not msg.actor.matches(self.nickname):
                 if msg.private:
@@ -704,12 +703,12 @@ class Connection(IRCClient):
 
     # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):
-        self.fire_events(Message.from_raw(self, line))
+        self.respond_to(Message.from_raw(self, line))
         IRCClient.lineReceived(self, line)
 
     # Overrides IRCClient.sendLine.
     def sendLine(self, line):
-        self.fire_events(Message.from_raw(
+        self.respond_to(Message.from_raw(
             # Fake a prefix for the message parser's convenience.
             self, ':{} {}'.format(self.nickname, line)))
         IRCClient.sendLine(self, line)

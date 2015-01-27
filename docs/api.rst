@@ -48,6 +48,12 @@ Most correspond to those defined in :rfc:`1459#section-4`, with the
 addition of some custom types for internal event handling.
 A message's type is stored in its :py:attr:`~.Message.action` attribute.
 
+.. describe:: registration
+
+   Passed to a plugin instance to indicate that it has been attached to
+   a running bot.
+   No optional attributes are given.
+
 .. describe:: privmsg
 
    Represents a typical message.
@@ -70,6 +76,16 @@ A message's type is stored in its :py:attr:`~.Message.action` attribute.
    :py:attr:`~.Message.target` is a string containing the reply
    redirection target, or the actor's nick if none was specified.
    :py:attr:`~.Message.subaction` is the command keyword.
+   :py:attr:`~.Message.content` is a string containing any trailing
+   arguments.
+
+.. describe:: cmdhelp
+
+   Represents a command help request.
+   :py:attr:`~.Message.venue` and :py:attr:`~.Message.target` are as for
+   the ``command`` type.
+   :py:attr:`~.Message.subaction` is the command keyword for which help
+   was requested.
    :py:attr:`~.Message.content` is a string containing any trailing
    arguments.
 

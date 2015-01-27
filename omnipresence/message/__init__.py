@@ -9,6 +9,9 @@ from .formatting import remove_formatting, unclosed_formatting
 from .parser import parse as parse_raw
 
 
+ARTIFICIAL_ACTIONS = set(['command', 'cmdhelp', 'registration'])
+
+
 class Message(namedtuple('Message',
                          ('connection', 'actor', 'action',
                           'venue', 'target', 'subaction', 'content',
@@ -76,8 +79,9 @@ class Message(namedtuple('Message',
         """
         if self.raw is not None:
             return self.raw
-        if self.action == 'command':
-            raise ValueError('command messages have no raw IRC representation')
+        if self.action in ARTIFICIAL_ACTIONS:
+            raise ValueError('artificial message of type "{}" has no '
+                             'raw IRC representation'.format(self.action))
         raise NotImplementedError
 
     @property
