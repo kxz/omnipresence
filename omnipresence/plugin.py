@@ -37,7 +37,7 @@ class EventPlugin(object):
     def __init__(self):
         #: A mapping of actions to lists of ``(callback, options)``
         #: tuples.
-        self.callbacks = defaultdict(list)
+        self.__callbacks = defaultdict(list)
 
     def on(self, *actions, **options):
         """Return a decorator that registers a function as a callback to
@@ -52,13 +52,13 @@ class EventPlugin(object):
             # implicitly inserts this object as the first argument.
             method = types.MethodType(function, self)
             for action in actions:
-                self.callbacks[action].append((method, options))
+                self.__callbacks[action].append((method, options))
             return function
         return decorator
 
     def respond_to(self, msg):
         """Fire any callbacks this plugin defines for *msg*."""
-        for callback, options in self.callbacks[msg.action]:
+        for callback, options in self.__callbacks[msg.action]:
             if (options.get('ignore_bot') and
                     msg.actor.matches(msg.connection.nickname)):
                 continue
