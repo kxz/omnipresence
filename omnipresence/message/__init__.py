@@ -13,7 +13,7 @@ ARTIFICIAL_ACTIONS = set(['command', 'cmdhelp', 'registration'])
 
 
 class Message(namedtuple('Message',
-                         ('connection', 'action', 'actor',
+                         ('connection', 'outgoing', 'action', 'actor',
                           'venue', 'target', 'subaction', 'content',
                           'raw'))):
     """Represents a message, loosely defined as an event to which
@@ -25,6 +25,11 @@ class Message(namedtuple('Message',
        received.  It is equivalent to the *bot* argument in old-style
        :py:class:`~omnipresence.iomnipresence.IHandler` and
        :py:class:`~omnipresence.iomnipresence.ICommand` callbacks.
+
+    .. py:attribute:: outgoing
+
+       A boolean indicating whether this message resulted from a bot
+       action.
 
     .. py:attribute:: action
 
@@ -55,21 +60,21 @@ class Message(namedtuple('Message',
     """
 
     def __new__(cls,
-                connection, action, actor=None,
+                connection, outgoing, action, actor=None,
                 venue=None, target=None, subaction=None, content=None):
         if isinstance(actor, str):
             actor = Hostmask.from_string(actor)
         return super(Message, cls).__new__(
-            cls, connection, action, actor,
+            cls, connection, outgoing, action, actor,
             venue, target, subaction, content,
             raw=None)
 
     @classmethod
-    def from_raw(cls, connection, raw):
+    def from_raw(cls, connection, outgoing, raw):
         """Parse a raw IRC message string and return a corresponding
         :py:class:`~.Message` object."""
         return super(Message, cls).__new__(
-            cls, connection, raw=raw, **parse_raw(raw))
+            cls, connection, outgoing, raw=raw, **parse_raw(raw))
 
     def to_raw(self):
         """Return this message as a raw IRC message string.  If this

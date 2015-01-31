@@ -657,7 +657,7 @@ class Connection(IRCClient):
         for channel, keywords in channels.iteritems():
             self.event_plugins.setdefault(channel, [])
             self.event_plugins[channel].append((plugin, keywords))
-        plugin.respond_to(Message(connection=self, action='registration'))
+        plugin.respond_to(Message(self, False, 'registration'))
 
     def respond_to(self, msg):
         """Start the appropriate event plugin callbacks for *msg*, and
@@ -688,31 +688,30 @@ class Connection(IRCClient):
             for plugin in plugins:
                 deferreds.append(plugin.respond_to(msg))
             # Extract any command invocations and fire events for them.
-            if not msg.actor.matches(self.nickname):
-                if msg.private:
-                    command_prefixes = None
-                else:
-                    defaults = {'current_nickname': self.nickname}
-                    command_prefixes = self.factory.config.getspacelist(
-                        'core', 'command_prefixes', False, defaults)
-                command_msg = msg.extract_command(prefixes=command_prefixes)
-                if command_msg is not None:
-                    # Get the command message in immediately after the
-                    # current privmsg, as they come from the same event.
-                    self.message_queue.insert(0, command_msg)
+            if msg.private:
+                command_prefixes = None
+            else:
+                defaults = {'current_nickname': self.nickname}
+                command_prefixes = self.factory.config.getspacelist(
+                    'core', 'command_prefixes', False, defaults)
+            command_msg = msg.extract_command(prefixes=command_prefixes)
+            if command_msg is not None:
+                # Get the command message in immediately after the
+                # current privmsg, as they come from the same event.
+                self.message_queue.insert(0, command_msg)
         self.message_queue = None
         return DeferredList(deferreds)
 
     # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):
-        self.respond_to(Message.from_raw(self, line))
+        self.respond_to(Message.from_raw(self, False, line))
         IRCClient.lineReceived(self, line)
 
     # Overrides IRCClient.sendLine.
     def sendLine(self, line):
         self.respond_to(Message.from_raw(
             # Fake a prefix for the message parser's convenience.
-            self, ':{} {}'.format(self.nickname, line)))
+            self, True, ':{} {}'.format(self.nickname, line)))
         IRCClient.sendLine(self, line)
 
 

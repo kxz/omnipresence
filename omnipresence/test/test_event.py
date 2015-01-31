@@ -46,16 +46,6 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.assertEqual(last_seen.content, 'lorem ipsum')
         self.assertFalse(last_seen.private)
 
-    def test_own_privmsg(self):
-        self.connection.sendLine('PRIVMSG #foo :lorem ipsum')
-        self.assertEqual(len(self.plugin.seen), 1)
-        last_seen = self.plugin.seen[0]
-        self.assertTrue(last_seen.actor.matches(self.connection.nickname))
-        self.assertEqual(last_seen.action, 'privmsg')
-        self.assertEqual(last_seen.venue, '#foo')
-        self.assertEqual(last_seen.content, 'lorem ipsum')
-        self.assertFalse(last_seen.private)
-
     def test_privmsg_casemapping(self):
         # This will no longer be a direct part of the event delegation
         # code once the new settings machinery works, but it might not
@@ -88,10 +78,6 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self._send('PRIVMSG #bar :!spam ham eggs')
         self.assertEqual(len(self.plugin.seen), 1)  # no command message
 
-    def test_command_self(self):
-        self.connection.sendLine('PRIVMSG #foo :!spam ham eggs')
-        self.assertEqual(len(self.plugin.seen), 1)  # no command message
-
     def test_visible_quit(self):
         self.connection.joined(self.connection.nickname, '#foo')
         self.connection.channel_names['#foo'].add('other')
@@ -116,18 +102,6 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self._send('QUIT :Client Quit')
         self.assertEqual(len(self.plugin.seen), 0)
 
-    def test_own_quit(self):
-        self.connection.joined(self.connection.nickname, '#foo')
-        self.connection.channel_names['#foo'].add(self.connection.nickname)
-        self.connection.sendLine('QUIT :Client Quit')
-        self.assertEqual(len(self.plugin.seen), 1)
-        last_seen = self.plugin.seen[0]
-        self.assertTrue(last_seen.actor.matches(self.connection.nickname))
-        self.assertEqual(last_seen.action, 'quit')
-        self.assertIsNone(last_seen.venue)
-        self.assertEqual(last_seen.content, 'Client Quit')
-        self.assertFalse(last_seen.private)
-
 
 class EventOrderingTestCase(AbstractConnectionTestCase):
     def setUp(self):
@@ -139,8 +113,7 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
 
         @self.plugin_one.on('privmsg')
         def callback(plugin, msg):
-            if not msg.actor.matches(msg.connection.nickname):
-                msg.connection.msg(msg.venue, plugin.quote)
+            msg.connection.msg(msg.venue, plugin.quote)
 
         self.plugin_two = EventPlugin()
 
@@ -148,7 +121,7 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
         def registered(plugin, msg):
             plugin.seen = []
 
-        @self.plugin_two.on('privmsg', 'command')
+        @self.plugin_two.on('privmsg', 'command', outgoing=True)
         def callback(plugin, msg):
             plugin.seen.append(msg)
 
@@ -180,24 +153,68 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
         self.assertEqual(self.plugin_two.seen[2].content, 'dolor sit amet')
 
 
-class CallbackOptionsTestCase(AbstractConnectionTestCase):
+class OutgoingEventTestCase(AbstractConnectionTestCase):
     def setUp(self):
-        self.plugin = EventPlugin()
+        self.outgoing = EventPlugin()
+        self.no_outgoing = EventPlugin()
 
-        @self.plugin.on('registration')
+        @self.outgoing.on('registration')
+        @self.no_outgoing.on('registration')
         def registered(plugin, msg):
             plugin.seen = []
 
-        @self.plugin.on('privmsg', ignore_bot=True)
+        @self.outgoing.on('privmsg', 'command', 'join', 'quit', outgoing=True)
+        @self.no_outgoing.on('privmsg', 'command', 'join', 'quit')
         def callback(plugin, msg):
             plugin.seen.append(msg)
 
-        super(CallbackOptionsTestCase, self).setUp()
-        self.connection.add_event_plugin(self.plugin, {'#foo': []})
+        super(OutgoingEventTestCase, self).setUp()
+        self.connection.add_event_plugin(self.outgoing, {'#foo': ['spam']})
+        self.connection.add_event_plugin(self.no_outgoing, {'#foo': ['spam']})
 
-    def test_ignore_bot(self):
+    def _echo(self, line):
+        self.connection.lineReceived(
+            ':' + self.connection.nickname + '!user@host ' + line)
+
+    def test_own_privmsg(self):
         self.connection.sendLine('PRIVMSG #foo :lorem ipsum')
-        self.assertEqual(len(self.plugin.seen), 0)
+        self.assertEqual(len(self.outgoing.seen), 1)
+        last_seen = self.outgoing.seen[0]
+        self.assertTrue(last_seen.actor.matches(self.connection.nickname))
+        self.assertEqual(last_seen.action, 'privmsg')
+        self.assertEqual(last_seen.venue, '#foo')
+        self.assertEqual(last_seen.content, 'lorem ipsum')
+        self.assertFalse(last_seen.private)
+        self.assertEqual(len(self.no_outgoing.seen), 0)
+
+    def test_own_command(self):
+        self.connection.sendLine('PRIVMSG #foo :!spam ham eggs')
+        self.assertEqual(len(self.outgoing.seen), 2)
+        self.assertEqual(len(self.no_outgoing.seen), 0)
+
+    def test_own_join(self):
+        self.connection.sendLine('JOIN #foo')
+        self.assertEqual(len(self.outgoing.seen), 1)
+        self.assertEqual(len(self.no_outgoing.seen), 0)
+
+    def test_echoed_join(self):
+        self._echo('JOIN #foo')
+        self.assertEqual(len(self.outgoing.seen), 1)
+        self.assertEqual(len(self.no_outgoing.seen), 1)
+
+    def test_own_quit(self):
+        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.channel_names['#foo'].add(self.connection.nickname)
+        self.connection.sendLine('QUIT :Client Quit')
+        self.assertEqual(len(self.outgoing.seen), 1)
+        self.assertEqual(len(self.no_outgoing.seen), 0)
+
+    def test_echoed_quit(self):
+        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.channel_names['#foo'].add(self.connection.nickname)
+        self._echo('QUIT :Client Quit')
+        self.assertEqual(len(self.outgoing.seen), 1)
+        self.assertEqual(len(self.no_outgoing.seen), 1)
 
 
 class DeferredCallbackTestCase(AbstractConnectionTestCase):
@@ -224,7 +241,7 @@ class DeferredCallbackTestCase(AbstractConnectionTestCase):
 
     def test_deferred_callback(self):
         deferred = self.connection.respond_to(Message.from_raw(
-            self.connection, 'PRIVMSG #foo :lorem ipsum'))
+            self.connection, False, 'PRIVMSG #foo :lorem ipsum'))
         deferred.addCallback(
             lambda _: self.assertEqual(len(self.plugin.seen), 1))
         self.connection.reactor.advance(2)
@@ -232,7 +249,7 @@ class DeferredCallbackTestCase(AbstractConnectionTestCase):
 
     def test_default_errback(self):
         deferred = self.connection.respond_to(Message.from_raw(
-            self.connection, 'PRIVMSG #foo :failure'))
+            self.connection, False, 'PRIVMSG #foo :failure'))
         self.connection.reactor.advance(2)
         # <http://stackoverflow.com/a/3252306>
         gc.collect()

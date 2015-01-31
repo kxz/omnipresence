@@ -17,7 +17,8 @@ class RawParsingTestCase(unittest.TestCase):
         self.connection = DummyConnection()
 
     def _from_raw(self, raw):
-        msg = Message.from_raw(self.connection, ':nick!user@host ' + raw)
+        msg = Message.from_raw(
+            self.connection, False, ':nick!user@host ' + raw)
         self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
         return msg
 
@@ -151,7 +152,8 @@ class RawParsingTestCase(unittest.TestCase):
 class ExtractionTestCase(unittest.TestCase):
     def setUp(self):
         self.connection = DummyConnection()
-        self.prototype = Message(self.connection, 'privmsg', 'nick!user@host')
+        self.prototype = Message(
+            self.connection, False, 'privmsg', 'nick!user@host')
 
     def _extract(self, content):
         return self.prototype._replace(content=content).extract_command(
