@@ -1,70 +1,95 @@
-Writing plugins
-===============
+Writing event plugins
+=====================
 
-Omnipresence supports two different types of plugins:
+.. module:: omnipresence.plugin
 
-* **Handler plugins** listen for and respond to general events.
+Event plugins are Omnipresence's primary extension mechanism.
+This page details how to add new functionality by creating your own
+plugins.
+For information on the built-in plugins shipped with the Omnipresence
+distribution, see :doc:`builtins`.
 
-* **Command plugins** are more specialized variants of handler plugins that only respond when a specific *keyword* is sent to the bot in a message.
-  In IRC channels, a *command prefix* is also expected.  Both of these are specified in the bot configuration.
+.. autoclass:: EventPlugin
 
-Plugins are expected to be module-level variables in submodules of the package :py:mod:`omnipresence.plugins`.
-`Twisted's plugin documentation <http://twistedmatrix.com/documents/current/core/howto/plugin.html#auto1>`_ has further details.
-In practice, this means that you will write a plugin class that implements the provided interfaces, and assign an instance of that class to a variable in your plugin module::
+   Omnipresence locates event plugins by their Python module and
+   variable names, as detailed in :doc:`settings`.
+   For example, the following code in the top-level module ``foo``
+   creates two event plugins named ``foo/default`` and ``foo/other``::
 
-    # omnipresence/plugins/example.py
-    from twisted.plugin import IPlugin
-    from omnipresence.iomnipresence import ICommand
+       from omnipresence.plugin import EventPlugin
 
+       default = EventPlugin()
+       other   = EventPlugin()
 
-    class ExampleCommand(object):
-        implements(IPlugin, ICommand)
-        name = 'example'
+   For convenience, a plugin key containing only a module name implies
+   ``default``, so ``foo`` is a shorter name for ``foo/default``.
 
-        def execute(self, bot, prefix, reply_target, channel, args):
-            # ... command performs its work ...
-            bot.reply(reply_target, channel, text)
+   Once instantiated, callbacks can be added to an event plugin using
+   its :py:meth:`~.EventPlugin.on` decorator:
 
+   .. decoratormethod:: on(action, ..., outgoing=False)
 
-    # Don't forget to do this at the end of your module file, or Omnipresence
-    # will not load your command plugin!
-    example = ExampleCommand()
+      Register a function as a callback to be fired when this plugin
+      receives a message with one of the :ref:`message types
+      <message-types>` matching any *action*, with this plugin and a
+      :py:class:`~.Message` object as positional parameters.
 
-Handler plugins
----------------
+      For example, the following callback sends a private message to
+      greet incoming channel users::
 
-Handler plugins are expected to implement both :py:class:`twisted.plugin.IPlugin` and :py:class:`~omnipresence.iomnipresence.IHandler`.
+          @default.on('join')
+          def greet(self, message):
+              greeting = 'Hello, {}!'.format(message.actor.nick)
+              message.connection.msg(message.venue, greeting)
 
-.. autointerface:: omnipresence.iomnipresence.IHandler
-   :members:
+      Multiple callbacks can be added for the same event; they are
+      executed in the order they are defined.
+      Thus, the following callbacks yield two messages reading "first"
+      and "second" whenever a channel message or notice is received::
 
-   .. py:method:: registered()
+          @default.on('privmsg', 'notice')
+          def first(self, message):
+              message.connection.msg(message.venue, 'first')
 
-      An optional callback, fired when the plugin is initialized.
-      At this point, a :py:class:`omnipresence.ConnectionFactory` object has been assigned to the ``self.factory`` object attribute, which can be used to read configuration data (through :py:data:`~omnipresence.ConnectionFactory.config`).
+          @default.on('privmsg', 'notice')
+          def second(self, message):
+              message.connection.msg(message.venue, 'second')
+
+      Callbacks that need to execute blocking code can return a Twisted
+      :py:class:`~twisted.internet.defer.Deferred` object::
+
+          @default.on('privmsg')
+          def long_runner(self, message):
+              d = some_deferred_task()
+              d.addCallback(lambda s: message.connection.msg(message.venue, s))
+              return d
+
+      If a plugin needs to perform setup tasks, add a callback listening
+      for the ``registration`` message type::
+
+          @default.on('registration')
+          def setup(self, message):
+              self.log.msg('Ready and waiting')
+
+      By default, callbacks are not fired for outgoing events generated
+      by bot messages, in order to reduce the probability of accidental
+      response loops.
+      To change this behavior, pass the *outgoing* keyword argument.
+      A message's :py:attr:`~.Message.outgoing` attribute can be used to
+      determine its direction of transit::
+
+          @default.on('privmsg', outgoing=True)
+          def log(self, message):
+              direction = 'Outgoing' if message.outgoing else 'Incoming'
+              self.log.msg('{} message: {!r}'.format(direction, message))
+
 
 Command plugins
 ---------------
 
-Handler plugins are expected to implement both :py:class:`twisted.plugin.IPlugin` and :py:class:`~omnipresence.iomnipresence.ICommand`.
+...
 
-.. autointerface:: omnipresence.iomnipresence.ICommand
-   :members:
-
-   .. py:method:: registered()
-
-      See :py:meth:`IHandler.registered`.
-
-Web-based commands
-``````````````````
-
-Omnipresence provides a convenience class for commands that rely on making an HTTP request and parsing the response, :py:class:`~omnipresence.web.WebCommand`.
+Omnipresence provides the :py:class:`~omnipresence.web.WebCommand` class
+for creating commands that rely on making an HTTP request and parsing
+the response.
 See the class documentation for more details.
-
-.. _using-deferreds:
-
-Using Deferreds
----------------
-
-Command and handler plugins that need to perform actions that would otherwise block the main thread should use `Twisted's deferred execution mechanism <http://twistedmatrix.com/documents/current/core/howto/defer.html>`_ to make the blocking call asynchronously.
-Omnipresence automatically adds an errback to any :py:class:`~twisted.internet.defer.Deferred` objects returned by a command plugin's :py:meth:`~ICommand.execute` method, so that any unhandled errors encountered during the command's execution can be reported to the user.

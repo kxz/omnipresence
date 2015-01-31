@@ -11,7 +11,6 @@ Messages
 --------
 
 .. autoclass:: omnipresence.message.Message(connection, actor, action, venue=None, target=None, subaction=None, content=None)
-   :no-members:
 
    .. note:: All string values are byte strings, not Unicode strings,
       and therefore must be appropriately decoded when necessary.
