@@ -129,9 +129,8 @@ class Connection(IRCClient):
         # joins for this client, and we shouldn't clobber the queue.
         if self.suspended_joins is not None:
             return
-
-        log.msg('Suspending channel joins.')
-        self.suspended_joins = set()
+        log.msg('Suspending channel joins')
+        self.suspended_joins = []
 
     def resume_joins(self):
         """Resume immediate joining of channels after suspending it with
@@ -139,13 +138,11 @@ class Connection(IRCClient):
         have been queued in the interim."""
         if self.suspended_joins is None:
             return
-
-        log.msg('Resuming channel joins.')
-
-        for channel in self.suspended_joins:
-            self._join(channel)
-
+        log.msg('Resuming channel joins')
+        suspended_joins = self.suspended_joins
         self.suspended_joins = None
+        for channel in suspended_joins:
+            self.join(channel)
 
     def call_handlers(self, event, channel, args=[]):
         # If the channel is None, this is a server event not associated with a
@@ -504,10 +501,6 @@ class Connection(IRCClient):
                 self.message_buffers[channel][newname] = \
                   self.message_buffers[channel].pop(oldname)
 
-    def _join(self, channel):
-        log.msg('Joining channel %s.' % channel)
-        IRCClient.join(self, channel)
-
     def join(self, channel):
         """Join the given *channel*.  If joins have been suspended with
         :py:meth:`suspend_joins`, add the channel to the join queue and
@@ -515,12 +508,11 @@ class Connection(IRCClient):
         # If joins are suspended, add this one to the queue; otherwise,
         # just go ahead and join the channel immediately.
         if self.suspended_joins is not None:
-            log.msg('Joins suspended; adding channel %s to join queue.'
-                     % channel)
-            self.suspended_joins.add(channel)
+            log.msg('Adding %s to join queue' % channel)
+            self.suspended_joins.append(channel)
             return
-
-        self._join(channel)
+        log.msg('Joining %s' % channel)
+        IRCClient.join(self, channel)
 
     def leave(self, channel, reason=None):
         """Leave the given *channel*."""

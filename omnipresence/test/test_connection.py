@@ -23,8 +23,8 @@ class JoinSuspensionTestCase(AbstractConnectionTestCase):
         self.connection.resume_joins()
         # XXX:  Maybe resumption should perform suspended joins in the
         # order they were requested, even if duplicates are present.
-        self.assertTrue(self.transport.value() in
-            ('JOIN #foo\r\nJOIN #bar\r\n', 'JOIN #bar\r\nJOIN #foo\r\n'))
+        self.assertEqual(self.transport.value(),
+                         'JOIN #foo\r\nJOIN #foo\r\nJOIN #bar\r\n')
         self.transport.clear()
         # Same for redundant resumptions.
         self.connection.resume_joins()
