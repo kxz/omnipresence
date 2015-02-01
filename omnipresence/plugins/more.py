@@ -1,8 +1,9 @@
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
+from omnipresence import PRIVATE_CHANNEL, util
 from omnipresence.iomnipresence import ICommand
-from omnipresence import util
+
 
 class More(object):
     """
@@ -13,12 +14,14 @@ class More(object):
 
     def execute(self, bot, prefix, reply_target, channel, args):
         nick = prefix.split('!', 1)[0].strip()
-        buffer_channel = '@' if channel == bot.nickname else channel
+        buffer_channel = (PRIVATE_CHANNEL if channel == bot.nickname
+                          else channel)
         try:
             buffer = bot.message_buffers[buffer_channel][nick]
         except KeyError:
             buffer = None
 
         bot.reply(reply_target, channel, buffer or 'No text in buffer.')
+
 
 default = More()

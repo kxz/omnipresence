@@ -19,6 +19,7 @@ VERSION_NUM = pkg_resources.require('omnipresence')[0].version
 SOURCE_URL = 'https://github.com/kxz/omnipresence'
 
 MAX_REPLY_LENGTH = 256
+PRIVATE_CHANNEL = '@'
 
 
 class IRCClient(irc.IRCClient):
@@ -93,7 +94,7 @@ class IRCClient(irc.IRCClient):
 
         #: A mapping of channels to a mapping containing message buffers
         #: for each channel, keyed by nick.
-        self.message_buffers = {'@': {}}
+        self.message_buffers = {PRIVATE_CHANNEL: {}}
 
         #: If joins are suspended, a set containing the channels to join
         #: when joins are resumed.  Otherwise, :py:data:`None`.
@@ -268,7 +269,7 @@ class IRCClient(irc.IRCClient):
                      % (nick, channel, message))
 
             if channel == self.nickname:
-                self.message_buffers['@'][nick] = to_buffer
+                self.message_buffers[PRIVATE_CHANNEL][nick] = to_buffer
                 self.notice(nick, message)
                 return
 
@@ -397,8 +398,7 @@ class IRCClient(irc.IRCClient):
         self.factory.resetDelay()
         self.call_handlers('signedOn', None)
         for channel in self.factory.config.options('channels'):
-            # Skip over "@", which has a special meaning to the bot.
-            if channel != '@':
+            if channel != PRIVATE_CHANNEL:
                 self.join(channel)
 
     def kickedFrom(self, channel, kicker, message):
@@ -542,7 +542,7 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('quit', None, [message])
         irc.IRCClient.quit(self, message)
         self.channel_names = {}
-        self.message_buffers = {'@': {}}
+        self.message_buffers = {PRIVATE_CHANNEL: {}}
 
     def me(self, channel, action):
         """Perform an action in the given *channel*."""
@@ -611,10 +611,9 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     """Creates :py:class:`.IRCClient` instances."""
     protocol = IRCClient
 
-    # Stores the handler instances for each channel that we are connected to.
-    # Keys are channel names; values are an ordered list of handler instances
-    # to execute for each one.  "@" is a special key corresponding to handlers
-    # that should execute on private messages.
+    # Stores the handler instances for each channel that we are
+    # connected to. Keys are channel names; values are an ordered list
+    # of handler instances to execute for each one.
     handlers = None
 
     # Stores the command instances for this bot.  Keys are the keywords used to
@@ -646,10 +645,12 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
         channels = self.config.options('channels')
         for channel in channels:
             handler_names = self.config.getspacelist('channels', channel)
-            # Since "#" can't be used to start a line in the configuration file
-            # (it gets parsed as a comment by ConfigParser), add "#" to the
-            # beginning of any channel name that's not special (i.e. "@").
-            if channel[0] not in irc.CHANNEL_PREFIXES and channel != '@':
+            # Since "#" can't be used to start a line in the
+            # configuration file (it gets parsed as a comment by
+            # ConfigParser), add "#" to the beginning of any channel
+            # name that's not special.
+            if (channel[0] not in irc.CHANNEL_PREFIXES and
+                    channel != PRIVATE_CHANNEL):
                 channel = '#' + channel
             channel = ircutil.canonicalize(channel)
             self.handlers[channel] = []
