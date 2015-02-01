@@ -127,43 +127,38 @@ class IRCClient(irc.IRCClient):
         self.suspended_joins = None
 
     def call_handlers(self, event, channel, args=[]):
-        # If the channel is None, this is a server event not associated with a
-        # specific channel, such as a successful sign-on or a quit.  Send the
-        # event to every registered handler.
+        # If the channel is None, this is a server event not associated
+        # with a specific channel, such as a successful sign-on or a
+        # quit.  Send the event to every registered handler.
         if channel is None:
             handlers = set()
 
-            # If this is a quit or nick change, only invoke callbacks on the
-            # handlers that are active for the channels where the relevant
-            # user is present.
+            channels = self.factory.handlers.keys()
+            # If this is a quit or nick change, only invoke callbacks on
+            # the handlers that are active for the channels where the
+            # relevant user is present.
             if event in ('userQuit', 'userRenamed'):
-                for channel in self.factory.handlers:
-                    if (channel in self.channel_names and
-                      args[0].split('!', 1)[0] in self.channel_names[channel]):
-                        handlers.update(self.factory.handlers[ircutil.canonicalize(channel)])
-            else:
-                for channel in self.factory.handlers:
-                    handlers.update(self.factory.handlers[ircutil.canonicalize(channel)])
+                nick = args[0].split('!', 1)[0]
+                channels = filter(
+                    lambda c: nick in self.channel_names.get(c, []), channels)
+            for channel in channels:
+                handlers.update(
+                    self.factory.handlers[ircutil.canonicalize(channel)])
         else:
-            # If the channel doesn't start with an IRC channel prefix, treat
-            # the event as a private one.  Some networks send notices to "AUTH"
-            # when performing ident lookups, for example.
+            # If the channel doesn't start with an IRC channel prefix,
+            # treat the event as a private one.  Some networks send
+            # notices to "AUTH" when performing ident lookups, for
+            # example.
             if channel[0] not in irc.CHANNEL_PREFIXES:
                 channel = '@'
-
-            try:
-                handlers = self.factory.handlers[ircutil.canonicalize(channel)]
-            except KeyError:
-                # How'd we get in this channel?
-                log.err(None, 'Received event for non-configured channel "%s".'
-                               % channel)
-                return
-
+            handlers = self.factory.handlers.get(
+                ircutil.canonicalize(channel), [])
         for handler in handlers:
             if hasattr(handler, event):
                 d = defer.maybeDeferred(getattr(handler, event), self, *args)
-                d.addErrback(log.err, 'Handler "%s" encountered an error.'
-                                       % handler.name)
+                d.addErrback(
+                    log.err,
+                    'Handler "%s" encountered an error.' % handler.name)
 
     def run_commands(self, prefix, channel, message):
         # First, get rid of formatting codes in the message.
