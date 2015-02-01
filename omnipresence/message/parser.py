@@ -2,7 +2,7 @@
 # pylint: disable=missing-docstring
 
 
-from twisted.words.protocols.irc import parsemsg, X_DELIM
+from twisted.words.protocols.irc import ctcpExtract, parsemsg, X_DELIM
 
 from ..hostmask import Hostmask
 
@@ -31,7 +31,7 @@ class RawMessageParser(object):
         kwargs['actor'] = Hostmask.from_string(prefix)
         if command in self.functions:
             kwargs['action'] = command.lower()
-            kwargs.update(self.functions[command](params))
+            kwargs.update(self.functions[command](command, params))
         else:
             kwargs['action'] = 'unknown'
             kwargs['subaction'] = command
@@ -43,30 +43,39 @@ class RawMessageParser(object):
 parser = RawMessageParser()
 
 @parser.command('QUIT', 'PING', 'NICK')
-def parse_undirected_message(params):
+def parse_undirected_message(command, params):
     return {'content': params[0]}
 
 @parser.command('TOPIC')
-def parse_directed_message(params):
+def parse_directed_message(command, params):
     return {'venue': params[0], 'content': params[1]}
 
 @parser.command('PRIVMSG', 'NOTICE')
-def parse_ctcpable_directed_message(params):
-    # Ignore CTCP messages for now.  XXX:  Gotta parse them for actions.
+def parse_ctcpable_directed_message(command, params):
+    kwargs = parse_directed_message(command, params)
     if params[1].startswith(X_DELIM):
-        return None
-    return parse_directed_message(params)
+        # CTCP extended message quoting is pathologically designed, but
+        # nobody actually sends more than one at a time.  Thankfully.
+        tag, data = ctcpExtract(params[1])['extended'][0]
+        kwargs['content'] = data
+        if tag.lower() == 'action':
+            kwargs['action'] = 'action'
+        else:
+            kwargs['action'] = ('ctcpquery' if command == 'PRIVMSG'
+                                else 'ctcpreply')
+            kwargs['subaction'] = tag
+    return kwargs
 
 @parser.command('JOIN')
-def parse_join(params):
+def parse_join(command, params):
     return {'venue': params[0]}
 
 @parser.command('PART', 'MODE')
-def parse_part_mode(params):
+def parse_part_mode(command, params):
     return {'venue': params[0], 'content': ' '.join(params[1:])}
 
 @parser.command('KICK')
-def parse_kick(params):
+def parse_kick(command, params):
     return {'venue': params[0], 'target': params[1], 'content': params[2]}
 
 parse = parser.parse

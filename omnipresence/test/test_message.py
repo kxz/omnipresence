@@ -67,6 +67,24 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertEqual(msg.content, 'lorem ipsum')
         self.assertTrue(msg.private)
 
+    def test_ctcp_query(self):
+        msg = self._from_raw('PRIVMSG #foo :\x01tag param\x01')
+        self.assertEqual(msg.action, 'ctcpquery')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertEqual(msg.subaction, 'tag')
+        self.assertEqual(msg.content, 'param')
+        self.assertFalse(msg.private)
+
+    def test_ctcp_reply(self):
+        msg = self._from_raw('NOTICE #foo :\x01tag param\x01')
+        self.assertEqual(msg.action, 'ctcpreply')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertEqual(msg.subaction, 'tag')
+        self.assertEqual(msg.content, 'param')
+        self.assertFalse(msg.private)
+
     def test_channel_notice(self):
         msg = self._from_raw('NOTICE #foo :lorem ipsum')
         self.assertEqual(msg.action, 'notice')
@@ -84,6 +102,24 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.subaction)
         self.assertEqual(msg.content, 'lorem ipsum')
         self.assertTrue(msg.private)
+
+    def test_action_query(self):
+        msg = self._from_raw('PRIVMSG #foo :\x01ACTION lorem ipsum\x01')
+        self.assertEqual(msg.action, 'action')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(msg.private)
+
+    def test_action_reply(self):
+        msg = self._from_raw('NOTICE #foo :\x01ACTION lorem ipsum\x01')
+        self.assertEqual(msg.action, 'action')
+        self.assertEqual(msg.venue, '#foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertFalse(msg.private)
 
     def test_topic(self):
         msg = self._from_raw('TOPIC #foo :lorem ipsum')

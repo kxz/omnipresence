@@ -46,6 +46,28 @@ A message's type is stored in its :py:attr:`~.Message.action` attribute.
 The following message types directly correspond to incoming or outgoing
 IRC messages (also see :rfc:`1459#section-4`):
 
+.. describe:: action
+
+   Represents a CTCP ACTION (``/me``).
+   All attributes are as for the ``privmsg`` type.
+
+.. describe:: ctcpquery
+
+   Represents an unrecognized CTCP query wrapped in a PRIVMSG.
+   :py:attr:`~.Message.venue` is the nick or channel name of the
+   recipient.
+   :py:attr:`~.Message.subaction` is the CTCP message tag.
+   :py:attr:`~.Message.content` is a string containing any trailing
+   arguments.
+
+   .. note:: Omnipresence does not support mixed messages containing
+      both normal and CTCP extended content.
+
+.. describe:: ctcpreply
+
+   Represents an unrecognized CTCP reply wrapped in a NOTICE.
+   All attributes are as for the ``ctcpquery`` type.
+
 .. describe:: join
 
    Represents a channel join.
