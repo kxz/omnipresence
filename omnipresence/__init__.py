@@ -168,7 +168,8 @@ class IRCClient(irc.IRCClient):
         # Second, see if the message matches any of the command prefixes
         # specified in the configuration file.  We read directly from
         # `self.factory.config` on every message, because the
-        # "current_nickname" default may change while the bot is being run.
+        # "current_nickname" default may change while the bot is being
+        # run.
         defaults = {'current_nickname': self.nickname}
         command_prefixes = self.factory.config.getspacelist('core',
                                                             'command_prefixes',
@@ -179,9 +180,9 @@ class IRCClient(irc.IRCClient):
                 message = message[len(command_prefix):].strip()
                 break
         else:
-            # The message doesn't start with any of the given command prefixes.
-            # Continue command parsing if this is a private message; otherwise,
-            # bail out.
+            # The message doesn't start with any of the given command
+            # prefixes.  Continue command parsing if this is a private
+            # message; otherwise, bail out.
             if channel[0] in irc.CHANNEL_PREFIXES:
                 return
 
@@ -206,11 +207,11 @@ class IRCClient(irc.IRCClient):
             reply_target = reply_target.strip()
 
         if reply_target != prefix:
-            log.msg('Command from %s directed at %s on channel %s: %s'
-                     % (prefix, reply_target, channel, message))
+            log.msg('Command from %s directed at %s on channel %s: %s' %
+                    (prefix, reply_target, channel, message))
         else:
-            log.msg('Command from %s on channel %s: %s'
-                     % (prefix, channel, message))
+            log.msg('Command from %s on channel %s: %s' %
+                    (prefix, channel, message))
 
         d = defer.maybeDeferred(self.factory.commands[keyword].execute,
                                 self, prefix, reply_target, channel, message)
@@ -250,8 +251,9 @@ class IRCClient(irc.IRCClient):
             if truncated.decode(self.factory.encoding) != to_send:
                 # Try and find whitespace to split the message on.
                 truncated = truncated.rsplit(None, 1)[0]
-                to_buffer = to_send[len(truncated.decode(self.factory.encoding)):] + \
-                            sep + to_buffer
+                to_buffer = (
+                    to_send[len(truncated.decode(self.factory.encoding)):] +
+                    sep + to_buffer)
         else:
             truncated = to_send[:MAX_REPLY_LENGTH]
             if truncated != to_send:
@@ -259,14 +261,14 @@ class IRCClient(irc.IRCClient):
                 truncated = truncated.rsplit(None, 1)[0]
                 to_buffer = to_send[len(truncated):] + sep + to_buffer
         message = ircutil.close_formatting_codes(truncated).strip()
-        to_buffer = ''.join(ircutil.unclosed_formatting_codes(truncated)) + \
-                    to_buffer.strip()
+        to_buffer = (''.join(ircutil.unclosed_formatting_codes(truncated)) +
+                     to_buffer.strip())
         if prefix:
             nick = prefix.split('!', 1)[0].strip()
             if to_buffer:
                 message += ' (+%d more characters)' % len(to_buffer)
-            log.msg('Reply for %s on channel %s: %s'
-                     % (nick, channel, message))
+            log.msg('Reply for %s on channel %s: %s' %
+                    (nick, channel, message))
 
             if channel == self.nickname:
                 self.message_buffers[PRIVATE_CHANNEL][nick] = to_buffer
@@ -293,9 +295,9 @@ class IRCClient(irc.IRCClient):
            :py:meth:`~omnipresence.iomnipresence.ICommand.execute`
            method, and usually does not need to be invoked manually.
         """
-        self.reply(prefix, channel, 'Command \x02%s\x02 encountered an error: '
-                                    '%s.' % (keyword,
-                                             failure.getErrorMessage()))
+        self.reply(prefix, channel,
+                   'Command \x02%s\x02 encountered an error: %s.' %
+                   (keyword, failure.getErrorMessage()))
         log.err(failure, 'Command "%s" encountered an error.' % keyword)
 
     # Connection maintenance
@@ -377,10 +379,7 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('noticed', channel, [prefix, channel, message])
 
     def modeChanged(self, prefix, channel, set, modes, args):
-        """Called when a channel's mode is changed.  See `the Twisted
-        documentation
-        <http://twistedmatrix.com/documents/current/api/twisted.words.protocols.irc.IRCClient.html#modeChanged>`_
-        for information on this method's parameters."""
+        """Called when a channel's mode is changed."""
         self.call_handlers('modeChanged', channel,
                            [prefix, channel, set, modes, args])
 
@@ -458,8 +457,8 @@ class IRCClient(irc.IRCClient):
                 self.channel_names[channel].add(newname)
         for channel in self.message_buffers:
             if oldname in self.message_buffers[channel]:
-                self.message_buffers[channel][newname] = \
-                  self.message_buffers[channel].pop(oldname)
+                self.message_buffers[channel][newname] = (
+                    self.message_buffers[channel].pop(oldname))
 
     def _join(self, channel):
         log.msg('Joining channel %s.' % channel)
@@ -472,8 +471,8 @@ class IRCClient(irc.IRCClient):
         # If joins are suspended, add this one to the queue; otherwise,
         # just go ahead and join the channel immediately.
         if self.suspended_joins is not None:
-            log.msg('Joins suspended; adding channel %s to join queue.'
-                     % channel)
+            log.msg('Joins suspended; adding channel %s to join queue.' %
+                    channel)
             self.suspended_joins.add(channel)
             return
 
@@ -502,10 +501,7 @@ class IRCClient(irc.IRCClient):
         irc.IRCClient.topic(self, channel, topic)
 
     def mode(self, chan, set, modes, limit=None, user=None, mask=None):
-        """Change the mode of the given *channel*.  See `the Twisted
-        documentation
-        <http://twistedmatrix.com/documents/current/api/twisted.words.protocols.irc.IRCClient.html#mode>`_
-        for information on this method's parameters."""
+        """Change the mode of the given *channel*."""
         self.call_handlers('mode', chan,
                            [chan, set, modes, limit, user, mask])
         irc.IRCClient.mode(self, chan, set, modes, limit, user, mask)
@@ -530,7 +526,7 @@ class IRCClient(irc.IRCClient):
         self.call_handlers('setNick', None, [nickname])
         irc.IRCClient.setNick(self, nickname)
         for channel in self.channel_names:
-            if oldnick in self.channel_names[channel]: # sanity check
+            if oldnick in self.channel_names[channel]:  # sanity check
                 self.channel_names[channel].discard(oldnick)
                 self.channel_names[channel].add(nickname)
         for channel in self.message_buffers:
@@ -597,8 +593,8 @@ class IRCClient(irc.IRCClient):
 
     def namesArrived(self, channel, names):
         # Liberally strip out all user mode prefixes such as @%+.  Some
-        # networks support more prefixes, so this removes any prefixes with
-        # characters not valid in nicknames.
+        # networks support more prefixes, so this removes any prefixes
+        # with characters not valid in nicknames.
         names = map(lambda x: re.sub(r'^[^A-Za-z0-9\-\[\]\\`^{}]+', '', x),
                     names)
         self.channel_names[channel].update(names)
@@ -616,8 +612,9 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
     # of handler instances to execute for each one.
     handlers = None
 
-    # Stores the command instances for this bot.  Keys are the keywords used to
-    # invoke each command; values are the command instances themselves.
+    # Stores the command instances for this bot.  Keys are the keywords
+    # used to invoke each command; values are the command instances
+    # themselves.
     commands = None
 
     encoding = 'utf-8'
@@ -629,11 +626,12 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
 
         # Set up the bot's SQLObject connection instance.
         sqlobject_uri = self.config.get('core', 'database')
-        sqlobject.sqlhub.processConnection = \
-          sqlobject.connectionForURI(sqlobject_uri)
+        sqlobject.sqlhub.processConnection = (
+            sqlobject.connectionForURI(sqlobject_uri))
 
-        # Load handler plug-ins through twisted.plugin, then map handlers to
-        # channels based on the specified configuration options.
+        # Load handler plug-ins through twisted.plugin, then map
+        # handlers to channels based on the specified configuration
+        # options.
         self.handlers = {}
         found_handlers = {}
         enabled_handler_names = set()
@@ -655,12 +653,14 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             channel = ircutil.canonicalize(channel)
             self.handlers[channel] = []
             for handler_name in handler_names:
-                if handler_name: # ignore empty lists and list items
+                if handler_name:  # ignore empty lists and list items
                     try:
-                        self.handlers[channel].append(found_handlers[handler_name])
+                        self.handlers[channel].append(
+                            found_handlers[handler_name])
                     except KeyError:
-                        log.err(None, 'Could not find handler with name "%s".'
-                                       % handler_name)
+                        log.err(None,
+                                'Could not find handler with name "%s".' %
+                                handler_name)
                         raise
                     else:
                         enabled_handler_names.add(handler_name)
@@ -670,8 +670,9 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             if hasattr(handler, 'registered'):
                 handler.registered()
 
-        # Load command plug-ins through twisted.plugin, then map commands to
-        # keywords based on the specified configuration options.
+        # Load command plug-ins through twisted.plugin, then map
+        # commands to keywords based on the specified configuration
+        # options.
         self.commands = {}
         found_commands = {}
         enabled_command_names = set()
@@ -681,15 +682,16 @@ class IRCClientFactory(protocol.ReconnectingClientFactory):
             found_commands[command.name] = command
 
         for (keyword, command_name) in self.config.items('commands'):
-            # Force the keyword to lowercase.  This enables case-insensitive
-            # matching when parsing commands.
+            # Force the keyword to lowercase.  This enables case-
+            # insensitive matching when parsing commands.
             keyword = keyword.lower()
 
             try:
                 self.commands[keyword] = found_commands[command_name]
             except KeyError:
-                log.err(None, 'Could not find command with name "%s".'
-                               % command_name)
+                log.err(None,
+                        'Could not find command with name "%s".' %
+                        command_name)
                 raise
             else:
                 enabled_command_names.add(command_name)
