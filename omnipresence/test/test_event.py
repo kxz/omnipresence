@@ -79,7 +79,7 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.assertEqual(len(self.plugin.seen), 1)  # no command message
 
     def test_visible_quit(self):
-        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.joined('#foo')
         self.connection.channel_names['#foo'].add('other')
         self._send('QUIT :Client Quit')
         self.assertEqual(len(self.plugin.seen), 1)
@@ -93,7 +93,7 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
 
     def test_visible_quit_call_once(self):
         for channel in ('#foo', '#bar'):
-            self.connection.joined(self.connection.nickname, channel)
+            self.connection.joined(channel)
             self.connection.channel_names[channel].add('other')
         self._send('QUIT :Client Quit')
         self.assertEqual(len(self.plugin.seen), 1)
@@ -203,14 +203,14 @@ class OutgoingEventTestCase(AbstractConnectionTestCase):
         self.assertEqual(len(self.no_outgoing.seen), 1)
 
     def test_own_quit(self):
-        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.joined('#foo')
         self.connection.channel_names['#foo'].add(self.connection.nickname)
         self.connection.sendLine('QUIT :Client Quit')
         self.assertEqual(len(self.outgoing.seen), 1)
         self.assertEqual(len(self.no_outgoing.seen), 0)
 
     def test_echoed_quit(self):
-        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.joined('#foo')
         self.connection.channel_names['#foo'].add(self.connection.nickname)
         self._echo('QUIT :Client Quit')
         self.assertEqual(len(self.outgoing.seen), 1)

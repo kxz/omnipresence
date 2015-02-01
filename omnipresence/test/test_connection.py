@@ -36,12 +36,10 @@ class NamesCommandTestCase(AbstractConnectionTestCase):
         # FIXME:  This doesn't actually directly test that the correct
         # callbacks were invoked, just side effects of their default
         # implementations.  Is this worth the effort to actually fix?
-        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.joined('#foo')
         self.assertEqual(self.connection.channel_names['#foo'],
                          frozenset())
         self.transport.clear()
-        self.connection.names('#foo')
-        self.assertEqual(self.transport.value(), 'NAMES #foo\r\n')
         self.connection.lineReceived(
             '{} {} = #foo :@Chanop +Voiced Normal'
             .format(RPL_NAMREPLY, self.connection.nickname))
@@ -57,9 +55,9 @@ class NameTrackingTestCase(AbstractConnectionTestCase):
 
     def setUp(self):
         super(NameTrackingTestCase, self).setUp()
-        self.connection.joined(self.connection.nickname, '#foo')
+        self.connection.joined('#foo')
         self.connection.namesArrived('#foo', ['@Chanop', '+Voiced', 'Normal'])
-        self.connection.joined(self.connection.nickname, '#bar')
+        self.connection.joined('#bar')
         self.connection.namesArrived('#bar', ['@Chanop', '+Voiced'])
 
     def test_userRenamed(self):
@@ -91,8 +89,8 @@ class NameTrackingTestCase(AbstractConnectionTestCase):
         self.assertEqual(self.connection.channel_names['#bar'],
                          frozenset(['Chanop']))
 
-    def test_leave(self):
-        self.connection.leave('#foo')
+    def test_left(self):
+        self.connection.left('#foo')
         self.assertFalse('#foo' in self.connection.channel_names)
 
 
