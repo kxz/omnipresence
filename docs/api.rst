@@ -126,12 +126,6 @@ IRC messages (also see :rfc:`1459#section-4`):
 
 Omnipresence defines additional message types for synthetic events:
 
-.. describe:: registration
-
-   Passed to a plugin instance to indicate that it has been attached to
-   a running bot.
-   No optional attributes are given.
-
 .. describe:: command
 
    Represents a command invocation.

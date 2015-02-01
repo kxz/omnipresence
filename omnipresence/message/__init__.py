@@ -9,7 +9,7 @@ from .formatting import remove_formatting, unclosed_formatting
 from .parser import parse as parse_raw
 
 
-ARTIFICIAL_ACTIONS = set(['command', 'cmdhelp', 'registration'])
+ARTIFICIAL_ACTIONS = set(['command', 'cmdhelp'])
 
 
 class Message(namedtuple('Message',
@@ -35,8 +35,7 @@ class Message(namedtuple('Message',
     .. py:attribute:: actor
 
        A :py:class:`~.Hostmask` corresponding to the message prefix,
-       indicating the message's true origin.  This is :py:data:`None`
-       for ``registration`` messages.
+       indicating the message's true origin.
 
     .. py:attribute:: venue
                       target

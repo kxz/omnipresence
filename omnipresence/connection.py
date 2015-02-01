@@ -410,13 +410,15 @@ class Connection(IRCClient):
 
     # Temporary shadow implementation of event plugins.
 
-    def add_event_plugin(self, plugin, channels):
-        """Register an event plugin.  *channels* is a dict mapping
-        channel names to lists of keywords."""
+    def add_event_plugin(self, plugin_class, channels):
+        """Attach a new instance of *plugin_class* to this connection
+        and return it.  *channels* is a dict mapping channel names to
+        lists of command keywords to assign to the new plugin."""
+        plugin = plugin_class(self)
         for channel, keywords in channels.iteritems():
             self.event_plugins.setdefault(channel, [])
             self.event_plugins[channel].append((plugin, keywords))
-        plugin.respond_to(Message(self, False, 'registration'))
+        return plugin
 
     def respond_to(self, msg):
         """Start the appropriate event plugin callbacks for *msg*, and

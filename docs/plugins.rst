@@ -9,79 +9,76 @@ plugins.
 For information on the built-in plugins shipped with the Omnipresence
 distribution, see :doc:`builtins`.
 
-.. autoclass:: EventPlugin
+.. autoclass:: EventPlugin(bot)
 
-   Omnipresence locates event plugins by their Python module and
-   variable names, as detailed in :doc:`settings`.
+   Omnipresence locates event plugin classes by their Python module and
+   class names, as detailed in :doc:`settings`.
    For example, the following code in the top-level module ``foo``
-   creates two event plugins named ``foo/default`` and ``foo/other``::
+   creates two event plugins named ``foo/Default`` and ``foo/Other``::
 
        from omnipresence.plugin import EventPlugin
 
-       default = EventPlugin()
-       other   = EventPlugin()
+       class Default(EventPlugin):
+           pass
+
+       class Other(EventPlugin):
+           pass
 
    For convenience, a plugin key containing only a module name implies
-   ``default``, so ``foo`` is a shorter name for ``foo/default``.
+   ``Default``, so ``foo`` is a shorter name for ``foo/Default``.
 
-   Once instantiated, callbacks can be added to an event plugin using
-   its :py:meth:`~.EventPlugin.on` decorator:
+   On initialization, Omnipresence passes the current
+   :py:class:`~.Connection` as a positional parameter, which can be used
+   to read configuration settings::
 
-   .. decoratormethod:: on(action, ..., outgoing=False)
+       class Default(EventPlugin):
+           def __init__(self, bot):
+               self.bar = bot.factory.config.get('foo', 'bar')
 
-      Register a function as a callback to be fired when this plugin
-      receives a message with one of the :ref:`message types
-      <message-types>` matching any *action*, with this plugin and a
-      :py:class:`~.Message` object as positional parameters.
+   Callbacks can be added to an event plugin using
+   :py:meth:`~.EventPlugin.register`:
 
-      For example, the following callback sends a private message to
-      greet incoming channel users::
+   .. classmethod:: register(callback, action, ..., outgoing=False)
 
-          @default.on('join')
-          def greet(self, message):
-              greeting = 'Hello, {}!'.format(message.actor.nick)
-              message.connection.msg(message.venue, greeting)
+      Register *callback* to be fired when an instance of this plugin
+      receives a message with a :ref:`type <message-types>` matching any
+      *action*, with a :py:class:`~.Message` object as the sole
+      parameter.
 
-      Multiple callbacks can be added for the same event; they are
-      executed in the order they are defined.
-      Thus, the following callbacks yield two messages reading "first"
-      and "second" whenever a channel message or notice is received::
+   For example, the following plugin sends a private message to
+   greet incoming channel users::
 
-          @default.on('privmsg', 'notice')
-          def first(self, message):
-              message.connection.msg(message.venue, 'first')
+       class Default(EventPlugin):
+           def greet(self, message):
+               greeting = 'Hello, {}!'.format(message.actor.nick)
+               message.connection.msg(message.venue, greeting)
 
-          @default.on('privmsg', 'notice')
-          def second(self, message):
-              message.connection.msg(message.venue, 'second')
+       Default.register(Default.greet, 'join')
 
-      Callbacks that need to execute blocking code can return a Twisted
-      :py:class:`~twisted.internet.defer.Deferred` object::
+   Callbacks that need to execute blocking code can return a Twisted
+   :py:class:`~twisted.internet.defer.Deferred` object::
 
-          @default.on('privmsg')
-          def long_runner(self, message):
-              d = some_deferred_task()
-              d.addCallback(lambda s: message.connection.msg(message.venue, s))
-              return d
+       class Default(EventPlugin):
+           def long_runner(self, message):
+               d = some_deferred_task()
+               d.addCallback(lambda s: message.connection.msg(message.venue, s))
+               return d
 
-      If a plugin needs to perform setup tasks, add a callback listening
-      for the ``registration`` message type::
+       Default.register(Default.long_runner, 'privmsg')
 
-          @default.on('registration')
-          def setup(self, message):
-              self.log.msg('Ready and waiting')
+   By default, callbacks are not fired for outgoing events generated
+   by bot messages, in order to reduce the probability of accidental
+   response loops.
+   To change this behavior, pass the *outgoing* keyword argument.
+   A message's :py:attr:`~.Message.outgoing` attribute can be used to
+   determine its direction of transit::
 
-      By default, callbacks are not fired for outgoing events generated
-      by bot messages, in order to reduce the probability of accidental
-      response loops.
-      To change this behavior, pass the *outgoing* keyword argument.
-      A message's :py:attr:`~.Message.outgoing` attribute can be used to
-      determine its direction of transit::
+       class Default(EventPlugin):
+           def log(self, message):
+               direction = 'Outgoing' if message.outgoing else 'Incoming'
+               self.log.msg('{} message: {!r}'.format(direction, message))
 
-          @default.on('privmsg', outgoing=True)
-          def log(self, message):
-              direction = 'Outgoing' if message.outgoing else 'Incoming'
-              self.log.msg('{} message: {!r}'.format(direction, message))
+       Default.register(Default.log, 'privmsg', outgoing=True)
 
 
 Command plugins
