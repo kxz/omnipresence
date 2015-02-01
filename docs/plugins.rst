@@ -93,3 +93,9 @@ Omnipresence provides the :py:class:`~omnipresence.web.WebCommand` class
 for creating commands that rely on making an HTTP request and parsing
 the response.
 See the class documentation for more details.
+
+
+Writing tests
+-------------
+
+...
