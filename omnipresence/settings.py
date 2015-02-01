@@ -12,7 +12,7 @@ def parse_key(key):
     try:
         args = shlex.split(key)
     except ValueError:
-        raise ConfigurationError('unparsable key: {}',format(key))
+        raise ConfigurationError('unparsable key: ' + key)
     try:
         command = args.pop(0)
     except IndexError:
