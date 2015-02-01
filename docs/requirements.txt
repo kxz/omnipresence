@@ -1,0 +1,2 @@
+# Documentation build dependencies for `tox -e docs` and Read the Docs.
+repoze.sphinx.autointerface
