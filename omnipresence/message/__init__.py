@@ -21,10 +21,7 @@ class Message(namedtuple('Message',
 
     .. py:attribute:: connection
 
-       The :py:class:`~.IRCClient` instance on which the message was
-       received.  It is equivalent to the *bot* argument in old-style
-       :py:class:`~omnipresence.iomnipresence.IHandler` and
-       :py:class:`~omnipresence.iomnipresence.ICommand` callbacks.
+       The :py:class:`~.Connection` on which the message was received.
 
     .. py:attribute:: outgoing
 
@@ -80,9 +77,9 @@ class Message(namedtuple('Message',
         """Return this message as a raw IRC message string.  If this
         object was created using :py:meth:`.Message.from_raw`, the raw
         string that was originally provided is returned; otherwise, one
-        is constructed from this object's fields.  This method is not
-        supported for ``command`` messages, since they are artificially
-        created.
+        is constructed from this object's fields.  This method raises
+        :py:exc:`~exceptions.ValueError` for :ref:`synthetic messages
+        <synthetic-message-types>`.
         """
         if self.raw is not None:
             return self.raw
@@ -93,11 +90,11 @@ class Message(namedtuple('Message',
 
     @property
     def bot(self):
-        """Return the bot instance associated with this message.  This
-        is currently an alias for the *connection* attribute.  In the
+        """The bot instance associated with this message.  This is
+        currently an alias for the *connection* attribute.  In the
         future, Omnipresence is planned to have support for multiple IRC
-        connections in a single bot instance; *bot* will then become a
-        pointer to that global instance."""
+        connections in a single bot instance; this attribute will then
+        become a pointer to that global instance."""
         return self.connection
 
     def extract_command(self, prefixes=None):
@@ -105,7 +102,7 @@ class Message(namedtuple('Message',
         *prefixes* is an iterable of strings; if provided and non-empty,
         messages are only considered to have invocations if they begin
         with exactly one prefix.  Return any invocation found as a new
-        :py:class:`~.Message`, or ``None`` otherwise."""
+        :py:class:`~.Message`, or :py:data:`None` otherwise."""
         if self.action != 'privmsg':
             return
         # We don't care about formatting in looking for commands.
@@ -146,8 +143,8 @@ class Message(namedtuple('Message',
 
     @property
     def private(self):
-        """Return ``True`` if this message has a venue, and that venue
-        is not a public channel; otherwise, return ``False``."""
+        """:py:data:`True` if this message has a venue and that venue
+        is not a public channel, or :py:data:`False` otherwise."""
         return not (self.venue is None or
                     self.connection.is_channel(self.venue))
 

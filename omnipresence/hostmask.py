@@ -49,7 +49,7 @@ def _mask_as_regex(mask):
 class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
     """Represents an IRC hostmask (sometimes called a message prefix) of
     the form ``nick!user@host``.  The *user* and *host* attributes are
-    optional, and default to ``None`` if not present."""
+    optional, and default to :py:data:`None` if not present."""
 
     @classmethod
     def from_string(cls, string):
@@ -74,8 +74,8 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
         Briefly, ``*`` and ``?`` wildcards match zero or more and
         exactly one non-delimiter character, respectively; a backslash
         can be used to escape these special characters.  Components that
-        equal ``None`` are assumed to match all possible values for that
-        component.
+        equal :py:data:`None` are assumed to match all possible values
+        for that component.
         """
         # pylint: disable=invalid-name
         me = self

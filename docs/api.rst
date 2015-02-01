@@ -1,14 +1,14 @@
 API reference
-=============
+*************
 
 Core IRC client
----------------
+===============
 
 .. automodule:: omnipresence.connection
    :members: Connection
 
 Messages
---------
+========
 
 .. autoclass:: omnipresence.message.Message(connection, actor, action, venue=None, target=None, subaction=None, content=None)
 
@@ -40,7 +40,7 @@ Messages
 .. _message-types:
 
 Message types
-~~~~~~~~~~~~~
+-------------
 
 A message's type is stored in its :py:attr:`~.Message.action` attribute.
 The following message types directly correspond to incoming or outgoing
@@ -122,6 +122,8 @@ IRC messages (also see :rfc:`1459#section-4`):
    :py:attr:`~.Message.content` is a string containing any trailing
    arguments.
 
+.. _synthetic-message-types:
+
 Omnipresence defines additional message types for synthetic events:
 
 .. describe:: registration
@@ -152,31 +154,31 @@ Omnipresence defines additional message types for synthetic events:
 
 
 Message formatting
-~~~~~~~~~~~~~~~~~~
+------------------
 
 .. automodule:: omnipresence.message.formatting
    :members: remove_formatting, unclosed_formatting
 
 Hostmasks
----------
+=========
 
 .. automodule:: omnipresence.hostmask
    :members: Hostmask
 
 Case mappings
--------------
+=============
 
 .. automodule:: omnipresence.mapping
    :members: CaseMapping, by_name
 
 Web resource interactions
--------------------------
+=========================
 
 .. automodule:: omnipresence.web
    :members: WebCommand, request, textify_html
 
 Human-readable output helpers
------------------------------
+=============================
 
 .. automodule:: omnipresence.humanize
    :members:

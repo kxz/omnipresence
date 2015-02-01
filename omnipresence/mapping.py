@@ -49,16 +49,26 @@ def by_name(name):
     that implements that mapping.  The following mapping names are
     recognized:
 
-    * ``'ascii'`` treats the letters *A-Z* as uppercase versions of the
-      letters *a-z*.
-    * ``'strict-rfc1459'`` uses the ``'ascii'`` case mappings, further
-      treating *{}|* as the lowercase versions of *\\[\\]\\\\*.  This
-      matches the rules specified in :rfc:`1459#section-2.2`.
-    * ``'rfc1459'`` uses the ``'strict-rfc1459'`` case mappings, further
-      treating *~* as the lowercase version of *^*.  This corresponds to
-      most servers' actual implementation of the RFC 1459 rules.
+    .. describe:: ascii
 
-    :py:class:`ValueError` is raised on an unrecognized mapping name.
+       Treats the letters *A-Z* as uppercase versions of the letters
+       *a-z*.
+
+    .. describe:: strict-rfc1459
+
+       Extends the ``ascii`` case mapping to further treat *{}|* as the
+       lowercase versions of *\\[\\]\\\\*.  This matches the rules
+       specified in :rfc:`1459#section-2.2`.
+
+
+    .. describe:: rfc1459
+
+       Extends the ``strict-rfc1459`` case mapping to further treat *~*
+       as the lowercase version of *^*.  This corresponds to most
+       servers' actual implementation of the RFC 1459 rules.
+
+    :py:exc:`~exceptions.ValueError` is raised on an unrecognized
+    mapping name.
     """
     if name in CASE_MAPPINGS:
         return CASE_MAPPINGS[name]

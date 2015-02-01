@@ -1,7 +1,7 @@
 .. highlight:: console
 
-Installing and running Omnipresence
-===================================
+Installation
+************
 
 Omnipresence requires Python 2.7 or later.
 There is no Python 3 support at this time.

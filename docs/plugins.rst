@@ -1,5 +1,5 @@
 Writing event plugins
-=====================
+*********************
 
 .. module:: omnipresence.plugin
 
@@ -85,7 +85,7 @@ distribution, see :doc:`builtins`.
 
 
 Command plugins
----------------
+===============
 
 ...
 
@@ -96,6 +96,6 @@ See the class documentation for more details.
 
 
 Writing tests
--------------
+=============
 
 ...
