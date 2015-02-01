@@ -31,8 +31,6 @@ class DummyFactory(object):
     # connection tests.
 
     def __init__(self):
-        self.handlers = defaultdict(list)
-        self.commands = {}
         self.config = ConfigParser()
         self.config.add_section('core')
         self.config.set('core', 'database', 'sqlite:/:memory:')
