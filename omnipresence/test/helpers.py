@@ -3,6 +3,7 @@
 
 
 from collections import defaultdict
+import gc
 
 from twisted.internet.task import Clock
 from twisted.test.proto_helpers import StringTransport
@@ -11,6 +12,7 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from ..config import ConfigParser
 from ..connection import Connection
+from ..hostmask import Hostmask
 
 
 #
@@ -36,6 +38,7 @@ class DummyFactory(object):
         self.config.set('core', 'database', 'sqlite:/:memory:')
         self.config.set('core', 'command_prefixes', '!')
         self.config.add_section('channels')
+        self.encoding = 'utf-8'
 
     def resetDelay(self):
         pass
@@ -53,6 +56,8 @@ class DummyConnection(object):
 #
 
 class AbstractConnectionTestCase(unittest.TestCase):
+    other_user = Hostmask('other', 'user', 'host')
+
     def setUp(self, sign_on=True):
         self.transport = AbortableStringTransport()
         self.connection = Connection(DummyFactory())
@@ -61,3 +66,19 @@ class AbstractConnectionTestCase(unittest.TestCase):
         if sign_on:
             # The heartbeat is started here, not in signedOn().
             self.connection.irc_RPL_WELCOME('remote.test', [])
+
+    def receive(self, line):
+        """Simulate receiving a line from the IRC server."""
+        return self.connection.lineReceived(':{!s} {}'.format(
+            self.other_user, line))
+
+    def echo(self, line):
+        """Simulate receiving an echoed action from the IRC server."""
+        return self.connection.lineReceived(':{}!user@host {}'.format(
+            self.connection.nickname, line))
+
+    def assertLoggedErrors(self, number):
+        """Assert that *number* errors have been logged."""
+        # <http://stackoverflow.com/a/3252306>
+        gc.collect()
+        self.assertEqual(len(self.flushLoggedErrors()), number)

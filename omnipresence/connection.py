@@ -11,11 +11,15 @@ from twisted.python import failure, log
 from twisted.words.protocols.irc import IRCClient, CHANNEL_PREFIXES
 
 from . import __version__, __source__, mapping, plugins, ircutil
-from .message import Message, truncate_unicode
+from .message import Message, ReplyBuffer
+from .plugin import UserVisibleError
 
 
 #: The maximum length of a single command reply, in bytes.
 MAX_REPLY_LENGTH = 256
+
+#: A sentinel "channel" used for direct messages to users.
+PRIVATE_CHANNEL = '@'
 
 
 class Connection(IRCClient):
@@ -73,7 +77,7 @@ class Connection(IRCClient):
 
         #: A mapping of channels to a mapping containing message buffers
         #: for each channel, keyed by nick.
-        self.message_buffers = {'@': {}}
+        self.message_buffers = {PRIVATE_CHANNEL: {}}
 
         # See self.add_event_plugin().
         self.event_plugins = self._case_mapped_dict()
@@ -131,89 +135,6 @@ class Connection(IRCClient):
         self.suspended_joins = None
         for channel in suspended_joins:
             self.join(channel)
-
-    def reply(self, prefix, channel, message):
-        """Send a reply to a user.  The method used depends on the
-        values of *prefix* and *channel*:
-
-        * If *prefix* is specified and *channel* starts with an IRC
-          channel prefix (such as ``#`` or ``+``), send the reply
-          publicly to the given channel, addressed to the nickname
-          specified by *prefix*.
-        * If *prefix* is specified and *channel* is the bot's nickname,
-          send the reply as a private notice to the nickname specified
-          by *prefix*.
-        * If *prefix* is not specified, send the reply publicly to the
-          channel given by *channel*, with no nickname addressing.
-
-        Long replies are buffered in order to satisfy protocol message
-        length limits; a maximum of 256 characters will be sent at any
-        given time.  Further content from a buffered reply can be
-        retrieved by using the command provided with the `more` plugin.
-
-        When possible, Omnipresence attempts to truncate replies on
-        whitespace, instead of in the middle of a word.  Replies are
-        _always_ broken on newlines, which can be useful for creating
-        commands that progressively give more information.
-        """
-        # FIXME:  Unify this with message.chunk.  In particular, note
-        # how newlines are handled specially in this implementation.
-        #
-        # _Always_ split on a newline.
-        to_send, sep, to_buffer = message.partition('\n')
-        if isinstance(to_send, unicode):
-            truncated = truncate_unicode(
-                to_send, MAX_REPLY_LENGTH, self.factory.encoding)
-            if truncated.decode(self.factory.encoding) != to_send:
-                # Try and find whitespace to split the message on.
-                truncated = truncated.rsplit(None, 1)[0]
-                to_buffer = to_send[len(truncated.decode(self.factory.encoding)):] + \
-                            sep + to_buffer
-        else:
-            truncated = to_send[:MAX_REPLY_LENGTH]
-            if truncated != to_send:
-                # Try and find whitespace to split the message on.
-                truncated = truncated.rsplit(None, 1)[0]
-                to_buffer = to_send[len(truncated):] + sep + to_buffer
-        message = ircutil.close_formatting_codes(truncated).strip()
-        to_buffer = ''.join(ircutil.unclosed_formatting_codes(truncated)) + \
-                    to_buffer.strip()
-        if prefix:
-            nick = prefix.split('!', 1)[0].strip()
-            if to_buffer:
-                message += ' (+%d more characters)' % len(to_buffer)
-            log.msg('Reply for %s on channel %s: %s'
-                     % (nick, channel, message))
-
-            if channel == self.nickname:
-                self.message_buffers['@'][nick] = to_buffer
-                self.notice(nick, message)
-                return
-
-            self.message_buffers[channel][nick] = to_buffer
-            message = '%s: %s' % (nick, message)
-        else:
-            if to_buffer:
-                message += u'\u2026'.encode(self.factory.encoding)
-            log.msg('Undirected reply for channel %s: %s' % (channel, message))
-
-        self.msg(channel, '\x0314%s' % message)
-
-    def reply_with_error(self, failure, prefix, channel, keyword):
-        """Call :py:meth:`reply` with information on an error that
-        occurred during an invocation of the command with the given
-        *keyword*.  *failure* should be an instance of
-        :py:class:`twisted.python.failure.Failure`.
-
-        .. note:: This method is automatically called whenever an
-           unhandled exception occurs in a command's
-           :py:meth:`~omnipresence.iomnipresence.ICommand.execute`
-           method, and usually does not need to be invoked manually.
-        """
-        self.reply(prefix, channel, 'Command \x02%s\x02 encountered an error: '
-                                    '%s.' % (keyword,
-                                             failure.getErrorMessage()))
-        log.err(failure, 'Command "%s" encountered an error.' % keyword)
 
     # Connection maintenance
 
@@ -311,7 +232,7 @@ class Connection(IRCClient):
         self.factory.resetDelay()
         for channel in self.factory.config.options('channels'):
             # Skip over "@", which has a special meaning to the bot.
-            if channel != '@':
+            if channel != PRIVATE_CHANNEL:
                 self.join(channel)
 
     def kickedFrom(self, channel, kicker, message):
@@ -388,7 +309,7 @@ class Connection(IRCClient):
         """Quit from the IRC server."""
         IRCClient.quit(self, message)
         self.channel_names = {}
-        self.message_buffers = {'@': {}}
+        self.message_buffers = {PRIVATE_CHANNEL: {}}
 
     # IRC methods not defined by IRCClient
 
@@ -447,7 +368,15 @@ class Connection(IRCClient):
                         continue
                     plugins.add(plugin)
             for plugin in plugins:
-                deferreds.append(plugin.respond_to(msg))
+                deferred = plugin.respond_to(msg)
+                if msg.action == 'command':
+                    deferred.addCallback(self.reply, msg)
+                    deferred.addErrback(self.reply_error, msg)
+                else:
+                    deferred.addErrback(log.err,
+                        'Error in plugin %s responding to %s' %
+                        (plugin.__class__.name, msg))
+                deferreds.append(deferred)
             # Extract any command invocations and fire events for them.
             if msg.private:
                 command_prefixes = None
@@ -463,17 +392,79 @@ class Connection(IRCClient):
         self.message_queue = None
         return DeferredList(deferreds)
 
+    def reply(self, response, request):
+        """Send the command reply string *response* to a user for the
+        invocation :py:class:`~.Message` *request*.  If *request*'s
+        :py:attr:`~.Message.venue` is a channel, send the reply to the
+        venue as a standard message (PRIVMSG) addressed to *request*'s
+        :py:attr:`~.Message.target`.  Otherwise, send the reply as a
+        private notice to *request*'s :py:attr:`~.Message.actor`.
+
+        Long replies are buffered in order to satisfy protocol message
+        length limits; a maximum of 256 characters will be sent at any
+        given time.  See :py:class:`~.ReplyBuffer` for more details.
+        Further content from a buffered reply can be retrieved by using
+        the ``more`` plugin.
+        """
+        if not response:
+            return
+        reply_buffer = ReplyBuffer(response, self.factory.encoding)
+        chunk = next(reply_buffer)
+        nick = request.actor.nick
+        if reply_buffer.remaining:
+            chunk = '{} (+{} more characters)'.format(
+                chunk, len('\n'.join(reply_buffer.remaining)))
+        if request.private:
+            log.msg('Private reply for %s: %s' % (nick, chunk))
+            self.notice(nick, chunk)
+            buffer_channel = PRIVATE_CHANNEL
+        else:
+            log.msg('Reply for %s in %s: %s' %
+                    (request.target, request.venue, chunk))
+            # TODO:  Make the format configurable.
+            chunk = '\x0314{}: {}'.format(request.target, chunk)
+            self.msg(request.venue, chunk)
+            buffer_channel = request.venue
+        self.message_buffers[buffer_channel][nick] = reply_buffer
+
+    def reply_error(self, failure, request):
+        """Call :py:meth:`reply` with information on a *failure* that
+        occurred in the callback invoked to handle a command request. If
+        *failure* wraps a :py:class:`~.UserVisibleError`, reply with its
+        exception string.  Otherwise, log the error and reply with a
+        generic message. If the ``show_errors`` configuration option is
+        true, reply with the exception string regardless of *failure*'s
+        exception type.
+
+        This method is automatically called whenever an unhandled
+        exception occurs in a plugin's command callback, and should
+        never need to be invoked manually.
+        """
+        # TODO:  Implement `show_errors`.
+        error_request = request._replace(target=request.actor.nick)
+        message = 'Command \x02{}\x02 encountered an error'.format(
+            request.subaction)
+        if failure.check(UserVisibleError):
+            self.reply('{}: {}.'.format(message, failure.getErrorMessage()),
+                       error_request)
+            return
+        log.err(failure, 'Error during command callback: %s %s' %
+                (request.subaction, request.content))
+        self.reply(message + '.', error_request)
+
     # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):
-        self.respond_to(Message.from_raw(self, False, line))
+        deferred = self.respond_to(Message.from_raw(self, False, line))
         IRCClient.lineReceived(self, line)
+        return deferred
 
     # Overrides IRCClient.sendLine.
     def sendLine(self, line):
-        self.respond_to(Message.from_raw(
+        deferred = self.respond_to(Message.from_raw(
             # Fake a prefix for the message parser's convenience.
             self, True, ':{} {}'.format(self.nickname, line)))
         IRCClient.sendLine(self, line)
+        return deferred
 
 
 class ConnectionFactory(protocol.ReconnectingClientFactory):

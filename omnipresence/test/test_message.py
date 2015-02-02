@@ -9,7 +9,7 @@ from textwrap import dedent
 from twisted.trial import unittest
 
 from ..hostmask import Hostmask
-from ..message import Message, chunk, collapse
+from ..message import Message, ReplyBuffer, collapse
 from .helpers import DummyConnection
 
 
@@ -239,12 +239,12 @@ class ExtractionTestCase(unittest.TestCase):
         self.assertEqual(msg.content, '')
 
 
-class BufferingTestCase(unittest.TestCase):
+class ReplyBufferingTestCase(unittest.TestCase):
     def test_type(self):
-        self.assertRaises(TypeError, chunk, 42)
+        self.assertRaises(TypeError, ReplyBuffer, 42)
 
     def test_trivial(self):
-        self.assertEqual(list(chunk('')), [])
+        self.assertEqual(list(ReplyBuffer('')), [])
 
     def test_str(self):
         message = collapse("""Esed volobore fermentum eleifend curae non
@@ -263,7 +263,7 @@ class BufferingTestCase(unittest.TestCase):
             velestionse montes lobortis. Lor feugiatue nullum. Uamconum
             andrero facinci vulluptatum. Nisim netus fames esting
             vendipissit commolum facidunt.""")
-        buf = chunk(message)
+        buf = ReplyBuffer(message)
         self.assertEqual(next(buf), collapse("""Esed volobore fermentum
             eleifend curae non inciduipit consequam deliquatue, tisi
             vulluptatet tristique. Odolorperos litora leo adignim
@@ -300,7 +300,7 @@ class BufferingTestCase(unittest.TestCase):
             食时，始识是十狮尸，实十石狮尸。
             试释是事。
             """)
-        buf = chunk(message)
+        buf = ReplyBuffer(message)
         self.assertEqual(next(buf), collapse(u"""
             《施氏食狮史》
             石室诗士施氏，嗜狮，誓食十狮。
@@ -336,7 +336,7 @@ class BufferingTestCase(unittest.TestCase):
             lobortis. Lor feugiatue nullum. Uamconum andrero facinci
             vulluptatum. Nisim netus fames esting vendipissit commolum
             facidunt.""")
-        buf = chunk(message)
+        buf = ReplyBuffer(message)
         self.assertEqual(next(buf), collapse("""\x0314Esed volobore
             fermentum eleifend curae non inciduipit consequam
             deliquatue, tisi vulluptatet tristique. Odolorperos litora
@@ -366,7 +366,7 @@ class BufferingTestCase(unittest.TestCase):
             Nisim netus fames esting vendipissit commolum facidunt.
             Uamconum andrero facinci vulluptatum.
             """)
-        buf = chunk(message, max_length=40)
+        buf = ReplyBuffer(message, max_length=40)
         self.assertEqual(next(buf), 'Lor feugiatue nullum.')
         self.assertEqual(next(buf), 'Nisim netus fames esting vendipissit')
         self.assertEqual(next(buf), 'commolum facidunt.')

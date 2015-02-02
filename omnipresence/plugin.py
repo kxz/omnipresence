@@ -61,8 +61,6 @@ class EventPlugin(object):
         if msg.outgoing and not getattr(callback, 'outgoing', False):
             return succeed(None)
         deferred = maybeDeferred(callback, msg)
-        deferred.addErrback(log.err, 'Error in plugin %s responding to %s' %
-                            (self.__class__.name, msg))
         return deferred
 
 
@@ -78,3 +76,11 @@ def load_plugin(name):
         raise TypeError('{} is {}, not EventPlugin subclass'.format(
             name, type(member).__name__))
     return member
+
+
+class UserVisibleError(Exception):
+    """Raise this inside a command callback if you need to return an
+    error message to the user, regardless of whether or not the
+    ``show_errors`` configuration option is enabled. Errors are always
+    given as replies to the invoking user, even if command redirection
+    is requested."""
