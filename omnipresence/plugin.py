@@ -32,16 +32,11 @@ PLUGIN_ROOT = 'omnipresence.plugins'
 
 
 class EventPluginMeta(type):
-    """:py:class:`~.EventPlugin`'s metaclass."""
-
-    def __new__(cls, clsname, bases, dct):
-        #: A mapping of actions to ``(callback, options)`` tuples.
-        dct['_callbacks'] = {}
-        return super(EventPluginMeta, cls).__new__(cls, clsname, bases, dct)
+    """:py:class:`~.EventPlugin`'s metaclass, used for name lookups."""
 
     @property
     def name(cls):
-        """Return this plugin's configuration name."""
+        """Return the configuration name of this plugin's class."""
         if cls.__name__ == 'Default':
             return cls.__module__
         return '{0.__module__}/{0.__name__}'.format(cls)
@@ -56,39 +51,19 @@ class EventPlugin(object):
     def __init__(self, bot):
         pass
 
-    @classmethod
-    def register(cls, callback, *actions, **options):
-        """Register *callback* to be fired when an instance of this
-        plugin receives a message with one of the :ref:`message types
-        <message-types>` in *actions*, with a :py:class:`~.Message`
-        object as the sole parameter.  By default, outgoing messages
-        from the bot are ignored unless the *outgoing* keyword argument
-        is true."""
-        for action in actions:
-            cls._callbacks[action] = (callback, options)
-
     def respond_to(self, msg):
-        """Start any callbacks this plugin defines for *msg*, and return
+        """Start any callback this plugin defines for *msg*, and return
         a :py:class:`twisted.internet.defer.Deferred`."""
-        if msg.action in self._callbacks:
-            callback, options = self._callbacks[msg.action]
-            if msg.outgoing and not options.get('outgoing'):
-                return succeed(None)
-            # Bind the callback back to this plugin object.
-            method = types.MethodType(callback, self)
-            deferred = maybeDeferred(method, msg)
-            deferred.addErrback(log.err,
-                                'Error in plugin %s responding to %s'
-                                % (self.__class__.name, msg))
-            return deferred
-        return succeed(None)
-
-
-def on(*actions, **options):
-    def decorator(function):
-        function.register_for = (actions, options)
-        return function
-    return decorator
+        callback_name = 'on_' + msg.action
+        if not hasattr(self, callback_name):
+            return succeed(None)
+        callback = getattr(self, callback_name)
+        if msg.outgoing and not getattr(callback, 'outgoing', False):
+            return succeed(None)
+        deferred = maybeDeferred(callback, msg)
+        deferred.addErrback(log.err, 'Error in plugin %s responding to %s' %
+                            (self.__class__.name, msg))
+        return deferred
 
 
 def load_plugin(name):

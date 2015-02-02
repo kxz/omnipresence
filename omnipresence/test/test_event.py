@@ -9,7 +9,7 @@ from twisted.trial import unittest
 
 from ..hostmask import Hostmask
 from ..message import Message
-from ..plugin import EventPlugin, on
+from ..plugin import EventPlugin
 from .helpers import AbstractConnectionTestCase
 
 
@@ -31,11 +31,10 @@ class NoticingPlugin(EventPlugin):
         self.bot = bot
         self.seen = []
 
-    def callback(self, msg):
+    def on_privmsg(self, msg):
         self.seen.append(msg)
 
-NoticingPlugin.register(NoticingPlugin.callback,
-                        'privmsg', 'command', 'join', 'quit')
+    on_command = on_join = on_quit = on_privmsg
 
 
 class EventDelegationTestCase(AbstractConnectionTestCase):
@@ -126,21 +125,19 @@ class OrderingPluginOne(EventPlugin):
     def __init__(self, bot):
         self.quote = 'dolor sit amet'
 
-    def callback(self, msg):
+    def on_privmsg(self, msg):
         msg.connection.msg(msg.venue, self.quote)
-
-OrderingPluginOne.register(OrderingPluginOne.callback, 'privmsg')
 
 
 class OrderingPluginTwo(EventPlugin):
     def __init__(self, bot):
         self.seen = []
 
-    def callback(self, msg):
+    def on_privmsg(self, msg):
         self.seen.append(msg)
+    on_privmsg.outgoing = True
 
-OrderingPluginTwo.register(OrderingPluginTwo.callback,
-                           'privmsg', 'command', outgoing=True)
+    on_command = on_privmsg
 
 
 class EventOrderingTestCase(AbstractConnectionTestCase):
@@ -182,11 +179,11 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
 #
 
 class OutgoingPlugin(NoticingPlugin):
-    pass
+    def on_privmsg(self, msg):
+        super(OutgoingPlugin, self).on_privmsg(msg)
+    on_privmsg.outgoing = True
 
-OutgoingPlugin._callbacks.clear()
-OutgoingPlugin.register(OutgoingPlugin.callback,
-                        'privmsg', 'command', 'join', 'quit', outgoing=True)
+    on_command = on_join = on_quit = on_privmsg
 
 
 class OutgoingEventTestCase(AbstractConnectionTestCase):
@@ -250,7 +247,7 @@ class DeferredPlugin(EventPlugin):
     def __init__(self, bot):
         self.seen = []
 
-    def callback(self, msg):
+    def on_privmsg(self, msg):
         deferred = Deferred()
         deferred.addCallback(self.seen.append)
         callLater = msg.connection.reactor.callLater
@@ -259,8 +256,6 @@ class DeferredPlugin(EventPlugin):
         else:
             callLater(1, deferred.callback, msg)
         return deferred
-
-DeferredPlugin.register(DeferredPlugin.callback, 'privmsg')
 
 
 class DeferredCallbackTestCase(AbstractConnectionTestCase):

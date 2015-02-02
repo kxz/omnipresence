@@ -17,7 +17,7 @@ def reflow(string):
 
 
 class Default(EventPlugin):
-    def command(self, msg):
+    def on_command(self, msg):
         args = msg.content.split(None, 1)
         # FIXME:  This definitely shouldn't be implemented here.
         keywords = {}
@@ -43,12 +43,9 @@ class Default(EventPlugin):
         return 'There is no command with the keyword \x02{}\x02.'.format(
             args[0])
 
-    def cmdhelp(self, msg):
+    def on_cmdhelp(self, msg):
         return reflow("""\
             \x02{}\x02 [\x1Fkeyword\x1F] - List available command
             keywords, or, given a keyword, get detailed help on a
             specific command.
         """.format(msg.subaction))
-
-Default.register(Default.command, 'command')
-Default.register(Default.cmdhelp, 'cmdhelp')
