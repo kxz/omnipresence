@@ -95,8 +95,7 @@ class NameTrackingTestCase(AbstractConnectionTestCase):
 
 
 class PingTimeoutTestCase(AbstractConnectionTestCase):
-    def setUp(self):
-        super(PingTimeoutTestCase, self).setUp(sign_on=False)
+    sign_on = False
 
     def test_signon_timeout(self):
         self.assertFalse(self.transport.disconnecting)

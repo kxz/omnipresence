@@ -2,7 +2,6 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from collections import defaultdict
 import gc
 
 from twisted.internet.task import Clock
@@ -57,13 +56,14 @@ class DummyConnection(object):
 
 class AbstractConnectionTestCase(unittest.TestCase):
     other_user = Hostmask('other', 'user', 'host')
+    sign_on = True
 
-    def setUp(self, sign_on=True):
+    def setUp(self):
         self.transport = AbortableStringTransport()
         self.connection = Connection(DummyFactory())
         self.connection.reactor = Clock()
         self.connection.makeConnection(self.transport)
-        if sign_on:
+        if self.sign_on:
             # The heartbeat is started here, not in signedOn().
             self.connection.irc_RPL_WELCOME('remote.test', [])
 

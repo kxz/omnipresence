@@ -3,7 +3,6 @@
 
 
 from twisted.internet.defer import Deferred
-from twisted.trial import unittest
 
 from ..message import Message, collapse
 from ..plugin import EventPlugin, UserVisibleError

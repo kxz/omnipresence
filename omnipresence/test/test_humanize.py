@@ -2,7 +2,7 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from twisted.trial import unittest
 

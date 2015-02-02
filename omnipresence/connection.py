@@ -5,12 +5,13 @@
 import re
 
 import sqlobject
-from twisted.internet import defer, protocol, reactor, task, threads
+from twisted.internet import reactor
 from twisted.internet.defer import DeferredList
-from twisted.python import failure, log
-from twisted.words.protocols.irc import IRCClient, CHANNEL_PREFIXES
+from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.python import log
+from twisted.words.protocols.irc import IRCClient
 
-from . import __version__, __source__, mapping, plugins, ircutil
+from . import __version__, __source__, mapping
 from .message import Message, ReplyBuffer
 from .plugin import UserVisibleError
 
@@ -467,7 +468,7 @@ class Connection(IRCClient):
         return deferred
 
 
-class ConnectionFactory(protocol.ReconnectingClientFactory):
+class ConnectionFactory(ReconnectingClientFactory):
     """Creates :py:class:`.Connection` instances."""
     protocol = Connection
 

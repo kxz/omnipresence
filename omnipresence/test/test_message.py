@@ -3,7 +3,6 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-import re
 from textwrap import dedent
 
 from twisted.trial import unittest

@@ -19,12 +19,9 @@
 #   instantiated exactly once.
 
 
-from collections import defaultdict
 import importlib
-import types
 
 from twisted.internet.defer import maybeDeferred, succeed
-from twisted.python import log
 
 
 #: The root package name to use for relative plugin module searches.
