@@ -3,6 +3,7 @@
 
 
 from collections import namedtuple
+from itertools import chain
 
 from ..hostmask import Hostmask
 from .formatting import remove_formatting, unclosed_formatting
@@ -194,17 +195,23 @@ def _chunk(string, encoding='utf-8', max_length=256):
 
 def chunk(string, encoding='utf-8', max_length=256):
     """Return an iterator that progressively yields chunks of at most
-    *max_length* bytes from *string*.  When possible, breaks are made at
-    whitespace, instead of in the middle of words.  If *string* is a
-    Unicode string, the given *encoding* is used to convert it to a byte
-    string and calculate the chunk length.  Any mIRC-style formatting
-    codes present are repeated at the beginning of each subsequent chunk
-    until they are overridden.
+    *max_length* bytes from *string*.  Breaks are always made on
+    newlines; otherwise, breaks are made at whitespace instead of in the
+    middle of words when possible.  If *string* is a Unicode string, the
+    given *encoding* is used to convert it to a byte string and
+    calculate the chunk length.
+
+    Any mIRC-style formatting codes present in *string* are repeated at
+    the beginning of each subsequent chunk until they are overridden or
+    a newline is encountered.
 
     Omnipresence uses this function internally to perform message
     buffering.  Plugin authors should not need to call this function
-    themselves."""
+    themselves.
+    """
     if not isinstance(string, basestring):
         raise TypeError('cannot chunk non-string of type ' +
                         type(string).__name__)
-    return _chunk(string, encoding=encoding, max_length=max_length)
+    return chain.from_iterable(
+        _chunk(line, encoding=encoding, max_length=max_length)
+        for line in string.split('\n'))

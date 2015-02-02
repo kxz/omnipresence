@@ -4,6 +4,7 @@
 
 
 import re
+from textwrap import dedent
 
 from twisted.trial import unittest
 
@@ -364,4 +365,17 @@ class BufferingTestCase(unittest.TestCase):
             montes lobortis. Lor feugiatue nullum. Uamconum andrero
             facinci vulluptatum. Nisim netus fames esting vendipissit
             commolum facidunt."""))
+        self.assertRaises(StopIteration, next, buf)
+
+    def test_newline(self):
+        message = dedent("""\
+            Lor feugiatue nullum.
+            Nisim netus fames esting vendipissit commolum facidunt.
+            Uamconum andrero facinci vulluptatum.
+            """)
+        buf = chunk(message, max_length=40)
+        self.assertEqual(next(buf), 'Lor feugiatue nullum.')
+        self.assertEqual(next(buf), 'Nisim netus fames esting vendipissit')
+        self.assertEqual(next(buf), 'commolum facidunt.')
+        self.assertEqual(next(buf), 'Uamconum andrero facinci vulluptatum.')
         self.assertRaises(StopIteration, next, buf)
