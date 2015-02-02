@@ -72,6 +72,20 @@ distribution, see :doc:`builtins`.
                log.msg('%s message: %r' % (direction, message))
            on_privmsg.outgoing = True
 
+   .. note:: Since most servers echo joins, parts, and quits back to
+      clients, callbacks registered for these actions will always fire
+      once on bot actions, twice if enabled for outgoing messages.
+      You may wish to compare the message's :py:attr:`~.Message.actor`
+      and the connection's :py:attr:`~.Connection.nickname` attributes
+      to distinguish bot actions in these cases::
+
+          class Default(EventPlugin):
+              def on_join(self, message):
+                  if message.actor.matches(message.connection.nickname):
+                      the_bot_joined()
+                  else:
+                      someone_else_joined()
+
 
 Command plugins
 ===============
