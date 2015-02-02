@@ -215,3 +215,11 @@ def chunk(string, encoding='utf-8', max_length=256):
     return chain.from_iterable(
         _chunk(line, encoding=encoding, max_length=max_length)
         for line in string.split('\n'))
+
+
+def collapse(string):
+    """Return *string* with any runs of whitespace collapsed to single
+    spaces, and any leading or trailing whitespace removed."""
+    # Don't need to call strip() because parameterless split() already
+    # removes any leading and trailing whitespace.
+    return ' '.join(string.split())

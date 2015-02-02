@@ -4,16 +4,8 @@
 
 import re
 
+from ...message import collapse
 from ...plugin import EventPlugin
-
-
-WHITESPACE = re.compile('\s+')
-
-
-def reflow(string):
-    """Return *string* with runs of whitespace replaced by single spaces
-    and any leading or trailing whitespace stripped."""
-    return WHITESPACE.sub(' ', string).strip()
 
 
 class Default(EventPlugin):
@@ -25,7 +17,7 @@ class Default(EventPlugin):
             for keyword in k:
                 keywords[keyword] = p
         if not args:
-            return reflow("""\
+            return collapse("""\
                 Available commands: \x02{keywords}\x02. For further help,
                 use \x02{help}\x02 \x1Fkeyword\x1F. To redirect a command
                 reply to another user, use \x1Fcommand\x1F \x02>\x02
@@ -44,8 +36,8 @@ class Default(EventPlugin):
             args[0])
 
     def on_cmdhelp(self, msg):
-        return reflow("""\
+        return collapse("""\
             \x02{}\x02 [\x1Fkeyword\x1F] - List available command
             keywords, or, given a keyword, get detailed help on a
             specific command.
-        """.format(msg.subaction))
+            """.format(msg.subaction))

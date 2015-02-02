@@ -9,7 +9,7 @@ from textwrap import dedent
 from twisted.trial import unittest
 
 from ..hostmask import Hostmask
-from ..message import Message, chunk
+from ..message import Message, chunk, collapse
 from .helpers import DummyConnection
 
 
@@ -240,11 +240,6 @@ class ExtractionTestCase(unittest.TestCase):
 
 
 class BufferingTestCase(unittest.TestCase):
-    def collapse(self, s):
-        """Return *s* with runs of whitespace collapsed to a single
-        space, and any preceding or trailing whitespace removed."""
-        return re.sub(r'\s+', ' ', s).strip()
-
     def test_type(self):
         self.assertRaises(TypeError, chunk, 42)
 
@@ -252,7 +247,79 @@ class BufferingTestCase(unittest.TestCase):
         self.assertEqual(list(chunk('')), [])
 
     def test_str(self):
-        message = self.collapse("""Esed volobore fermentum eleifend
+        message = collapse("""Esed volobore fermentum eleifend curae non
+            inciduipit consequam deliquatue, tisi vulluptatet tristique.
+            Odolorperos litora leo adignim feugiatue; dipiscipitismodi
+            hendip iniam estrudismod nonsequam. Odolupt faciduisit
+            litora, utetumm vullandigna henis tismolortis faciduisi
+            odipsumsan, adit adio curae. Msandre psusto nonummy
+            susciduipit adionsequat dolent faccummy alisis molore; veros
+            sustrud alis hendipisim suscilla vitae. Taciti nonum aliscil
+            facilisse cor; mollis summy modipsustie blaorismod dolortis.
+            Enibh facincilitismod inim, pratisl alisi, urna eum, elesequ
+            tet inceptosismoloreet sequis suscipit. Sumsandre ea amcommo
+            ipsustrud auguero esse consequ. Illam quat ullutpat ametumm
+            eugait, magniamet erostin iuscipit henit eriure irilla
+            velestionse montes lobortis. Lor feugiatue nullum. Uamconum
+            andrero facinci vulluptatum. Nisim netus fames esting
+            vendipissit commolum facidunt.""")
+        buf = chunk(message)
+        self.assertEqual(next(buf), collapse("""Esed volobore fermentum
+            eleifend curae non inciduipit consequam deliquatue, tisi
+            vulluptatet tristique. Odolorperos litora leo adignim
+            feugiatue; dipiscipitismodi hendip iniam estrudismod
+            nonsequam. Odolupt faciduisit litora, utetumm vullandigna
+            henis"""))
+        self.assertEqual(next(buf), collapse("""tismolortis faciduisi
+            odipsumsan, adit adio curae. Msandre psusto nonummy
+            susciduipit adionsequat dolent faccummy alisis molore; veros
+            sustrud alis hendipisim suscilla vitae. Taciti nonum aliscil
+            facilisse cor; mollis summy modipsustie blaorismod"""))
+        self.assertEqual(next(buf), collapse("""dolortis. Enibh
+            facincilitismod inim, pratisl alisi, urna eum, elesequ tet
+            inceptosismoloreet sequis suscipit. Sumsandre ea amcommo
+            ipsustrud auguero esse consequ. Illam quat ullutpat ametumm
+            eugait, magniamet erostin iuscipit henit eriure irilla"""))
+        self.assertEqual(next(buf), collapse("""velestionse montes
+            lobortis. Lor feugiatue nullum. Uamconum andrero facinci
+            vulluptatum. Nisim netus fames esting vendipissit commolum
+            facidunt."""))
+        self.assertRaises(StopIteration, next, buf)
+
+    def test_unicode(self):
+        message = collapse(u"""
+            《施氏食狮史》
+            石室诗士施氏，嗜狮，誓食十狮。
+            氏时时适市视狮。
+            十时，适十狮适市。
+            是时，适施氏适市。
+            氏视是十狮，恃矢势，使是十狮逝世。
+            氏拾是十狮尸，适石室。
+            石室湿，氏使侍拭石室。
+            石室拭，氏始试食是十狮。
+            食时，始识是十狮尸，实十石狮尸。
+            试释是事。
+            """)
+        buf = chunk(message)
+        self.assertEqual(next(buf), collapse(u"""
+            《施氏食狮史》
+            石室诗士施氏，嗜狮，誓食十狮。
+            氏时时适市视狮。
+            十时，适十狮适市。
+            是时，适施氏适市。
+            氏视是十狮，恃矢势，使是十狮逝世。
+            氏拾是十狮尸，适石室。
+            """).encode('utf-8'))
+        self.assertEqual(next(buf), collapse(u"""
+            石室湿，氏使侍拭石室。
+            石室拭，氏始试食是十狮。
+            食时，始识是十狮尸，实十石狮尸。
+            试释是事。
+            """).encode('utf-8'))
+        self.assertRaises(StopIteration, next, buf)
+
+    def test_formatting(self):
+        message = collapse("""\x0314Esed volobore fermentum eleifend
             curae non inciduipit consequam deliquatue, tisi vulluptatet
             tristique. Odolorperos litora leo adignim feugiatue;
             dipiscipitismodi hendip iniam estrudismod nonsequam. Odolupt
@@ -270,101 +337,27 @@ class BufferingTestCase(unittest.TestCase):
             vulluptatum. Nisim netus fames esting vendipissit commolum
             facidunt.""")
         buf = chunk(message)
-        self.assertEqual(next(buf), self.collapse("""Esed volobore
+        self.assertEqual(next(buf), collapse("""\x0314Esed volobore
             fermentum eleifend curae non inciduipit consequam
             deliquatue, tisi vulluptatet tristique. Odolorperos litora
             leo adignim feugiatue; dipiscipitismodi hendip iniam
             estrudismod nonsequam. Odolupt faciduisit litora, utetumm
             vullandigna henis"""))
-        self.assertEqual(next(buf), self.collapse("""tismolortis
+        self.assertEqual(next(buf), collapse("""\x0314tismolortis
             faciduisi odipsumsan, adit adio curae. Msandre psusto
             nonummy susciduipit adionsequat dolent faccummy alisis
             molore; veros sustrud alis hendipisim suscilla vitae. Taciti
             nonum aliscil facilisse cor; mollis summy modipsustie
             blaorismod"""))
-        self.assertEqual(next(buf), self.collapse("""dolortis. Enibh
+        self.assertEqual(next(buf), collapse("""\x0314dolortis. Enibh
             facincilitismod inim, pratisl alisi, urna eum, elesequ tet
             inceptosismoloreet sequis suscipit. Sumsandre ea amcommo
             ipsustrud auguero esse consequ. Illam quat ullutpat ametumm
             eugait, magniamet erostin iuscipit henit eriure irilla"""))
-        self.assertEqual(next(buf), self.collapse("""velestionse montes
+        self.assertEqual(next(buf), collapse("""\x0314velestionse montes
             lobortis. Lor feugiatue nullum. Uamconum andrero facinci
             vulluptatum. Nisim netus fames esting vendipissit commolum
             facidunt."""))
-        self.assertRaises(StopIteration, next, buf)
-
-    def test_unicode(self):
-        message = self.collapse(u"""
-            《施氏食狮史》
-            石室诗士施氏，嗜狮，誓食十狮。
-            氏时时适市视狮。
-            十时，适十狮适市。
-            是时，适施氏适市。
-            氏视是十狮，恃矢势，使是十狮逝世。
-            氏拾是十狮尸，适石室。
-            石室湿，氏使侍拭石室。
-            石室拭，氏始试食是十狮。
-            食时，始识是十狮尸，实十石狮尸。
-            试释是事。
-            """)
-        buf = chunk(message)
-        self.assertEqual(next(buf), self.collapse(u"""
-            《施氏食狮史》
-            石室诗士施氏，嗜狮，誓食十狮。
-            氏时时适市视狮。
-            十时，适十狮适市。
-            是时，适施氏适市。
-            氏视是十狮，恃矢势，使是十狮逝世。
-            氏拾是十狮尸，适石室。
-            """).encode('utf-8'))
-        self.assertEqual(next(buf), self.collapse(u"""
-            石室湿，氏使侍拭石室。
-            石室拭，氏始试食是十狮。
-            食时，始识是十狮尸，实十石狮尸。
-            试释是事。
-            """).encode('utf-8'))
-        self.assertRaises(StopIteration, next, buf)
-
-    def test_formatting(self):
-        message = self.collapse("""\x0314Esed volobore fermentum
-            eleifend curae non inciduipit consequam deliquatue, tisi
-            vulluptatet tristique. Odolorperos litora leo adignim
-            feugiatue; dipiscipitismodi hendip iniam estrudismod
-            nonsequam. Odolupt faciduisit litora, utetumm vullandigna
-            henis tismolortis faciduisi odipsumsan, adit adio curae.
-            Msandre psusto nonummy susciduipit adionsequat dolent
-            faccummy alisis molore; veros sustrud alis hendipisim
-            suscilla vitae. Taciti nonum aliscil facilisse cor; mollis
-            summy modipsustie blaorismod dolortis. Enibh facincilitismod
-            inim, pratisl alisi, urna eum, elesequ tet
-            inceptosismoloreet sequis suscipit. Sumsandre ea amcommo
-            ipsustrud auguero esse consequ. Illam quat ullutpat ametumm
-            eugait, magniamet erostin iuscipit henit eriure irilla
-            velestionse montes lobortis. Lor feugiatue nullum. Uamconum
-            andrero facinci vulluptatum. Nisim netus fames esting
-            vendipissit commolum facidunt.""")
-        buf = chunk(message)
-        self.assertEqual(next(buf), self.collapse("""\x0314Esed volobore
-            fermentum eleifend curae non inciduipit consequam
-            deliquatue, tisi vulluptatet tristique. Odolorperos litora
-            leo adignim feugiatue; dipiscipitismodi hendip iniam
-            estrudismod nonsequam. Odolupt faciduisit litora, utetumm
-            vullandigna henis"""))
-        self.assertEqual(next(buf), self.collapse("""\x0314tismolortis
-            faciduisi odipsumsan, adit adio curae. Msandre psusto
-            nonummy susciduipit adionsequat dolent faccummy alisis
-            molore; veros sustrud alis hendipisim suscilla vitae. Taciti
-            nonum aliscil facilisse cor; mollis summy modipsustie
-            blaorismod"""))
-        self.assertEqual(next(buf), self.collapse("""\x0314dolortis. Enibh
-            facincilitismod inim, pratisl alisi, urna eum, elesequ tet
-            inceptosismoloreet sequis suscipit. Sumsandre ea amcommo
-            ipsustrud auguero esse consequ. Illam quat ullutpat ametumm
-            eugait, magniamet erostin iuscipit henit eriure irilla"""))
-        self.assertEqual(next(buf), self.collapse("""\x0314velestionse
-            montes lobortis. Lor feugiatue nullum. Uamconum andrero
-            facinci vulluptatum. Nisim netus fames esting vendipissit
-            commolum facidunt."""))
         self.assertRaises(StopIteration, next, buf)
 
     def test_newline(self):
