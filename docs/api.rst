@@ -106,17 +106,17 @@ IRC messages (also see :rfc:`1459#section-4`):
    whether a message was sent to a single user or a channel.
    :py:attr:`~.Message.content` is the text of the message.
 
+.. describe:: quit
+
+   Represents a client quit from the IRC network.
+   :py:attr:`~.Message.content` is the quit message.
+
 .. describe:: topic
 
    Represents a topic change.
    :py:attr:`~.Message.venue` is the affected channel.
    :py:attr:`~.Message.content` is the new topic, or an empty string if
    the topic is being unset.
-
-.. describe:: quit
-
-   Represents a client quit from the IRC network.
-   :py:attr:`~.Message.content` is the quit message.
 
 .. describe:: unknown
 

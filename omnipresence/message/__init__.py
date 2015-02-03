@@ -59,8 +59,7 @@ class Message(namedtuple('Message',
 
        If this message was created using :py:meth:`.Message.from_raw`,
        the original raw IRC message string passed to that function.
-       Otherwise, :py:data:`None`.  Note that this behaves slightly
-       differently from the :py:meth:`~.to_raw` method.
+       Otherwise, :py:data:`None`.
     """
 
     def __new__(cls,
