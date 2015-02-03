@@ -10,7 +10,7 @@ Core IRC client
 Messages
 ========
 
-.. autoclass:: omnipresence.message.Message(connection, actor, action, venue=None, target=None, subaction=None, content=None)
+.. autoclass:: omnipresence.message.Message(connection, outgoing, action, actor=None, venue=None, target=None, subaction=None, content=None)
 
    .. note:: All string values are byte strings, not Unicode strings,
       and therefore must be appropriately decoded when necessary.
@@ -25,10 +25,6 @@ Messages
    constructor, or by parsing a raw IRC message string:
 
    .. automethod:: omnipresence.message.Message.from_raw
-
-   Most message objects can also be converted back to raw strings:
-
-   .. automethod:: omnipresence.message.Message.to_raw
 
    :py:class:`~.Message` is a :py:func:`collections.namedtuple` type,
    and thus its instances are immutable.
@@ -109,6 +105,13 @@ IRC messages (also see :rfc:`1459#section-4`):
    recipient; :py:attr:`~.Message.private` can also be used to determine
    whether a message was sent to a single user or a channel.
    :py:attr:`~.Message.content` is the text of the message.
+
+.. describe:: topic
+
+   Represents a topic change.
+   :py:attr:`~.Message.venue` is the affected channel.
+   :py:attr:`~.Message.content` is the new topic, or an empty string if
+   the topic is being unset.
 
 .. describe:: quit
 

@@ -10,7 +10,10 @@ from .formatting import remove_formatting, unclosed_formatting
 from .parser import parse as parse_raw
 
 
-ARTIFICIAL_ACTIONS = set(['command', 'cmdhelp'])
+MESSAGE_TYPES = set([
+    'action', 'ctcpquery', 'ctcpreply', 'join', 'kick', 'mode', 'nick',
+    'notice', 'part', 'privmsg', 'quit', 'topic',
+    'command', 'cmdhelp', 'unknown'])
 
 
 #
@@ -62,35 +65,25 @@ class Message(namedtuple('Message',
 
     def __new__(cls,
                 connection, outgoing, action, actor=None,
-                venue=None, target=None, subaction=None, content=None):
+                venue=None, target=None, subaction=None, content=None,
+                raw=None):
+        if action not in MESSAGE_TYPES:
+            raise ValueError('cannot create message of unknown type '
+                             '"{}"'.format(action))
         if isinstance(actor, str):
             actor = Hostmask.from_string(actor)
         return super(Message, cls).__new__(
             cls, connection, outgoing, action, actor,
-            venue, target, subaction, content,
-            raw=None)
+            venue, target, subaction, content, raw)
 
     @classmethod
-    def from_raw(cls, connection, outgoing, raw):
+    def from_raw(cls, connection, outgoing, raw, **kwargs):
         """Parse a raw IRC message string and return a corresponding
-        :py:class:`~.Message` object."""
-        return super(Message, cls).__new__(
-            cls, connection, outgoing, raw=raw, **parse_raw(raw))
-
-    def to_raw(self):
-        """Return this message as a raw IRC message string.  If this
-        object was created using :py:meth:`.Message.from_raw`, the raw
-        string that was originally provided is returned; otherwise, one
-        is constructed from this object's fields.  This method raises
-        :py:exc:`~exceptions.ValueError` for :ref:`synthetic messages
-        <synthetic-message-types>`.
-        """
-        if self.raw is not None:
-            return self.raw
-        if self.action in ARTIFICIAL_ACTIONS:
-            raise ValueError('artificial message of type "{}" has no '
-                             'raw IRC representation'.format(self.action))
-        raise NotImplementedError
+        :py:class:`~.Message` object.  Any keyword arguments override
+        field values returned by the parser."""
+        parser_kwargs = parse_raw(raw)
+        parser_kwargs.update(kwargs)
+        return cls.__new__(cls, connection, outgoing, raw=raw, **parser_kwargs)
 
     @property
     def bot(self):

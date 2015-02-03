@@ -8,8 +8,6 @@ from ..hostmask import Hostmask
 
 
 class RawMessageParser(object):
-    _optionals = ['actor', 'venue', 'target', 'subaction', 'content']
-
     def __init__(self):
         self.functions = {}
 
@@ -27,8 +25,7 @@ class RawMessageParser(object):
         in the form of keyword arguments for the :py:meth:`~.Message`
         constructor (sans *connection*)."""
         prefix, command, params = parsemsg(raw)
-        kwargs = {field: None for field in self._optionals}
-        kwargs['actor'] = Hostmask.from_string(prefix)
+        kwargs = {'actor': Hostmask.from_string(prefix)}
         if command in self.functions:
             kwargs['action'] = command.lower()
             kwargs.update(self.functions[command](command, params))
@@ -42,7 +39,7 @@ class RawMessageParser(object):
 
 parser = RawMessageParser()
 
-@parser.command('QUIT', 'PING', 'NICK')
+@parser.command('QUIT', 'NICK')
 def parse_undirected_message(command, params):
     return {'content': params[0]}
 

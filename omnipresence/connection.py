@@ -462,8 +462,7 @@ class Connection(IRCClient):
     # Overrides IRCClient.sendLine.
     def sendLine(self, line):
         deferred = self.respond_to(Message.from_raw(
-            # Fake a prefix for the message parser's convenience.
-            self, True, ':{} {}'.format(self.nickname, line)))
+            self, True, line, actor=self.nickname))
         IRCClient.sendLine(self, line)
         return deferred
 

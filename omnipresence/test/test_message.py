@@ -12,13 +12,18 @@ from ..message import Message, ReplyBuffer, collapse
 from .helpers import DummyConnection
 
 
+class MessageTestCase(unittest.TestCase):
+    def test_invalid_action(self):
+        self.assertRaises(ValueError, Message, None, False, 'foo')
+
+
 class RawParsingTestCase(unittest.TestCase):
     def setUp(self):
         self.connection = DummyConnection()
 
-    def _from_raw(self, raw):
+    def _from_raw(self, raw, **kwargs):
         msg = Message.from_raw(
-            self.connection, False, ':nick!user@host ' + raw)
+            self.connection, False, ':nick!user@host ' + raw, **kwargs)
         self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
         return msg
 
@@ -29,15 +34,6 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
         self.assertEqual(msg.content, 'lorem ipsum')
-        self.assertFalse(msg.private)
-
-    def test_ping(self):
-        msg = self._from_raw('PING :token')
-        self.assertEqual(msg.action, 'ping')
-        self.assertIsNone(msg.venue)
-        self.assertIsNone(msg.target)
-        self.assertIsNone(msg.subaction)
-        self.assertEqual(msg.content, 'token')
         self.assertFalse(msg.private)
 
     def test_nick(self):
@@ -183,6 +179,15 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertEqual(msg.subaction, 'NONSENSE')
         self.assertEqual(msg.content, 'a b c :foo bar')
         self.assertFalse(msg.private)
+
+    def test_override(self):
+        msg = self._from_raw('PRIVMSG #foo :lorem ipsum', venue='foo')
+        self.assertEqual(msg.action, 'privmsg')
+        self.assertEqual(msg.venue, 'foo')
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertEqual(msg.content, 'lorem ipsum')
+        self.assertTrue(msg.private)
 
 
 class ExtractionTestCase(unittest.TestCase):
