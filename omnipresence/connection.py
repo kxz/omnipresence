@@ -6,7 +6,7 @@ import re
 
 import sqlobject
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList
+from twisted.internet.defer import DeferredList, maybeDeferred
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.python import log
 from twisted.words.protocols.irc import IRCClient
@@ -369,7 +369,7 @@ class Connection(IRCClient):
                         continue
                     plugins.add(plugin)
             for plugin in plugins:
-                deferred = plugin.respond_to(msg)
+                deferred = maybeDeferred(plugin.respond_to, msg)
                 if msg.action == 'command':
                     deferred.addCallback(self.reply, msg)
                     deferred.addErrback(self.reply_error, msg)
