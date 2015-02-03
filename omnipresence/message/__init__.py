@@ -158,74 +158,54 @@ def truncate_unicode(string, byte_limit, encoding='utf-8'):
     return encoded.decode(encoding, 'ignore').encode(encoding)
 
 
-class ReplyBuffer(object):
-    """An iterator that progressively yields *string* in chunks of at
-    most *max_length* bytes.  Breaks are always made on newlines;
-    otherwise, breaks are made at whitespace instead of in the middle of
-    words when possible.  If *string* is a Unicode string, the given
-    *encoding* is used to convert it to a byte string and calculate the
-    chunk length.
+def chunk(string, encoding='utf-8', max_length=256):
+    """Return a list containing chunks of at most *max_length* bytes
+    from *string*.  Breaks are made at whitespace instead of in the
+    middle of words when possible.  If *string* is a Unicode string,
+    it is converted to a byte string using *encoding* before calculating
+    the byte length.
 
     Any mIRC-style formatting codes present in *string* are repeated at
     the beginning of each subsequent chunk until they are overridden or
     a newline is encountered.
 
-    Omnipresence uses this class internally to perform command reply
+    Omnipresence uses this function internally to perform command reply
     buffering, as the name implies.  Plugin authors should not need to
-    instantiate it themselves.
+    call it themselves.
     """
-
-    def __init__(self, string, encoding='utf-8', max_length=256):
-        if not isinstance(string, basestring):
-            raise TypeError('cannot buffer non-string of type ' +
-                            type(string).__name__)
-        #: The text that has not yet been yielded by this iterator.
-        self.remaining = filter(None, string.split('\n'))
-        #: The encoding used to convert *string* to a byte string if it
-        #: is a Unicode string.
-        self.encoding = encoding
-        #: The maximum length of a chunk, in bytes.
-        self.max_length = max_length
-
-    def __iter__(self):
-        return self
-
-    def next(self):
-        if not self.remaining:
-            raise StopIteration
-        first_line = self.remaining[0]
-        if isinstance(first_line, unicode):
+    if not isinstance(string, basestring):
+        raise TypeError('expected basestring, not ' + type(string).__name__)
+    chunks = []
+    remaining = string
+    while remaining:
+        if isinstance(remaining, unicode):
             # See if the encoded string is longer than the maximum
             # reply length by truncating it and then comparing it to
             # the original.  If so, place the rest in the buffer.
-            truncated = truncate_unicode(
-                first_line, self.max_length, self.encoding)
-            if truncated.decode(self.encoding) == first_line:
-                first_line = ''
+            truncated = truncate_unicode(remaining, max_length, encoding)
+            if truncated.decode(encoding) == remaining:
+                remaining = ''
             else:
                 # Try and find whitespace to split the string on.
                 truncated = truncated.rsplit(None, 1)[0]
-                start = len(truncated.decode(self.encoding))
-                first_line = first_line[start:]
+                remaining = remaining[len(truncated.decode(encoding)):]
         else:
             # We don't have to be so careful about length comparisons
             # with byte strings; just use slice notation.
-            if len(first_line) <= self.max_length:
-                truncated = first_line
-                first_line = ''
+            if len(remaining) <= max_length:
+                truncated = remaining
+                remaining = ''
             else:
-                truncated = first_line[:self.max_length].rsplit(None, 1)[0]
-                first_line = first_line[len(truncated):]
+                truncated = remaining[:max_length].rsplit(None, 1)[0]
+                remaining = remaining[len(truncated):]
         truncated = truncated.strip()
-        first_line = (''.join(unclosed_formatting(truncated)) +
-                      first_line.strip())
+        remaining = ''.join(unclosed_formatting(truncated)) + remaining.strip()
         # If all that's left are formatting codes, there's basically no
         # real content remaining in the string.
-        if remove_formatting(first_line):
-            self.remaining[0] = first_line
-        else:
-            self.remaining.pop(0)
-        return truncated
+        if not remove_formatting(remaining):
+            remaining = ''
+        chunks.append(truncated)
+    return chunks
 
 
 #
