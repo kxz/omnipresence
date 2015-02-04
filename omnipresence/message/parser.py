@@ -24,16 +24,26 @@ class RawMessageParser(object):
         """Return a dict representation of a raw IRC message string,
         in the form of keyword arguments for the :py:meth:`~.Message`
         constructor (sans *connection*)."""
-        prefix, command, params = parsemsg(raw)
+        try:
+            prefix, command, params = parsemsg(raw)
+        except IndexError:
+            return {'action': 'unknown'}
         kwargs = {'actor': Hostmask.from_string(prefix)}
         if command in self.functions:
-            kwargs['action'] = command.lower()
-            kwargs.update(self.functions[command](command, params))
-        else:
+            try:
+                kwargs['action'] = command.lower()
+                kwargs.update(self.functions[command](command, params))
+            except IndexError:
+                del kwargs['action']
+        if 'action' not in kwargs:
             kwargs['action'] = 'unknown'
             kwargs['subaction'] = command
             splits = 2 if raw.startswith(':') else 1
-            kwargs['content'] = raw.split(None, splits)[splits]
+            params = raw.split(None, splits)
+            if len(params) > splits:
+                kwargs['content'] = params[splits]
+            else:
+                kwargs['content'] = ''
         return kwargs
 
 

@@ -120,7 +120,8 @@ IRC messages (also see :rfc:`1459#section-4`):
 
 .. describe:: unknown
 
-   Represents a message not of one of the above types.
+   Represents a message not of one of the above types, or that could not
+   be correctly parsed.
    :py:attr:`~.Message.subaction` is the IRC command name or numeric.
    :py:attr:`~.Message.content` is a string containing any trailing
    arguments.

@@ -24,7 +24,8 @@ class RawParsingTestCase(unittest.TestCase):
     def _from_raw(self, raw, **kwargs):
         msg = Message.from_raw(
             self.connection, False, ':nick!user@host ' + raw, **kwargs)
-        self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
+        if raw:
+            self.assertEqual(msg.actor, Hostmask('nick', 'user', 'host'))
         return msg
 
     def test_quit(self):
@@ -178,6 +179,33 @@ class RawParsingTestCase(unittest.TestCase):
         self.assertIsNone(msg.target)
         self.assertEqual(msg.subaction, 'NONSENSE')
         self.assertEqual(msg.content, 'a b c :foo bar')
+        self.assertFalse(msg.private)
+
+    def test_empty(self):
+        msg = self._from_raw('')
+        self.assertEqual(msg.action, 'unknown')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertIsNone(msg.subaction)
+        self.assertIsNone(msg.content)
+        self.assertFalse(msg.private)
+
+    def test_malformed(self):
+        msg = self._from_raw('PRIVMSG')
+        self.assertEqual(msg.action, 'unknown')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertEqual(msg.subaction, 'PRIVMSG')
+        self.assertEqual(msg.content, '')
+        self.assertFalse(msg.private)
+
+    def test_malformed_with_params(self):
+        msg = self._from_raw('KICK not :enough arguments')
+        self.assertEqual(msg.action, 'unknown')
+        self.assertIsNone(msg.venue)
+        self.assertIsNone(msg.target)
+        self.assertEqual(msg.subaction, 'KICK')
+        self.assertEqual(msg.content, 'not :enough arguments')
         self.assertFalse(msg.private)
 
     def test_override(self):

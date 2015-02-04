@@ -43,7 +43,9 @@ class Message(namedtuple('Message',
     .. py:attribute:: actor
 
        A :py:class:`~.Hostmask` corresponding to the message prefix,
-       indicating the message's true origin.
+       indicating the message's true origin.  In some cases, ``unknown``
+       messages will set this attribute to :py:data:`None` if a prefix
+       could not be parsed.
 
     .. py:attribute:: venue
                       target
