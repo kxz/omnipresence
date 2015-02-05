@@ -179,6 +179,7 @@ class Connection(IRCClient):
         """Called when the connection to the IRC server has been lost
         or disconnected."""
         log.msg('Disconnected from server')
+        self.respond_to(Message(self, False, 'disconnected'))
         IRCClient.connectionLost(self, reason)
 
     # Callbacks inherited from IRCClient
@@ -227,6 +228,7 @@ class Connection(IRCClient):
         log.msg('Successfully signed on to server.')
         if self.signon_timeout:
             self.signon_timeout.cancel()
+        self.respond_to(Message(self, False, 'connected'))
         # Resetting the connection delay when a successful connection is
         # made, instead of at IRC sign-on, overlooks situations such as
         # host bans where the server accepts a connection and then
@@ -356,14 +358,19 @@ class Connection(IRCClient):
         deferreds = []
         while self.message_queue:
             msg = self.message_queue.pop(0)
-            if msg.action in ('nick', 'quit'):
-                # Forward nick changes and quits only to plugins enabled
-                # in at least one channel where the actor was present.
-                venues = [channel for channel, names
-                          in self.channel_names.iteritems()
-                          if msg.actor.nick in names]
-            else:
+            if msg.venue:
                 venues = [msg.venue]
+            else:
+                # If there is an actor, forward the message only to
+                # plugins enabled in at least one channel where the
+                # actor was present.  Otherwise, forward it to every
+                # plugin active on the connection.
+                if msg.actor:
+                    venues = [channel for channel, names
+                              in self.channel_names.iteritems()
+                              if msg.actor.nick in names]
+                else:
+                    venues = self.event_plugins.keys()
             plugins = set()
             for venue in venues:
                 for plugin, keywords in self.event_plugins.get(venue, []):

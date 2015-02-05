@@ -130,6 +130,16 @@ IRC messages (also see :rfc:`1459#section-4`):
 
 Omnipresence defines additional message types for synthetic events:
 
+.. describe:: connected
+
+   Created when the server has responded with ``RPL_WELCOME``.
+   No optional arguments are specified.
+
+.. describe:: disconnected
+
+   Created when the connection to the server has been closed or lost.
+   No optional arguments are specified.
+
 .. describe:: command
 
    Represents a command invocation.

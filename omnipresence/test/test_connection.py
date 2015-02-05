@@ -104,6 +104,8 @@ class PingTimeoutTestCase(AbstractConnectionTestCase):
         self.assertTrue(self.transport.disconnecting)
 
     def test_ping_timeout(self):
+        # Twisted's IRCClient starts the heartbeat in irc_RPL_WELCOME,
+        # not signedOn.
         self.connection.irc_RPL_WELCOME('remote.test', [])
         self.connection.reactor.advance(self.connection.max_lag)
         self.assertFalse(self.transport.disconnecting)

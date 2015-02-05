@@ -29,6 +29,7 @@ class NoticingPlugin(EventPlugin):
     def on_privmsg(self, msg):
         self.seen.append(msg)
 
+    on_connected = on_disconnected = on_privmsg
     on_command = on_join = on_quit = on_privmsg
 
     @property
@@ -37,23 +38,48 @@ class NoticingPlugin(EventPlugin):
 
 
 class EventDelegationTestCase(AbstractConnectionTestCase):
+    sign_on = False
+
     def setUp(self):
         super(EventDelegationTestCase, self).setUp()
-        self.plugin = self.connection.add_event_plugin(
+        self.one = self.connection.add_event_plugin(
             NoticingPlugin, {'#foo': ['spam'], '#bar': []})
+        # We would normally never instantiate two instances of the same
+        # event plugin class, but this is the easiest way to test the
+        # delegation of events that have no actor or venue.
+        self.two = self.connection.add_event_plugin(
+            NoticingPlugin, {'#baz': []})
         self.connection.joined('#foo')
 
     def test_init(self):
-        self.assertEqual(self.plugin.bot, self.connection)
+        self.assertEqual(self.one.bot, self.connection)
+
+    def test_connected(self):
+        self.connection.signedOn()
+        self.assertEqual(len(self.two.seen), 1)
+        self.assertEqual(self.two.last_seen.action, 'connected')
+        self.assertIsNone(self.two.last_seen.actor)
+        self.assertIsNone(self.two.last_seen.venue)
+        self.assertIsNone(self.two.last_seen.content)
+        self.assertFalse(self.two.last_seen.private)
+
+    def test_disconnected(self):
+        self.connection.connectionLost(None)
+        self.assertEqual(len(self.two.seen), 1)
+        self.assertEqual(self.two.last_seen.action, 'disconnected')
+        self.assertIsNone(self.two.last_seen.actor)
+        self.assertIsNone(self.two.last_seen.venue)
+        self.assertIsNone(self.two.last_seen.content)
+        self.assertFalse(self.two.last_seen.private)
 
     def test_privmsg(self):
         self.receive('PRIVMSG #foo :lorem ipsum')
-        self.assertEqual(len(self.plugin.seen), 1)
-        self.assertEqual(self.plugin.last_seen.actor, self.other_user)
-        self.assertEqual(self.plugin.last_seen.action, 'privmsg')
-        self.assertEqual(self.plugin.last_seen.venue, '#foo')
-        self.assertEqual(self.plugin.last_seen.content, 'lorem ipsum')
-        self.assertFalse(self.plugin.last_seen.private)
+        self.assertEqual(len(self.one.seen), 1)
+        self.assertEqual(self.one.last_seen.action, 'privmsg')
+        self.assertEqual(self.one.last_seen.actor, self.other_user)
+        self.assertEqual(self.one.last_seen.venue, '#foo')
+        self.assertEqual(self.one.last_seen.content, 'lorem ipsum')
+        self.assertFalse(self.one.last_seen.private)
 
     def test_privmsg_casemapping(self):
         # This will no longer be a direct part of the event delegation
@@ -61,49 +87,49 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         # be a bad idea to keep this around as an integration test with
         # various settings for the case mapping.
         self.receive('PRIVMSG #FOO :lorem ipsum')
-        self.assertEqual(len(self.plugin.seen), 1)
-        self.assertEqual(self.plugin.last_seen.actor, self.other_user)
-        self.assertEqual(self.plugin.last_seen.action, 'privmsg')
-        self.assertEqual(self.plugin.last_seen.venue, '#FOO')
-        self.assertEqual(self.plugin.last_seen.content, 'lorem ipsum')
-        self.assertFalse(self.plugin.last_seen.private)
+        self.assertEqual(len(self.one.seen), 1)
+        self.assertEqual(self.one.last_seen.action, 'privmsg')
+        self.assertEqual(self.one.last_seen.actor, self.other_user)
+        self.assertEqual(self.one.last_seen.venue, '#FOO')
+        self.assertEqual(self.one.last_seen.content, 'lorem ipsum')
+        self.assertFalse(self.one.last_seen.private)
 
     def test_command_enabled(self):
         self.receive('PRIVMSG #foo :!spam ham eggs')
-        self.assertEqual(len(self.plugin.seen), 2)
-        self.assertEqual(self.plugin.last_seen.actor, self.other_user)
-        self.assertEqual(self.plugin.last_seen.action, 'command')
-        self.assertEqual(self.plugin.last_seen.venue, '#foo')
-        self.assertEqual(self.plugin.last_seen.target, 'other')
-        self.assertEqual(self.plugin.last_seen.subaction, 'spam')
-        self.assertEqual(self.plugin.last_seen.content, 'ham eggs')
-        self.assertFalse(self.plugin.last_seen.private)
+        self.assertEqual(len(self.one.seen), 2)
+        self.assertEqual(self.one.last_seen.action, 'command')
+        self.assertEqual(self.one.last_seen.actor, self.other_user)
+        self.assertEqual(self.one.last_seen.venue, '#foo')
+        self.assertEqual(self.one.last_seen.target, 'other')
+        self.assertEqual(self.one.last_seen.subaction, 'spam')
+        self.assertEqual(self.one.last_seen.content, 'ham eggs')
+        self.assertFalse(self.one.last_seen.private)
 
     def test_command_disabled(self):
         self.receive('PRIVMSG #bar :!spam ham eggs')
-        self.assertEqual(len(self.plugin.seen), 1)  # no command message
+        self.assertEqual(len(self.one.seen), 1)  # no command message
 
     def test_visible_quit(self):
         self.connection.joined('#foo')
         self.connection.channel_names['#foo'].add(self.other_user.nick)
         self.receive('QUIT :Client Quit')
-        self.assertEqual(len(self.plugin.seen), 1)
-        self.assertEqual(self.plugin.last_seen.actor, self.other_user)
-        self.assertEqual(self.plugin.last_seen.action, 'quit')
-        self.assertIsNone(self.plugin.last_seen.venue)
-        self.assertEqual(self.plugin.last_seen.content, 'Client Quit')
-        self.assertFalse(self.plugin.last_seen.private)
+        self.assertEqual(len(self.one.seen), 1)
+        self.assertEqual(self.one.last_seen.action, 'quit')
+        self.assertEqual(self.one.last_seen.actor, self.other_user)
+        self.assertIsNone(self.one.last_seen.venue)
+        self.assertEqual(self.one.last_seen.content, 'Client Quit')
+        self.assertFalse(self.one.last_seen.private)
 
     def test_visible_quit_call_once(self):
         for channel in ('#foo', '#bar'):
             self.connection.joined(channel)
             self.connection.channel_names[channel].add(self.other_user.nick)
         self.receive('QUIT :Client Quit')
-        self.assertEqual(len(self.plugin.seen), 1)
+        self.assertEqual(len(self.one.seen), 1)
 
     def test_invisible_quit(self):
         self.receive('QUIT :Client Quit')
-        self.assertEqual(len(self.plugin.seen), 0)
+        self.assertEqual(len(self.one.seen), 0)
 
 
 #
@@ -132,9 +158,9 @@ class OrderingPluginTwo(EventPlugin):
 class EventOrderingTestCase(AbstractConnectionTestCase):
     def setUp(self):
         super(EventOrderingTestCase, self).setUp()
-        self.plugin_one = self.connection.add_event_plugin(
+        self.one = self.connection.add_event_plugin(
             OrderingPluginOne, {'#foo': []})
-        self.plugin_two = self.connection.add_event_plugin(
+        self.two = self.connection.add_event_plugin(
             OrderingPluginTwo, {'#foo': ['spam']})
         self.connection.joined('#foo')
 
@@ -142,24 +168,21 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
         """Ensure that messages generated by plugin callbacks are only
         processed after the message that triggered the callbacks."""
         self.receive('PRIVMSG #foo :lorem ipsum')
-        seen = self.plugin_two.seen
-        self.assertEqual(len(seen), 2)
-        self.assertEqual(seen[0].content, 'lorem ipsum')
-        self.assertEqual(seen[1].content, 'dolor sit amet')
+        self.assertEqual(len(self.two.seen), 2)
+        self.assertEqual(self.two.seen[0].content, 'lorem ipsum')
+        self.assertEqual(self.two.seen[1].content, 'dolor sit amet')
 
     def test_immediate_command(self):
         """Ensure that command messages generated from privmsg messages
         are processed immediately after their originators."""
         self.receive('PRIVMSG #foo :!spam')
-        seen = self.plugin_two.seen
-        print seen
-        self.assertEqual(len(seen), 3)
-        self.assertEqual(seen[0].action, 'privmsg')
-        self.assertEqual(seen[0].content, '!spam')
-        self.assertEqual(seen[1].action, 'command')
-        self.assertEqual(seen[1].subaction, 'spam')
-        self.assertEqual(seen[2].action, 'privmsg')
-        self.assertEqual(seen[2].content, 'dolor sit amet')
+        self.assertEqual(len(self.two.seen), 3)
+        self.assertEqual(self.two.seen[0].action, 'privmsg')
+        self.assertEqual(self.two.seen[0].content, '!spam')
+        self.assertEqual(self.two.seen[1].action, 'command')
+        self.assertEqual(self.two.seen[1].subaction, 'spam')
+        self.assertEqual(self.two.seen[2].action, 'privmsg')
+        self.assertEqual(self.two.seen[2].content, 'dolor sit amet')
 
 
 #
@@ -186,9 +209,9 @@ class OutgoingEventTestCase(AbstractConnectionTestCase):
     def test_own_privmsg(self):
         self.connection.sendLine('PRIVMSG #foo :lorem ipsum')
         self.assertEqual(len(self.outgoing.seen), 1)
+        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertTrue(self.outgoing.last_seen.actor.matches(
             self.connection.nickname))
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, 'lorem ipsum')
         self.assertFalse(self.outgoing.last_seen.private)

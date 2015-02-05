@@ -13,7 +13,7 @@ from .parser import parse as parse_raw
 MESSAGE_TYPES = set([
     'action', 'ctcpquery', 'ctcpreply', 'join', 'kick', 'mode', 'nick',
     'notice', 'part', 'privmsg', 'quit', 'topic',
-    'command', 'cmdhelp', 'unknown'])
+    'connected', 'disconnected', 'command', 'cmdhelp', 'unknown'])
 
 
 #
@@ -69,8 +69,8 @@ class Message(namedtuple('Message',
                 venue=None, target=None, subaction=None, content=None,
                 raw=None):
         if action not in MESSAGE_TYPES:
-            raise ValueError('cannot create message of unknown type '
-                             '"{}"'.format(action))
+            raise ValueError('cannot create message of unrecognized '
+                             'type "{}"'.format(action))
         if isinstance(actor, str):
             actor = Hostmask.from_string(actor)
         return super(Message, cls).__new__(
