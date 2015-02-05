@@ -10,6 +10,8 @@ Core IRC client
 Messages
 ========
 
+.. module:: omnipresence.message
+
 .. autoclass:: omnipresence.message.Message(connection, outgoing, action, actor=None, venue=None, target=None, subaction=None, content=None)
 
    .. note:: All string values are byte strings, not Unicode strings,
