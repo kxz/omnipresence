@@ -68,3 +68,9 @@ class HostmaskTestCase(unittest.TestCase):
         self.assertTrue(
             Hostmask('nick[a]', 'user', 'host').matches('nick{a}!user@host',
                                                         rfc1459))
+
+    def test_has_wildcard(self):
+        self.assertFalse(Hostmask('nick', 'user', 'host').has_wildcard)
+        self.assertTrue(Hostmask('nick', None, None).has_wildcard)
+        self.assertTrue(Hostmask('nick*', 'user', 'host').has_wildcard)
+        self.assertFalse(Hostmask('nick\*', 'user', 'host').has_wildcard)

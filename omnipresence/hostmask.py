@@ -95,6 +95,26 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
         return True
 
     def __str__(self):
-        return '%s%s%s' % (self.nick,
-                           ('!' + self.user) if self.user else '',
-                           ('@' + self.host) if self.host else '')
+        return (self.nick +
+                (('!' + self.user) if self.user else '') +
+                (('@' + self.host) if self.host else ''))
+
+    @property
+    def has_wildcard(self):
+        """Return :py:data`True` if this hostmask contains a wildcard
+        or any :py:data:`None` components, and :py:data:`False`
+        otherwise."""
+        if any(x is None for x in self):
+            return True
+        for component in self:
+            backslash = False  # was the last character a backslash?
+            for char in component:
+                if backslash:
+                    # Same caveat as in _mask_to_regex.
+                    backslash = False
+                else:
+                    if char == '\\':
+                        backslash = True
+                    elif char in ('*', '?'):
+                        return True
+        return False
