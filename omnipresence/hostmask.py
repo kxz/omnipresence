@@ -101,9 +101,8 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
 
     @property
     def has_wildcard(self):
-        """Return :py:data`True` if this hostmask contains a wildcard
-        or any :py:data:`None` components, and :py:data:`False`
-        otherwise."""
+        """:py:data:`True` if this hostmask contains a wildcard or any
+        :py:data:`None` components.  :py:data:`False` otherwise."""
         if any(x is None for x in self):
             return True
         for component in self:
