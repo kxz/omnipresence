@@ -5,7 +5,8 @@
 from twisted.internet.defer import Deferred
 
 from ..plugin import EventPlugin
-from .helpers import AbstractConnectionTestCase
+from .helpers import (AbstractConnectionTestCase,
+                      NoticingPlugin, OutgoingPlugin)
 
 
 #
@@ -20,22 +21,6 @@ class EmptyPluginTestCase(AbstractConnectionTestCase):
 #
 # Simple event delegation
 #
-
-class NoticingPlugin(EventPlugin):
-    def __init__(self, bot):
-        self.bot = bot
-        self.seen = []
-
-    def on_privmsg(self, msg):
-        self.seen.append(msg)
-
-    on_connected = on_disconnected = on_privmsg
-    on_command = on_join = on_quit = on_privmsg
-
-    @property
-    def last_seen(self):
-        return self.seen[-1]
-
 
 class EventDelegationTestCase(AbstractConnectionTestCase):
     sign_on = False
@@ -188,14 +173,6 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
 #
 # Outgoing events
 #
-
-class OutgoingPlugin(NoticingPlugin):
-    def on_privmsg(self, msg):
-        super(OutgoingPlugin, self).on_privmsg(msg)
-    on_privmsg.outgoing = True
-
-    on_command = on_join = on_quit = on_privmsg
-
 
 class OutgoingEventTestCase(AbstractConnectionTestCase):
     def setUp(self):

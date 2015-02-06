@@ -12,6 +12,7 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 from ..config import ConfigParser
 from ..connection import Connection
 from ..hostmask import Hostmask
+from ..plugin import EventPlugin
 
 
 #
@@ -48,6 +49,38 @@ class DummyConnection(object):
 
     def is_channel(self, venue):
         return venue[0] in CHANNEL_PREFIXES
+
+
+#
+# Basic event plugins
+#
+
+class NoticingPlugin(EventPlugin):
+    """An event plugin that caches incoming events."""
+
+    def __init__(self, bot):
+        self.bot = bot
+        self.seen = []
+
+    def on_privmsg(self, msg):
+        self.seen.append(msg)
+
+    on_connected = on_disconnected = on_privmsg
+    on_command = on_join = on_quit = on_privmsg
+
+    @property
+    def last_seen(self):
+        return self.seen[-1]
+
+
+class OutgoingPlugin(NoticingPlugin):
+    """An event plugin that caches incoming and outgoing events."""
+
+    def on_privmsg(self, msg):
+        super(OutgoingPlugin, self).on_privmsg(msg)
+    on_privmsg.outgoing = True
+
+    on_command = on_join = on_quit = on_privmsg
 
 
 #
