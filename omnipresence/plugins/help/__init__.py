@@ -24,18 +24,18 @@ class Default(EventPlugin):
                     keywords='\x02, \x02'.join(sorted(keywords.iterkeys())),
                     help=msg.subaction))
         if args[0] in keywords:
-            # FIXME:  Detect whether or not anything was actually
-            # returned and display a default "No further help is
-            # available" message if not.
-            return keywords[args[0]].respond_to(msg._replace(
+            help = keywords[args[0]].respond_to(msg._replace(
                 action='cmdhelp', subaction=args[0],
                 content=''.join(args[1:])))
+            if help:
+                return '\x02{}\x02 {}'.format(args[0], help)
+            return ('There is no further help available for \x02{}\x02.'
+                    .format(args[0]))
         return 'There is no command with the keyword \x02{}\x02.'.format(
             args[0])
 
     def on_cmdhelp(self, msg):
         return collapse("""\
-            \x02{}\x02 [\x1Fkeyword\x1F] - List available command
-            keywords, or, given a keyword, get detailed help on a
-            specific command.
+            [\x1Fkeyword\x1F] - List available command keywords, or,
+            given a keyword, get detailed help on a specific command.
             """.format(msg.subaction))
