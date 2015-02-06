@@ -26,6 +26,55 @@ MAX_REPLY_LENGTH = 256
 PRIVATE_CHANNEL = '@'
 
 
+#
+# State tracking classes
+#
+
+class UserInfo(object):
+    """A container for information about an IRC user."""
+
+    def __init__(self):
+        #: This user's full hostmask.
+        self.hostmask = None
+
+        #: This user's services account name.
+        self.account = None
+
+
+class ChannelInfo(object):
+    """A container for information about an IRC channel."""
+
+    def __init__(self, case_mapping=None):
+        #: A dictionary of modes in effect on this channel.  Keys are
+        #: single-letter flags.  Values may be :py:data:`None`, a string
+        #: for single-parameter modes like ``l`` (limit), or a set of
+        #: strings for address modes like ``o`` (channel operator).
+        self.modes = {}
+
+        #: A dictionary mapping nicks to :py:class:`~.ChannelUserInfo`
+        #: objects.
+        self.nicks = mapping.CaseMappedDict(case_mapping=case_mapping)
+
+        #: This channel's topic, or the empty string if none is set.
+        self.topic = ''
+
+
+class ChannelUserInfo(object):
+    """A container for information about a user's state in a particular
+    IRC channel."""
+
+    def __init__(self):
+        #: The set of channel mode flags currently applied to this user.
+        self.modes = set()
+
+        #: This user's current channel reply buffer.
+        self.reply_buffer = []
+
+
+#
+# Connection protocol
+#
+
 class Connection(IRCClient):
     """Omnipresence's core IRC client protocol."""
 

@@ -77,9 +77,14 @@ def by_name(name):
 
 class CaseMappedDict(InsensitiveDict):
     """A dictionary whose keys are treated case-insensitively according
-    to a :py:class:`.CaseMapping` provided on instantiation."""
+    to a :py:class:`.CaseMapping` or mapping name string (as given to
+    :py:func:`by_name`) provided on instantiation."""
 
-    def __init__(self, initial=None, case_mapping=CASE_MAPPINGS['rfc1459']):
+    def __init__(self, initial=None, case_mapping=None):
+        if case_mapping is None:
+            case_mapping = CASE_MAPPINGS['rfc1459']
+        elif isinstance(case_mapping, basestring):
+            case_mapping = by_name(case_mapping)
         self.case_mapping = case_mapping
         InsensitiveDict.__init__(self, initial, preserve=1)
 
