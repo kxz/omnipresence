@@ -2,8 +2,6 @@
 """Event plugins for providing command help."""
 
 
-import re
-
 from ...message import collapse
 from ...plugin import EventPlugin
 
