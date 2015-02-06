@@ -2,6 +2,7 @@
 """Event plugins for reading command reply buffers."""
 
 
+from ...message import collapse
 from ...plugin import EventPlugin
 
 
@@ -11,4 +12,7 @@ class Default(EventPlugin):
                                          msg, reply_when_empty=True)
 
     def on_cmdhelp(self, msg):
-        return
+        return collapse("""\
+            [\x1Fnick\x1F] - Return the next message in \x1Fnick\x1F's
+            command reply buffer, or your own if no nick is specified.
+            """.format(msg.subaction))
