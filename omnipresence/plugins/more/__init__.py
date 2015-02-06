@@ -7,7 +7,8 @@ from ...plugin import EventPlugin
 
 class Default(EventPlugin):
     def on_command(self, msg):
-        return
+        msg.connection.reply_from_buffer(msg.content or msg.actor.nick,
+                                         msg, reply_when_empty=True)
 
     def on_cmdhelp(self, msg):
         return

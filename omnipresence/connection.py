@@ -3,6 +3,8 @@
 
 
 import collections
+from copy import copy
+from itertools import tee
 import re
 
 import sqlobject
@@ -481,6 +483,15 @@ class Connection(IRCClient):
         Otherwise, send the reply as a private notice to *request*'s
         :py:attr:`~.Message.actor`."""
         buf = self.message_buffers[request.venue].get(nick, [])
+        if request.actor.nick != nick:
+            if isinstance(buf, collections.Sequence):
+                buf = copy(buf)
+                self.message_buffers[request.venue][request.actor.nick] = buf
+            else:  # assume an iterator
+                one, two = tee(buf)
+                self.message_buffers[request.venue][nick] = one
+                self.message_buffers[request.venue][request.actor.nick] = two
+                buf = two
         message = None
         remaining_chars = None
         if isinstance(buf, collections.Sequence):
@@ -503,8 +514,8 @@ class Connection(IRCClient):
         if remaining_chars:
             message += ' (+{} more characters)'.format(remaining_chars)
         if request.private:
-            log.msg('Private reply for %s: %s' % (nick, message))
-            self.notice(nick, message)
+            log.msg('Private reply for %s: %s' % (request.actor.nick, message))
+            self.notice(request.actor.nick, message)
         else:
             log.msg('Reply for %s in %s: %s' %
                     (request.target, request.venue, message))

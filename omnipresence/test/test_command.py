@@ -8,8 +8,7 @@ from twisted.internet.defer import Deferred
 
 from ..message import Message, collapse
 from ..plugin import EventPlugin, UserVisibleError
-from .helpers import AbstractConnectionTestCase
-from .test_event import OutgoingPlugin
+from .helpers import AbstractConnectionTestCase, OutgoingPlugin
 
 
 class AbstractCommandTestCase(AbstractConnectionTestCase):
