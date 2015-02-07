@@ -128,6 +128,22 @@ The following example plugin implements an infinite counter::
         def on_command(self, msg):
             return count()
 
+Error reporting
+---------------
+
+By default, if an error occurs inside an ``on_command`` callback,
+Omnipresence replies with a generic error message and logs the full
+traceback to the twistd log file.
+This behavior can be changed with the ``show_errors`` configuration
+option.
+If you wish to always show detailed information for an error, raise a
+`.UserVisibleError`:
+
+.. autoexception:: UserVisibleError(*args)
+
+Help strings
+------------
+
 To provide a help string for the `.help <.plugins.help>` command, return
 it from the ``on_cmdhelp`` callback.
 The incoming `.Message`'s `~.Message.content` attribute contains any
