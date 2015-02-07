@@ -11,6 +11,10 @@ docs/_build
 # tox
 .tox
 
+# coverage
+.coverage
+htmlcov
+
 # Packages
 *.egg
 *.egg-info
