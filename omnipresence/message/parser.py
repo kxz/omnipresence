@@ -21,9 +21,8 @@ class RawMessageParser(object):
         return decorator
 
     def parse(self, raw):
-        """Return a dict representation of a raw IRC message string,
-        in the form of keyword arguments for the :py:meth:`~.Message`
-        constructor (sans *connection*)."""
+        """Return a dict representation of a raw IRC message string, in
+        the form of keyword arguments for the `.Message` constructor."""
         try:
             prefix, command, params = parsemsg(raw)
         except IndexError:

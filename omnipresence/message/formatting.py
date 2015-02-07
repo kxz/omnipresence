@@ -23,13 +23,14 @@ CONTROL_CODES = re.compile(r"""
 
 
 def remove_formatting(string):
-    """Remove mIRC-style formatting control codes from a string."""
+    """Return *string* with mIRC-style formatting control codes removed.
+    """
     return CONTROL_CODES.sub('', string)
 
 
 def unclosed_formatting(string):
-    """Return a frozenset containing any unclosed mIRC-style formatting
-    codes in a string."""
+    """Return a `frozenset` containing any mIRC-style formatting codes
+    that remain in effect at the end of *string*."""
     fg = bg = ''
     bold = reverse = underline = False
     # ^O resets everything, so we split on it and only operate on the

@@ -7,8 +7,8 @@ class ConfigurationError(Exception):
 
 def parse_key(key):
     """Split a key string into a tuple consisting of a command and a
-    list of arguments.  Raise :py:class:`~.ConfigurationError` if the
-    key is invalid."""
+    list of arguments.  Raise `.ConfigurationError` if the key is
+    invalid."""
     try:
         args = shlex.split(key)
     except ValueError:
@@ -92,7 +92,7 @@ class BotSettings(object):
 
     def __init__(self, settings_dict):
         #: A mapping from connection names, as given in *settings_dict*,
-        #: to :py:class:`~.ConnectionSettings` objects.
+        #: to `.ConnectionSettings` objects.
         self.connections = {}
         # Split the settings into global and connection-specific dicts.
         bot_dict = {}
@@ -117,6 +117,6 @@ class BotSettings(object):
 
     @classmethod
     def from_yaml(cls, yaml_):
-        """Return a new :py:class:`~.Settings` object based on a YAML
-        string or open file object pointing to a YAML file."""
+        """Return a new `.BotSettings` object based on a YAML string or
+        open file object pointing to a YAML file."""
         return cls(yaml.load(yaml_))

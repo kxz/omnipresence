@@ -7,8 +7,8 @@ import re
 
 
 def ago(then, now=None):
-    """Given a :py:class:`~datetime.datetime` object, return an English
-    string giving an approximate relative time, such as "5 days ago"."""
+    """Given a `~datetime.datetime` object, return an English string
+    giving an approximate relative time, such as "5 days ago"."""
     if not now:  # then when?
         now = datetime.now()
     delta = now - then
@@ -54,7 +54,7 @@ DURATION_GROUPS = ['weeks', 'days', 'hours', 'minutes', 'seconds']
 
 def duration_to_timedelta(duration):
     """Convert a duration string of the form "_w_d_h_m_s" into a
-    :py:class:`~datetime.timedelta` object."""
+    `~datetime.timedelta` object."""
     match = DURATION_RE.match(duration)
     if match is None:
         return timedelta()

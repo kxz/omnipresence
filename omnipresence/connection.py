@@ -50,13 +50,12 @@ class ChannelInfo(object):
 
     def __init__(self, case_mapping=None):
         #: A dictionary of modes in effect on this channel.  Keys are
-        #: single-letter flags.  Values may be :py:data:`None`, a string
-        #: for single-parameter modes like ``l`` (limit), or a set of
+        #: single-letter flags.  Values may be `None`, a string for
+        #: single-parameter modes like ``l`` (limit), or a set of
         #: strings for address modes like ``o`` (channel operator).
         self.modes = {}
 
-        #: A dictionary mapping nicks to :py:class:`~.ChannelUserInfo`
-        #: objects.
+        #: A dictionary mapping nicks to `.ChannelUserInfo` objects.
         self.nicks = mapping.CaseMappedDict(case_mapping=case_mapping)
 
         #: This channel's topic, or the empty string if none is set.
@@ -90,8 +89,8 @@ class Connection(IRCClient):
     #: The maximum acceptable lag, in seconds.  If this amount of time
     #: elapses following a PING from the client with no PONG response
     #: from the server, the connection has timed out.  (The timeout
-    #: check only occurs at every :py:attr:`~.heartbeatInterval`, so
-    #: actual disconnection intervals may vary by up to one heartbeat.)
+    #: check only occurs at every `.heartbeatInterval`, so actual
+    #: disconnection intervals may vary by up to one heartbeat.)
     max_lag = 150
 
     #: The number of seconds to wait between sending successive PINGs
@@ -100,7 +99,7 @@ class Connection(IRCClient):
     heartbeatInterval = 60
 
     def __init__(self, factory):
-        #: The :py:class:`ConnectionFactory` that created this client.
+        #: The `.ConnectionFactory` that created this client.
         self.factory = factory
 
         # Various instance variables provided by Twisted's IRCClient.
@@ -118,10 +117,10 @@ class Connection(IRCClient):
         #: The time of the last PONG seen from the server.
         self.last_pong = None
 
-        #: An :py:class:`~twisted.internet.interfaces.IDelayedCall` used
-        #: to detect timeouts that occur after connecting to the server,
-        #: but before receiving the ``RPL_WELCOME`` message that starts
-        #: the normal PING heartbeat.
+        #: An `~twisted.internet.interfaces.IDelayedCall` used to detect
+        #: timeouts that occur after connecting to the server, but
+        #: before receiving the ``RPL_WELCOME`` message that starts the
+        #: normal PING heartbeat.
         self.signon_timeout = None
 
         log.msg('Assuming default CASEMAPPING "rfc1459"')
@@ -140,19 +139,19 @@ class Connection(IRCClient):
         self.event_plugins = self._case_mapped_dict()
 
         #: If the bot is currently firing callbacks, a queue of
-        #: :py:class:`.Message` objects for which the bot has yet to
-        #: fire callbacks.  Otherwise, :py:data:`None`.
+        #: `.Message` objects for which the bot has yet to fire
+        #: callbacks.  Otherwise, `None`.
         self.message_queue = None
 
         #: If joins are suspended, a set containing the channels to join
-        #: when joins are resumed.  Otherwise, :py:data:`None`.
+        #: when joins are resumed.  Otherwise, `None`.
         self.suspended_joins = None
 
     # Utility methods
 
     def _case_mapped_dict(self, initial=None):
-        """Return a :py:class:`~.CaseMappedDict` using this connection's
-        current case mapping."""
+        """Return a `.CaseMappedDict` using this connection's current
+        case mapping."""
         return mapping.CaseMappedDict(initial, case_mapping=self.case_mapping)
 
     def _lower(self, string):
@@ -164,16 +163,15 @@ class Connection(IRCClient):
         return self.case_mapping.upper(string)
 
     def is_channel(self, name):
-        """Return True if *name* belongs to a channel, according to the
-        server-provided list of channel prefixes, or False otherwise.
-        """
+        """Return `True` if *name* belongs to a channel, according to
+        the server-provided list of channel prefixes, or `False`
+        otherwise."""
         # We can assume the CHANTYPES feature will always be present,
         # since Twisted gives it a default value.
         return name[0] in self.supported.getFeature('CHANTYPES')
 
     def suspend_joins(self):
-        """Suspend all channel joins until :py:meth:`resume_joins` is
-        called."""
+        """Suspend all channel joins until `.resume_joins` is called."""
         # If suspended_joins is not None, then we've already suspended
         # joins for this client, and we shouldn't clobber the queue.
         if self.suspended_joins is not None:
@@ -183,8 +181,8 @@ class Connection(IRCClient):
 
     def resume_joins(self):
         """Resume immediate joining of channels after suspending it with
-        :py:meth:`suspend_joins`, and perform any channel joins that
-        have been queued in the interim."""
+        `.suspend_joins`, and perform any channel joins that have been
+        queued in the interim."""
         if self.suspended_joins is None:
             return
         log.msg('Resuming channel joins')
@@ -271,8 +269,7 @@ class Connection(IRCClient):
         del self.message_buffers[channel]
 
     def noticed(self, prefix, channel, message):
-        """Called when we receive a notice from another user.  Behaves
-        largely the same as :py:meth:`privmsg`."""
+        """Called when we receive a notice from another user."""
         if not self.is_channel(channel):
             log.msg('Notice from %s for %s: %s' % (prefix, channel, message))
 
@@ -335,10 +332,8 @@ class Connection(IRCClient):
 
     def join(self, channel):
         """Join the given *channel*.  If joins have been suspended with
-        :py:meth:`suspend_joins`, add the channel to the join queue and
-        actually join it when :py:meth:`resume_joins` is called."""
-        # If joins are suspended, add this one to the queue; otherwise,
-        # just go ahead and join the channel immediately.
+        `.suspend_joins`, add the channel to the join queue and actually
+        join it when `.resume_joins` is called."""
         if self.suspended_joins is not None:
             log.msg('Adding %s to join queue' % channel)
             self.suspended_joins.append(channel)
@@ -404,7 +399,7 @@ class Connection(IRCClient):
 
     def respond_to(self, msg):
         """Start the appropriate event plugin callbacks for *msg*, and
-        return a :py:class:`~twisted.internet.defer.DeferredList`."""
+        return a `~twisted.internet.defer.DeferredList`."""
         if self.message_queue is not None:
             # We're already firing callbacks.  Bail.
             self.message_queue.append(msg)
@@ -468,7 +463,7 @@ class Connection(IRCClient):
     def buffer_reply(self, response, request):
         """Add the :ref:`command reply <command-replies>` *response* to
         the appropriate user's reply buffer according to the invocation
-        :py:class:`~.Message` *request*."""
+        `.Message` *request*."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
         if not response:
             self.message_buffers[venue].pop(request.actor.nick, None)
@@ -500,12 +495,12 @@ class Connection(IRCClient):
         return two
 
     def reply_from_buffer(self, nick, request, reply_when_empty=False):
-        """Call :py:meth:`~.reply` with the next reply from the reply
-        buffer belonging to *nick* in the :py:attr:`~.Message.venue`
-        of the invocation :py:class:`~.Message` *request*.  Return a
-        :py:class:`~twisted.internet.defer.Deferred` yielding either the
-        reply's contents, or :py:data:`None` if no reply was made
-        because of an empty reply buffer."""
+        """Call `.reply` with the next reply from the reply buffer
+        belonging to *nick* in the `~.Message.venue` of the invocation
+        `~.Message` *request*.  Return a
+        `~twisted.internet.defer.Deferred` yielding either the reply's
+        contents, or `None` if no reply was made because of an empty
+        reply buffer."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
         buf = self.copy_buffer(venue, nick, request.actor.nick)
         if isinstance(buf, collections.Sequence):
@@ -530,9 +525,9 @@ class Connection(IRCClient):
     def reply(self, string, request):
         """Send a reply *string*.  If the request venue is a channel,
         send the reply to the venue as a standard message addressed to
-        *request*'s :py:attr:`~.Message.target`, formatted using the
-        :py:attr:`~.Message.venue`'s reply format.  Otherwise, send the
-        reply as a notice to *request*'s :py:attr:`~.Message.actor`."""
+        *request*'s `~.Message.target`, formatted using the
+        `~.Message.venue`'s reply format.  Otherwise, send the reply as
+        a notice to *request*'s `~.Message.actor`."""
         if not string:
             return
         string = string.replace('\n', ' / ')
@@ -550,12 +545,12 @@ class Connection(IRCClient):
                 target=request.target, message=string))
 
     def reply_from_error(self, failure, request):
-        """Call :py:meth:`reply` with information on a *failure* that
-        occurred in the callback invoked to handle a command request. If
-        *failure* wraps a :py:class:`~.UserVisibleError`, reply with its
-        exception string.  Otherwise, log the error and reply with a
-        generic message. If the ``show_errors`` configuration option is
-        true, reply with the exception string regardless of *failure*'s
+        """Call `.reply` with information on a *failure* that occurred
+        in the callback invoked to handle a command request. If
+        *failure* wraps a `.UserVisibleError`, reply with its exception
+        string.  Otherwise, log the error and reply with a generic
+        message. If the ``show_errors`` configuration option is true,
+        reply with the exception string regardless of *failure*'s
         exception type.
 
         This method is automatically called whenever an unhandled
@@ -576,16 +571,13 @@ class Connection(IRCClient):
         self.reply(message + '.', error_request)
 
     def lineReceived(self, line):
-        """Overrides
-        :py:meth:`twisted.words.protocols.irc.IRCClient.lineReceived`.
-        """
+        """Overrides `.IRCClient.lineReceived`."""
         deferred = self.respond_to(Message.from_raw(self, False, line))
         IRCClient.lineReceived(self, line)
         return deferred
 
     def sendLine(self, line):
-        """Overrides
-        :py:meth:`twisted.words.protocols.irc.IRCClient.sendLine`."""
+        """Overrides `.IRCClient.sendLine`."""
         deferred = self.respond_to(Message.from_raw(
             self, True, line, actor=self.nickname))
         IRCClient.sendLine(self, line)
@@ -593,7 +585,7 @@ class Connection(IRCClient):
 
 
 class ConnectionFactory(ReconnectingClientFactory):
-    """Creates :py:class:`.Connection` instances."""
+    """Creates `.Connection` instances."""
     protocol = Connection
 
     encoding = 'utf-8'

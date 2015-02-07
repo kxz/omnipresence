@@ -45,8 +45,8 @@ CASE_MAPPINGS = {
 def by_name(name):
     """Given the *name* of an IRC case mapping, as commonly specified by
     the value of the ``CASEMAPPING`` parameter in ``RPL_ISUPPORT``
-    messages (numeric 005), return a :py:class:`.CaseMapping` object
-    that implements that mapping.  The following mapping names are
+    messages (numeric 005), return a `.CaseMapping` object that
+    implements that mapping.  The following mapping names are
     recognized:
 
     .. describe:: ascii
@@ -67,8 +67,7 @@ def by_name(name):
        as the lowercase version of *^*.  This corresponds to most
        servers' actual implementation of the RFC 1459 rules.
 
-    :py:exc:`~exceptions.ValueError` is raised on an unrecognized
-    mapping name.
+    `~exceptions.ValueError` is raised on an unrecognized mapping name.
     """
     if name in CASE_MAPPINGS:
         return CASE_MAPPINGS[name]
@@ -77,8 +76,8 @@ def by_name(name):
 
 class CaseMappedDict(InsensitiveDict):
     """A dictionary whose keys are treated case-insensitively according
-    to a :py:class:`.CaseMapping` or mapping name string (as given to
-    :py:func:`by_name`) provided on instantiation."""
+    to a `.CaseMapping` or mapping name string (as given to `.by_name`)
+    provided on instantiation."""
 
     def __init__(self, initial=None, case_mapping=None):
         if case_mapping is None:

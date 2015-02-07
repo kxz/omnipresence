@@ -21,7 +21,7 @@ class Options(usage.Options):
 
 
 def makeService(options):
-    """Return a Twisted service object attaching a new ConnectionFactory
+    """Return a Twisted service object attaching a `ConnectionFactory`
     instance to an appropriate TCP or SSL transport."""
     config = ConfigParser()
     config.read(os.path.join(os.getcwd(), options['config_path']))

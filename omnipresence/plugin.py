@@ -27,7 +27,7 @@ PLUGIN_ROOT = 'omnipresence.plugins'
 
 
 class EventPluginMeta(type):
-    """:py:class:`~.EventPlugin`'s metaclass, used for name lookups."""
+    """`~.EventPlugin`'s metaclass, used for name lookups."""
 
     @property
     def name(cls):
@@ -48,8 +48,7 @@ class EventPlugin(object):
 
     def respond_to(self, msg):
         """Start any callback this plugin defines for *msg*, and forward
-        its return value, or :py:data:`None` if no such callback exists.
-        """
+        its return value, or `None` if no such callback exists."""
         callback_name = 'on_' + msg.action
         if not hasattr(self, callback_name):
             return

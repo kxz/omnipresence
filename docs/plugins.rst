@@ -27,8 +27,8 @@ distribution, see :doc:`builtins`.
            pass
 
    On plugin initialization, Omnipresence passes the current
-   :py:class:`~.Connection` as a positional parameter, which can be used
-   to read configuration settings needed during setup::
+   `~.Connection` as a positional parameter, which can be used to read
+   configuration settings needed during setup::
 
        class Default(EventPlugin):
            def __init__(self, bot):
@@ -37,8 +37,8 @@ distribution, see :doc:`builtins`.
    When a message is received, Omnipresence looks for a plugin method
    named ``on_`` followed by the :ref:`message type <message-types>`,
    such as ``on_privmsg``.
-   If one exists, it is called with a :py:class:`~.Message` object as
-   the sole parameter.
+   If one exists, it is called with a `~.Message` object as the sole
+   parameter.
    For example, the following plugin sends a private message to
    greet incoming channel users::
 
@@ -48,7 +48,7 @@ distribution, see :doc:`builtins`.
                message.connection.msg(message.venue, greeting)
 
    Callbacks that need to execute blocking code can return a Twisted
-   :py:class:`~twisted.internet.defer.Deferred` object::
+   `~twisted.internet.defer.Deferred` object::
 
        class Default(EventPlugin):
            def on_privmsg(self, message):
@@ -60,9 +60,9 @@ distribution, see :doc:`builtins`.
    by bot messages, in order to reduce the probability of accidental
    response loops.
    To change this behavior, set the ``outgoing`` attribute of a callback
-   method to :py:data:`True`.
-   Inside the callback, each message's :py:attr:`~.Message.outgoing`
-   attribute can be used to determine its direction of transit::
+   method to `True`.
+   Inside the callback, each message's `~.Message.outgoing` attribute
+   can be used to determine its direction of transit::
 
        from twisted.python import log
 
@@ -75,9 +75,9 @@ distribution, see :doc:`builtins`.
    .. note:: Since most servers echo joins, parts, and quits back to
       clients, callbacks registered for these actions will always fire
       once on bot actions, twice if enabled for outgoing messages.
-      You may wish to compare the message's :py:attr:`~.Message.actor`
-      and the connection's :py:attr:`~.Connection.nickname` attributes
-      to distinguish bot actions in these cases::
+      You may wish to compare the message's `~.Message.actor` and the
+      connection's `~.Connection.nickname` attributes to distinguish bot
+      actions in these cases::
 
           class Default(EventPlugin):
               def on_join(self, message):
@@ -101,22 +101,22 @@ A command reply may take one of the following forms:
 .. _command-replies:
 
 * A byte or Unicode string.
-  Long strings are broken into chunks of up to :py:data:`.CHUNK_LENGTH`
-  bytes and treated as a sequence.
+  Long strings are broken into chunks of up to `.CHUNK_LENGTH` bytes and
+  treated as a sequence.
 
 * A sequence of strings.
-  Any reply strings containing more than :py:data:`.MAX_REPLY_LENGTH`
-  bytes are truncated on display.
+  Any reply strings containing more than `.MAX_REPLY_LENGTH` bytes are
+  truncated on display.
 
-* An iterator yielding either strings or :py:class:`Deferred` objects
-  that yield strings.
+* An iterator yielding either strings or
+  `~twisted.internet.defer.Deferred` objects that yield strings.
   Long reply strings are truncated as with sequence replies.
 
-* A :py:class:`Deferred` object yielding any of the above.
+* A `~twisted.internet.defer.Deferred` object yielding any of the above.
 
 In all cases, the first reply is immediately shown to the target user,
 and any remaining replies are placed in a buffer for later retrieval
-using the :py:mod:`.more <.plugins.more>` command.
+using the `.more <.plugins.more>` command.
 Newlines inside replies are displayed as a slash surrounded by spaces.
 
 The following example plugin implements an infinite counter::
@@ -128,11 +128,11 @@ The following example plugin implements an infinite counter::
         def on_command(self, msg):
             return count()
 
-To provide a help string for the :py:mod:`.help <.plugins.help>` command,
-return it from the ``on_cmdhelp`` callback.
-The incoming :py:class:`.Message`'s :py:attr:`~.Message.content`
-attribute contains any additional arguments to :py:mod:`.help
-<.plugins.help>`, allowing help subtopics::
+To provide a help string for the `.help <.plugins.help>` command, return
+it from the ``on_cmdhelp`` callback.
+The incoming `.Message`'s `~.Message.content` attribute contains any
+additional arguments to `.help <.plugins.help>`, allowing help
+subtopics::
 
         def on_cmdhelp(self, msg):
             if msg.content == 'detailed':

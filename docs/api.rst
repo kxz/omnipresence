@@ -28,11 +28,10 @@ Messages
 
    .. automethod:: omnipresence.message.Message.from_raw
 
-   :py:class:`~.Message` is a :py:func:`collections.namedtuple` type,
-   and thus its instances are immutable.
+   `~.Message` is a `~collections.namedtuple` type, and thus its
+   instances are immutable.
    To create a new object based on the attributes of an existing one,
-   use an instance's :py:meth:`~collections.somenamedtuple._replace`
-   method.
+   use an instance's `~collections.somenamedtuple._replace` method.
 
 
 .. _message-types:
@@ -40,7 +39,7 @@ Messages
 Message types
 -------------
 
-A message's type is stored in its :py:attr:`~.Message.action` attribute.
+A message's type is stored in its `~.Message.action` attribute.
 The following message types directly correspond to incoming or outgoing
 IRC messages (also see :rfc:`1459#section-4`):
 
@@ -52,11 +51,9 @@ IRC messages (also see :rfc:`1459#section-4`):
 .. describe:: ctcpquery
 
    Represents an unrecognized CTCP query wrapped in a PRIVMSG.
-   :py:attr:`~.Message.venue` is the nick or channel name of the
-   recipient.
-   :py:attr:`~.Message.subaction` is the CTCP message tag.
-   :py:attr:`~.Message.content` is a string containing any trailing
-   arguments.
+   `~.Message.venue` is the nick or channel name of the recipient.
+   `~.Message.subaction` is the CTCP message tag.
+   `~.Message.content` is a string containing any trailing arguments.
 
    .. note:: Omnipresence does not support mixed messages containing
       both normal and CTCP extended content.
@@ -69,25 +66,25 @@ IRC messages (also see :rfc:`1459#section-4`):
 .. describe:: join
 
    Represents a channel join.
-   :py:attr:`~.Message.venue` is the channel being joined.
+   `~.Message.venue` is the channel being joined.
 
 .. describe:: kick
 
    Represents a kick.
-   :py:attr:`~.Message.venue` is the channel the kick took place in.
-   :py:attr:`~.Message.target` is the nick of the kicked user.
-   :py:attr:`~.Message.content` is the kick message.
+   `~.Message.venue` is the channel the kick took place in.
+   `~.Message.target` is the nick of the kicked user.
+   `~.Message.content` is the kick message.
 
 .. describe:: mode
 
    Represents a mode change.
-   :py:attr:`~.Message.venue` is the affected channel or nick.
-   :py:attr:`~.Message.content` is the mode change string.
+   `~.Message.venue` is the affected channel or nick.
+   `~.Message.content` is the mode change string.
 
 .. describe:: nick
 
    Represents a nick change.
-   :py:attr:`~.Message.content` is the new nick.
+   `~.Message.content` is the new nick.
 
 .. describe:: notice
 
@@ -97,36 +94,35 @@ IRC messages (also see :rfc:`1459#section-4`):
 .. describe:: part
 
    Represents a channel part.
-   :py:attr:`~.Message.venue` is the channel being departed from.
-   :py:attr:`~.Message.content` is the part message.
+   `~.Message.venue` is the channel being departed from.
+   `~.Message.content` is the part message.
 
 .. describe:: privmsg
 
    Represents a typical message.
-   :py:attr:`~.Message.venue` is the nick or channel name of the
-   recipient; :py:attr:`~.Message.private` can also be used to determine
-   whether a message was sent to a single user or a channel.
-   :py:attr:`~.Message.content` is the text of the message.
+   `~.Message.venue` is the nick or channel name of the recipient.
+   (`~.Message.private` can also be used to determine
+   whether a message was sent to a single user or a channel.)
+   `~.Message.content` is the text of the message.
 
 .. describe:: quit
 
    Represents a client quit from the IRC network.
-   :py:attr:`~.Message.content` is the quit message.
+   `~.Message.content` is the quit message.
 
 .. describe:: topic
 
    Represents a topic change.
-   :py:attr:`~.Message.venue` is the affected channel.
-   :py:attr:`~.Message.content` is the new topic, or an empty string if
-   the topic is being unset.
+   `~.Message.venue` is the affected channel.
+   `~.Message.content` is the new topic, or an empty string if the topic
+   is being unset.
 
 .. describe:: unknown
 
    Represents a message not of one of the above types, or that could not
    be correctly parsed.
-   :py:attr:`~.Message.subaction` is the IRC command name or numeric.
-   :py:attr:`~.Message.content` is a string containing any trailing
-   arguments.
+   `~.Message.subaction` is the IRC command name or numeric.
+   `~.Message.content` is a string containing any trailing arguments.
 
 .. _synthetic-message-types:
 
@@ -145,22 +141,20 @@ Omnipresence defines additional message types for synthetic events:
 .. describe:: command
 
    Represents a command invocation.
-   :py:attr:`~.Message.venue` is as for the ``privmsg`` type.
-   :py:attr:`~.Message.target` is a string containing the reply
-   redirection target, or the actor's nick if none was specified.
-   :py:attr:`~.Message.subaction` is the command keyword.
-   :py:attr:`~.Message.content` is a string containing any trailing
-   arguments.
+   `~.Message.venue` is as for the ``privmsg`` type.
+   `~.Message.target` is a string containing the reply redirection
+   target, or the actor's nick if none was specified.
+   `~.Message.subaction` is the command keyword.
+   `~.Message.content` is a string containing any trailing arguments.
 
 .. describe:: cmdhelp
 
    Represents a command help request.
-   :py:attr:`~.Message.venue` and :py:attr:`~.Message.target` are as for
-   the ``command`` type.
-   :py:attr:`~.Message.subaction` is the command keyword for which help
-   was requested.
-   :py:attr:`~.Message.content` is a string containing any trailing
-   arguments.
+   `~.Message.venue` and `~.Message.target` are as for the ``command``
+   type.
+   `~.Message.subaction` is the command keyword for which help was
+   requested.
+   `~.Message.content` is a string containing any trailing arguments.
 
 
 Message formatting

@@ -27,25 +27,24 @@ class Message(namedtuple('Message',
     """Represents a message, loosely defined as an event to which
     plugins can respond.  Messages have the following basic attributes:
 
-    .. py:attribute:: connection
+    .. attribute:: connection
 
-       The :py:class:`~.Connection` on which the message was received.
+       The `.Connection` on which the message was received.
 
-    .. py:attribute:: outgoing
+    .. attribute:: outgoing
 
        A boolean indicating whether this message resulted from a bot
        action.
 
-    .. py:attribute:: action
+    .. attribute:: action
 
        A string containing the :ref:`message type <message-types>`.
 
-    .. py:attribute:: actor
+    .. attribute:: actor
 
-       A :py:class:`~.Hostmask` corresponding to the message prefix,
-       indicating the message's true origin.  In some cases, ``unknown``
-       messages will set this attribute to :py:data:`None` if a prefix
-       could not be parsed.
+       A `.Hostmask` corresponding to the message prefix, indicating the
+       message's true origin.  In some cases, ``unknown`` messages will
+       set this attribute to `None` if a prefix could not be parsed.
 
     .. py:attribute:: venue
                       target
@@ -53,15 +52,14 @@ class Message(namedtuple('Message',
                       content
 
        Optional attributes, whose presence and meaning depend on the
-       message type.  An attribute is :py:data:`None` if and only if it
-       is not used by the current message type, and a string value
-       otherwise.
+       message type.  An attribute is `None` if and only if it is not
+       used by the current message type, and a string value otherwise.
 
     .. py:attribute:: raw
 
-       If this message was created using :py:meth:`.Message.from_raw`,
-       the original raw IRC message string passed to that function.
-       Otherwise, :py:data:`None`.
+       If this message was created using `.Message.from_raw`, the
+       original raw IRC message string passed to that function.
+       Otherwise, `None`.
     """
 
     def __new__(cls,
@@ -80,8 +78,8 @@ class Message(namedtuple('Message',
     @classmethod
     def from_raw(cls, connection, outgoing, raw, **kwargs):
         """Parse a raw IRC message string and return a corresponding
-        :py:class:`~.Message` object.  Any keyword arguments override
-        field values returned by the parser."""
+        `.Message` object.  Any keyword arguments override field values
+        returned by the parser."""
         parser_kwargs = parse_raw(raw)
         parser_kwargs.update(kwargs)
         return cls.__new__(cls, connection, outgoing, raw=raw, **parser_kwargs)
@@ -100,7 +98,7 @@ class Message(namedtuple('Message',
         *prefixes* is an iterable of strings; if provided and non-empty,
         messages are only considered to have invocations if they begin
         with exactly one prefix.  Return any invocation found as a new
-        :py:class:`~.Message`, or :py:data:`None` otherwise."""
+        `.Message`, or `None` otherwise."""
         if self.action != 'privmsg':
             return
         # We don't care about formatting in looking for commands.
@@ -141,8 +139,8 @@ class Message(namedtuple('Message',
 
     @property
     def private(self):
-        """:py:data:`True` if this message has a venue and that venue
-        is not a public channel, or :py:data:`False` otherwise."""
+        """`True` if this message has a venue and that venue is not a
+        public channel.  Otherwise, `False`."""
         return not (self.venue is None or
                     self.connection.is_channel(self.venue))
 

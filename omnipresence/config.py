@@ -2,7 +2,8 @@ from ConfigParser import SafeConfigParser
 
 
 class ConfigParser(SafeConfigParser):
-    """An extension of Python's built-in :py:class`~.ConfigParser`."""
+    """An extension of Python's built-in `~ConfigParser.ConfigParser`.
+    """
 
     # Option names need to be parsed case-sensitively, as they are used to
     # determine things like modules to import.

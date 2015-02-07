@@ -49,12 +49,12 @@ def _mask_as_regex(mask):
 class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
     """Represents an IRC hostmask (sometimes called a message prefix) of
     the form ``nick!user@host``.  The *user* and *host* attributes are
-    optional, and default to :py:data:`None` if not present."""
+    optional, and default to `None` if not present."""
 
     @classmethod
     def from_string(cls, string):
-        """Return a new :py:class:`~.Hostmask` object parsed from
-        *string*, according to the definition of ``<prefix>`` in
+        """Return a new `.Hostmask` object parsed from *string*,
+        according to the definition of ``<prefix>`` in
         :rfc:`1459#section-2.3.1`."""
         rest, _, host = string.partition('@')
         nick, _, user = rest.partition('!')
@@ -62,20 +62,20 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
 
     def matches(self, other, case_mapping=None):
         """Check whether this hostmask matches the pattern in *other*,
-        which can be a :py:class:`.Hostmask` object or a string in the
-        form ``"nick!user@host"``, according to the wildcard expansion
-        rules in :rfc:`2812#section-2.5`.  A :py:class:`.CaseMapping`
-        object may optionally be provided, in which case nicks are
-        compared case-insensitively according to the mapping's rules;
-        otherwise, nick comparisons are fully case-sensitive.  Users and
-        hosts are always compared case-insensitively, using normal ASCII
-        case folding rules.
+        which can be a `.Hostmask` object or a string in the form
+        ``"nick!user@host"``, according to the wildcard expansion rules
+        in :rfc:`2812#section-2.5`.  A `.CaseMapping` object may
+        optionally be provided, in which case nicks are compared
+        case-insensitively according to the mapping's rules; otherwise,
+        nick comparisons are fully case-sensitive.  Users and hosts are
+        always compared case-insensitively, using normal ASCII case
+        folding rules.
 
         Briefly, ``*`` and ``?`` wildcards match zero or more and
         exactly one non-delimiter character, respectively; a backslash
         can be used to escape these special characters.  Components that
-        equal :py:data:`None` are assumed to match all possible values
-        for that component.
+        equal `None` are assumed to match all possible values for that
+        component.
         """
         # pylint: disable=invalid-name
         me = self
@@ -101,8 +101,8 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
 
     @property
     def has_wildcard(self):
-        """:py:data:`True` if this hostmask contains a wildcard or any
-        :py:data:`None` components.  :py:data:`False` otherwise."""
+        """`True` if this hostmask contains a wildcard or any `None`
+        components.  Otherwise, `False` otherwise."""
         if any(x is None for x in self):
             return True
         for component in self:
