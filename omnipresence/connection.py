@@ -413,7 +413,9 @@ class Connection(IRCClient):
         deferreds = []
         while self.message_queue:
             msg = self.message_queue.pop(0)
-            if msg.venue:
+            if msg.private:
+                venues = [PRIVATE_CHANNEL]
+            elif msg.venue:
                 venues = [msg.venue]
             else:
                 # If there is an actor, forward the message only to
@@ -467,9 +469,9 @@ class Connection(IRCClient):
         """Add the :ref:`command reply <command-replies>` *response* to
         the appropriate user's reply buffer according to the invocation
         :py:class:`~.Message` *request*."""
-        buf_venue = PRIVATE_CHANNEL if request.private else request.venue
+        venue = PRIVATE_CHANNEL if request.private else request.venue
         if not response:
-            self.message_buffers[buf_venue].pop(request.actor.nick, None)
+            self.message_buffers[venue].pop(request.actor.nick, None)
             return request.actor.nick
         if isinstance(response, basestring):
             buf = chunk(response, self.factory.encoding, CHUNK_LENGTH)
@@ -478,7 +480,7 @@ class Connection(IRCClient):
         else:
             raise TypeError('invalid command reply type ' +
                             type(response).__name__)
-        self.message_buffers[buf_venue][request.actor.nick] = buf
+        self.message_buffers[venue][request.actor.nick] = buf
         return request.actor.nick
 
     def copy_buffer(self, venue, source, target):
@@ -503,7 +505,8 @@ class Connection(IRCClient):
         venue of the invocation :py:class:`~.Message` *request*.  Return
         a Deferred with the reply's contents, or :py:data:`None` if no
         reply was made because of an empty reply buffer."""
-        buf = self.copy_buffer(request.venue, nick, request.actor.nick)
+        venue = PRIVATE_CHANNEL if request.private else request.venue
+        buf = self.copy_buffer(venue, nick, request.actor.nick)
         if isinstance(buf, collections.Sequence):
             next_reply = None
             if buf:

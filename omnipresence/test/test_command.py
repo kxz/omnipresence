@@ -6,6 +6,7 @@ from itertools import count, imap
 
 from twisted.internet.defer import Deferred
 
+from ..connection import PRIVATE_CHANNEL
 from ..message import Message, collapse
 from ..plugin import EventPlugin, UserVisibleError
 from .helpers import AbstractConnectionTestCase, OutgoingPlugin
@@ -15,9 +16,10 @@ class AbstractCommandTestCase(AbstractConnectionTestCase):
     def setUp(self):
         super(AbstractCommandTestCase, self).setUp()
         self.command = self.connection.add_event_plugin(
-            self.command_class, {'#foo': ['spam']})
+            self.command_class,
+            {PRIVATE_CHANNEL: ['spam'], '#foo': ['spam']})
         self.watcher = self.connection.add_event_plugin(
-            OutgoingPlugin, {'#foo': []})
+            OutgoingPlugin, {PRIVATE_CHANNEL: [], '#foo': []})
         self.connection.joined('#foo')
 
     def more(self):
@@ -106,6 +108,29 @@ class BasicCommandTestCase(AbstractCommandTestCase):
     def test_synchronous_success(self):
         self.receive('PRIVMSG #foo :!spam > party3')
         self.assert_success()
+
+    def test_synchronous_success_private(self):
+        self.receive('PRIVMSG {} :spam > party3'.format(
+            self.connection.nickname))
+        self.assertEqual(self.watcher.last_seen.action, 'notice')
+        self.assertEqual(self.watcher.last_seen.venue, self.other_user.nick)
+        self.assertEqual(self.watcher.last_seen.content, collapse("""
+            Deliquatue volut pulvinar feugiat eleifend quisque
+            suspendisse faccummy etuerci; vullandigna praestie hac
+            consectem ipisim esequi. Facidui augiam proin nisit diamet
+            ing. Incinim iliquipisl ero alit amconsecte adionse loborer
+            odionsequip sagittis, (+210 more characters)"""))
+        self.connection.reply_from_buffer(
+            self.other_user.nick,
+            Message(self.connection, False, 'command',
+                    actor=self.other_user, venue=self.connection.nickname,
+                    subaction='more', target=self.other_user.nick),
+            reply_when_empty=True)
+        self.assertEqual(self.watcher.last_seen.content, collapse("""
+            iuscipit hent dipiscipit. Molore proin consecte min amcommo;
+            lobortio platea loboreet il consequis. Lan ullut corem
+            esectem vercilisit delent exer, feu inciduipit feum in
+            augait vullam. Tortor augait dignissim."""))
 
     def test_synchronous_hidden_error(self):
         self.receive('PRIVMSG #foo :!spam failure > party3')

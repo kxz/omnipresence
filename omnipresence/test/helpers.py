@@ -66,7 +66,7 @@ class NoticingPlugin(EventPlugin):
         self.seen.append(msg)
 
     on_connected = on_disconnected = on_privmsg
-    on_command = on_join = on_quit = on_privmsg
+    on_command = on_notice = on_join = on_quit = on_privmsg
 
     @property
     def last_seen(self):
@@ -80,7 +80,7 @@ class OutgoingPlugin(NoticingPlugin):
         super(OutgoingPlugin, self).on_privmsg(msg)
     on_privmsg.outgoing = True
 
-    on_command = on_join = on_quit = on_privmsg
+    on_command = on_notice = on_join = on_quit = on_privmsg
 
 
 #

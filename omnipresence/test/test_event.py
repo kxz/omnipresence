@@ -4,6 +4,7 @@
 
 from twisted.internet.defer import Deferred
 
+from ..connection import PRIVATE_CHANNEL
 from ..plugin import EventPlugin
 from .helpers import (AbstractConnectionTestCase,
                       NoticingPlugin, OutgoingPlugin)
@@ -28,7 +29,8 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
     def setUp(self):
         super(EventDelegationTestCase, self).setUp()
         self.one = self.connection.add_event_plugin(
-            NoticingPlugin, {'#foo': ['spam'], '#bar': []})
+            NoticingPlugin,
+            {PRIVATE_CHANNEL: ['spam'], '#foo': ['spam'], '#bar': []})
         # We would normally never instantiate two instances of the same
         # event plugin class, but this is the easiest way to test the
         # delegation of events that have no actor or venue.
@@ -65,6 +67,16 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.assertEqual(self.one.last_seen.venue, '#foo')
         self.assertEqual(self.one.last_seen.content, 'lorem ipsum')
         self.assertFalse(self.one.last_seen.private)
+
+    def test_privmsg_user(self):
+        self.receive('PRIVMSG {} :lorem ipsum'.format(
+            self.connection.nickname))
+        self.assertEqual(len(self.one.seen), 1)
+        self.assertEqual(self.one.last_seen.action, 'privmsg')
+        self.assertEqual(self.one.last_seen.actor, self.other_user)
+        self.assertEqual(self.one.last_seen.venue, self.connection.nickname)
+        self.assertEqual(self.one.last_seen.content, 'lorem ipsum')
+        self.assertTrue(self.one.last_seen.private)
 
     def test_privmsg_casemapping(self):
         # This will no longer be a direct part of the event delegation
