@@ -90,12 +90,73 @@ distribution, see :doc:`builtins`.
 Command plugins
 ===============
 
-...
+Any plugin with an ``on_command`` callback can be assigned a keyword in
+the :doc:`bot configuration <settings>`.
+Unlike most other callbacks, whose return values are ignored, any value
+returned from ``on_command`` becomes the command reply, and is sent as
+either a channel message addressed to the command target or a private
+notice depending on how the command was invoked.
+A command reply may take one of the following forms:
 
-Omnipresence provides the :py:class:`~omnipresence.web.WebCommand` class
-for creating commands that rely on making an HTTP request and parsing
-the response.
-See the class documentation for more details.
+.. _command-replies:
+
+* A byte or Unicode string.
+  Long strings are broken into chunks of up to :py:data:`.CHUNK_LENGTH`
+  bytes and treated as a sequence.
+
+* A sequence of strings.
+  Any reply strings containing more than :py:data:`.MAX_REPLY_LENGTH`
+  bytes are truncated on display.
+
+* An iterator yielding either strings or :py:class:`Deferred` objects
+  that yield strings.
+  Long reply strings are truncated as with sequence replies.
+
+* A :py:class:`Deferred` object yielding any of the above.
+
+In all cases, the first reply is immediately shown to the target user,
+and any remaining replies are placed in a buffer for later retrieval
+using the :py:mod:`.more <.plugins.more>` command.
+Newlines inside replies are displayed as a slash surrounded by spaces.
+
+The following example plugin implements an infinite counter::
+
+    from itertools import count
+    from omnipresence.plugin import EventPlugin
+
+    class Default(EventPlugin):
+        def on_command(self, msg):
+            return count()
+
+To provide a help string for the :py:mod:`.help <.plugins.help>` command,
+return it from the ``on_cmdhelp`` callback.
+The incoming :py:class:`.Message`'s :py:attr:`~.Message.content`
+attribute contains any additional arguments to :py:mod:`.help
+<.plugins.help>`, allowing help subtopics::
+
+        def on_cmdhelp(self, msg):
+            if msg.content == 'detailed':
+                return '\x02detailed\x02 - Show more information.'
+            if msg.content == 'terse':
+                return '\x02terse\x02 - Show less information.'
+            return ('[\x02detailed\x02|\x02terse\x02] - Do some stuff. '
+                    'For more details, see help for \x02{}\x02 \x1Faction\x1F.'
+                    .format(msg.subaction))
+
+Note that the command keyword is automatically prepended to the help
+string on display.
+
+Omnipresence's :doc:`built-in plugins <builtins>` provide help strings
+of the form ``usage - Help text.``, where the usage string is formatted
+as follows:
+
+* Strings to be typed literally by the user are bolded using ``\x02``.
+
+* Strings representing command arguments are underlined using ``\x1F``.
+
+* Optional components are surrounded by brackets (``[optional]``).
+
+* Alternatives are separated by vertical bars (``this|that|other``).
 
 
 Writing tests

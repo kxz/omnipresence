@@ -5,7 +5,7 @@ Core IRC client
 ===============
 
 .. automodule:: omnipresence.connection
-   :members: Connection
+   :members: Connection, CHUNK_LENGTH, MAX_REPLY_LENGTH
 
 Messages
 ========
