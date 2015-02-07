@@ -404,7 +404,7 @@ class Connection(IRCClient):
 
     def respond_to(self, msg):
         """Start the appropriate event plugin callbacks for *msg*, and
-        return a :py:class:`twisted.internet.defer.DeferredList`."""
+        return a :py:class:`~twisted.internet.defer.DeferredList`."""
         if self.message_queue is not None:
             # We're already firing callbacks.  Bail.
             self.message_queue.append(msg)
@@ -440,7 +440,7 @@ class Connection(IRCClient):
                 if msg.action == 'command':
                     deferred.addCallback(self.buffer_reply, msg)
                     deferred.addCallback(self.reply_from_buffer, msg)
-                    deferred.addErrback(self.reply_error, msg)
+                    deferred.addErrback(self.reply_from_error, msg)
                 else:
                     deferred.addErrback(log.err,
                         'Error in plugin %s responding to %s' %
@@ -502,9 +502,10 @@ class Connection(IRCClient):
     def reply_from_buffer(self, nick, request, reply_when_empty=False):
         """Call :py:meth:`~.reply` with the next reply from the reply
         buffer belonging to *nick* in the :py:attr:`~.Message.venue`
-        venue of the invocation :py:class:`~.Message` *request*.  Return
-        a Deferred with the reply's contents, or :py:data:`None` if no
-        reply was made because of an empty reply buffer."""
+        of the invocation :py:class:`~.Message` *request*.  Return a
+        :py:class:`~twisted.internet.defer.Deferred` yielding either the
+        reply's contents, or :py:data:`None` if no reply was made
+        because of an empty reply buffer."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
         buf = self.copy_buffer(venue, nick, request.actor.nick)
         if isinstance(buf, collections.Sequence):
@@ -523,7 +524,7 @@ class Connection(IRCClient):
         if reply_when_empty:
             deferred.addCallback(lambda s: s or 'No text in buffer.')
         deferred.addCallback(self.reply, request)
-        deferred.addErrback(self.reply_error, request)
+        deferred.addErrback(self.reply_from_error, request)
         return deferred
 
     def reply(self, string, request):
@@ -548,7 +549,7 @@ class Connection(IRCClient):
             self.msg(request.venue, reply_format.format(
                 target=request.target, message=string))
 
-    def reply_error(self, failure, request):
+    def reply_from_error(self, failure, request):
         """Call :py:meth:`reply` with information on a *failure* that
         occurred in the callback invoked to handle a command request. If
         *failure* wraps a :py:class:`~.UserVisibleError`, reply with its
