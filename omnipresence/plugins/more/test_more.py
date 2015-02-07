@@ -28,7 +28,7 @@ class MoreTestCase(AbstractConnectionTestCase):
                          expected_reply)
 
     def test_no_buffer(self):
-        self.assert_reply('', self.other_user, 'No text in buffer.')
+        self.assert_reply(self.other_user, '', 'No text in buffer.')
 
     def test_own_buffer(self):
         self.connection.buffer_reply(imap(str, count()), Message(

@@ -9,8 +9,7 @@ import re
 
 import sqlobject
 from twisted.internet import reactor
-from twisted.internet.defer import (
-    DeferredList, inlineCallbacks, maybeDeferred)
+from twisted.internet.defer import DeferredList, maybeDeferred, succeed
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -21,8 +20,11 @@ from .message import Message, chunk
 from .plugin import UserVisibleError
 
 
+#: The length to chunk string command replies to, in bytes.
+CHUNK_LENGTH = 256
+
 #: The maximum length of a single command reply, in bytes.
-MAX_REPLY_LENGTH = 256
+MAX_REPLY_LENGTH = 320
 
 #: A sentinel "channel" used for direct messages to users.
 PRIVATE_CHANNEL = '@'
@@ -386,7 +388,9 @@ class Connection(IRCClient):
                     names)
         self.channel_names[channel].update(names)
 
-    # Temporary shadow implementation of event plugins.
+    #
+    # Temporary shadow implementation of event plugins
+    #
 
     def add_event_plugin(self, plugin_class, channels):
         """Attach a new instance of *plugin_class* to this connection
@@ -455,6 +459,10 @@ class Connection(IRCClient):
         self.message_queue = None
         return DeferredList(deferreds)
 
+    #
+    # Command replies and message buffering
+    #
+
     def buffer_reply(self, response, request):
         """Add the :ref:`command reply <command-replies>` *response* to
         the appropriate user's reply buffer according to the invocation
@@ -462,9 +470,9 @@ class Connection(IRCClient):
         buf_venue = PRIVATE_CHANNEL if request.private else request.venue
         if not response:
             self.message_buffers[buf_venue].pop(request.actor.nick, None)
-            return
+            return request.actor.nick
         if isinstance(response, basestring):
-            buf = chunk(response, self.factory.encoding, MAX_REPLY_LENGTH)
+            buf = chunk(response, self.factory.encoding, CHUNK_LENGTH)
         elif isinstance(response, collections.Iterable):
             buf = response
         else:
@@ -473,55 +481,69 @@ class Connection(IRCClient):
         self.message_buffers[buf_venue][request.actor.nick] = buf
         return request.actor.nick
 
-    @inlineCallbacks
-    def reply_from_buffer(self, nick, request, reply_when_empty=False):
-        """Send the next reply from the reply buffer belonging to *nick*
-        in the :py:attr:`~.Message.venue` venue of the invocation
-        :py:class:`~.Message` *request*.  If the request venue is a
-        channel, send the reply to the venue as a standard message
-        addressed to *request*'s :py:attr:`~.Message.target`.
-        Otherwise, send the reply as a private notice to *request*'s
-        :py:attr:`~.Message.actor`."""
-        buf = self.message_buffers[request.venue].get(nick, [])
-        if request.actor.nick != nick:
-            if isinstance(buf, collections.Sequence):
-                buf = copy(buf)
-                self.message_buffers[request.venue][request.actor.nick] = buf
-            else:  # assume an iterator
-                one, two = tee(buf)
-                self.message_buffers[request.venue][nick] = one
-                self.message_buffers[request.venue][request.actor.nick] = two
-                buf = two
-        message = None
-        remaining_chars = None
+    def copy_buffer(self, venue, source, target):
+        """Copy a reply buffer from the *source* nick to the *target*
+        nick in *venue*, and return the copy."""
+        buf = self.message_buffers[venue].get(source, [])
+        if self.case_mapping.equates(source, target):
+            return buf
         if isinstance(buf, collections.Sequence):
+            new = copy(buf)
+            self.message_buffers[venue][target] = new
+            return new
+        # Assume an iterator.
+        one, two = tee(buf)
+        self.message_buffers[venue][source] = one
+        self.message_buffers[venue][target] = two
+        return two
+
+    def reply_from_buffer(self, nick, request, reply_when_empty=False):
+        """Call :py:meth:`~.reply` with the next reply from the reply
+        buffer belonging to *nick* in the :py:attr:`~.Message.venue`
+        venue of the invocation :py:class:`~.Message` *request*.  Return
+        a Deferred with the reply's contents, or :py:data:`None` if no
+        reply was made because of an empty reply buffer."""
+        buf = self.copy_buffer(request.venue, nick, request.actor.nick)
+        if isinstance(buf, collections.Sequence):
+            next_reply = None
             if buf:
-                message = buf.pop(0)
+                next_reply = buf.pop(0)
                 remaining_chars = sum(map(len, buf))
+                if remaining_chars:
+                    next_reply = '{} (+{} more characters)'.format(
+                        next_reply, remaining_chars)
+            deferred = succeed(next_reply)
         else:  # assume an iterator
-            try:
-                message = yield next(buf)
-            except StopIteration:
-                pass
-            except Exception:
-                self.reply_error(Failure(), request)
-                return
-        if not (message or reply_when_empty):
+            deferred = maybeDeferred(next, buf)
+            # Return None on StopIteration.  It looks weird, yes.
+            deferred.addErrback(lambda f: f.trap(StopIteration) and None)
+        if reply_when_empty:
+            deferred.addCallback(lambda s: s or 'No text in buffer.')
+        deferred.addCallback(self.reply, request)
+        deferred.addErrback(self.reply_error, request)
+        return deferred
+
+    def reply(self, string, request):
+        """Send a reply *string*.  If the request venue is a channel,
+        send the reply to the venue as a standard message addressed to
+        *request*'s :py:attr:`~.Message.target`, formatted using the
+        :py:attr:`~.Message.venue`'s reply format.  Otherwise, send the
+        reply as a notice to *request*'s :py:attr:`~.Message.actor`."""
+        if not string:
             return
-        if message is None:
-            message = 'No text in buffer.'
-        message = message.replace('\n', ' / ')
-        if remaining_chars:
-            message += ' (+{} more characters)'.format(remaining_chars)
+        string = string.replace('\n', ' / ')
+        if len(string) > MAX_REPLY_LENGTH:
+            string = string[:MAX_REPLY_LENGTH] + '...'
         if request.private:
-            log.msg('Private reply for %s: %s' % (request.actor.nick, message))
-            self.notice(request.actor.nick, message)
+            log.msg('Private reply for %s: %s' % (request.actor.nick, string))
+            self.notice(request.actor.nick, string)
         else:
             log.msg('Reply for %s in %s: %s' %
-                    (request.target, request.venue, message))
+                    (request.target, request.venue, string))
             # TODO:  Make the format configurable.
-            message = '\x0314{}: {}'.format(request.target, message)
-            self.msg(request.venue, message)
+            reply_format = '\x0314{target}: {message}'
+            self.msg(request.venue, reply_format.format(
+                target=request.target, message=string))
 
     def reply_error(self, failure, request):
         """Call :py:meth:`reply` with information on a *failure* that
@@ -541,24 +563,25 @@ class Connection(IRCClient):
         message = 'Command \x02{}\x02 encountered an error'.format(
             request.subaction)
         if failure.check(UserVisibleError):
-            self.buffer_reply(
+            self.reply(
                 '{}: {}.'.format(message, failure.getErrorMessage()),
                 error_request)
-            self.reply_from_buffer(request.actor.nick, error_request)
             return
         log.err(failure, 'Error during command callback: %s %s' %
                 (request.subaction, request.content))
-        self.buffer_reply(message + '.', error_request)
-        self.reply_from_buffer(request.actor.nick, error_request)
+        self.reply(message + '.', error_request)
 
-    # Overrides IRCClient.lineReceived.
     def lineReceived(self, line):
+        """Overrides
+        :py:meth:`twisted.words.protocols.irc.IRCClient.lineReceived`.
+        """
         deferred = self.respond_to(Message.from_raw(self, False, line))
         IRCClient.lineReceived(self, line)
         return deferred
 
-    # Overrides IRCClient.sendLine.
     def sendLine(self, line):
+        """Overrides
+        :py:meth:`twisted.words.protocols.irc.IRCClient.sendLine`."""
         deferred = self.respond_to(Message.from_raw(
             self, True, line, actor=self.nickname))
         IRCClient.sendLine(self, line)
