@@ -124,7 +124,9 @@ class Connection(IRCClient):
         self.signon_timeout = None
 
         log.msg('Assuming default CASEMAPPING "rfc1459"')
-        #: The case mapping currently in effect on this connection.
+        #: The `.CaseMapping` currently in effect on this connection.
+        #: Defaults to ``rfc1459`` if none is explicitly provided by the
+        #: server.
         self.case_mapping = mapping.by_name('rfc1459')
 
         #: A mapping of channels to the set of nicks present in each
@@ -143,8 +145,8 @@ class Connection(IRCClient):
         #: callbacks.  Otherwise, `None`.
         self.message_queue = None
 
-        #: If joins are suspended, a set containing the channels to join
-        #: when joins are resumed.  Otherwise, `None`.
+        #: If joins are suspended, a list of channels to join when joins
+        #: are resumed.  Otherwise, `None`.
         self.suspended_joins = None
 
     # Utility methods

@@ -1,18 +1,53 @@
 API reference
 *************
 
-Core IRC client
-===============
+Connections
+===========
 
-.. automodule:: omnipresence.connection
-   :members: Connection, CHUNK_LENGTH, MAX_REPLY_LENGTH
+.. module:: omnipresence.connection
+
+.. autoclass:: Connection
+
+   See `Twisted's IRCClient documentation`__ for details on methods used
+   to perform basic actions.
+
+   __ http://twistedmatrix.com/documents/current/api/twisted.words.protocols.irc.IRCClient.html
+
+   .. automethod:: reply
+   .. automethod:: is_channel
+   .. automethod:: suspend_joins
+   .. automethod:: resume_joins
+
+   .. autoinstanceattribute:: case_mapping
+      :annotation:
+   .. autoinstanceattribute:: channel_names
+      :annotation:
+   .. autoinstanceattribute:: message_buffers
+      :annotation:
+   .. autoinstanceattribute:: suspended_joins
+      :annotation:
+   .. autoinstanceattribute:: reactor
+      :annotation:
+
+.. autoclass:: UserInfo
+   :members:
+
+.. autoclass:: ChannelInfo
+   :members:
+
+.. autoclass:: ChannelUserInfo
+   :members:
+
+.. autodata:: CHUNK_LENGTH
+.. autodata:: MAX_REPLY_LENGTH
+
 
 Messages
 ========
 
 .. module:: omnipresence.message
 
-.. autoclass:: omnipresence.message.Message(connection, outgoing, action, actor=None, venue=None, target=None, subaction=None, content=None)
+.. autoclass:: Message(connection, outgoing, action, actor=None, venue=None, target=None, subaction=None, content=None)
 
    .. note:: All string values are byte strings, not Unicode strings,
       and therefore must be appropriately decoded when necessary.
@@ -20,13 +55,13 @@ Messages
    The following additional properties are derived from the values of
    one or more basic attributes, and are included for convenience:
 
-   .. autoattribute:: omnipresence.message.Message.bot
-   .. autoattribute:: omnipresence.message.Message.private
+   .. autoattribute:: bot
+   .. autoattribute:: private
 
    New message objects can be created using either the standard
    constructor, or by parsing a raw IRC message string:
 
-   .. automethod:: omnipresence.message.Message.from_raw
+   .. automethod:: from_raw
 
    `~.Message` is a `~collections.namedtuple` type, and thus its
    instances are immutable.
