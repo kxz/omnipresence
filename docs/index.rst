@@ -12,5 +12,7 @@ flavor.
    :maxdepth: 2
 
    install
+   settings
+   builtins
    plugins
    api
