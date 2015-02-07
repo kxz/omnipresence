@@ -1,8 +1,11 @@
+# -*- test-case-name: omnipresence.test.test_settings -*-
+"""Operations on Omnipresence configuration files."""
+
+
+import collections
+import shlex
+
 import yaml
-
-
-class ConfigurationError(Exception):
-    pass
 
 
 def parse_key(key):
@@ -91,6 +94,9 @@ class BotSettings(object):
     # XXX:  Docstring.
 
     def __init__(self, settings_dict):
+        if not isinstance(settings_dict, collections.Mapping):
+            raise TypeError('settings must be a mapping, not ' +
+                            type(settings_dict).__name__)
         #: A mapping from connection names, as given in *settings_dict*,
         #: to `.ConnectionSettings` objects.
         self.connections = {}
@@ -105,13 +111,13 @@ class BotSettings(object):
             try:
                 connection_name = args.pop(0)
             except IndexError:
-                raise ConfigurationError(
+                raise ValueError(
                     '"connection" command without connection name')
             if args:
-                raise ConfigurationError(
+                raise ValueError(
                     'too many arguments to "connection" command: ' + key)
             connections_dict[connection_name] = value
-        for name, connection_dict in connections_dict.itervalues():
+        for name, connection_dict in connections_dict.iteritems():
             connection_dict.update(bot_dict)
             self.connections[name] = ConnectionSettings(connection_dict)
 
