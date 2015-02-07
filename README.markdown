@@ -1,5 +1,8 @@
 # Omnipresence
 
+[![Travis CI build status](https://travis-ci.org/kxz/omnipresence.svg)
+](https://travis-ci.org/kxz/omnipresence)
+
 An IRC utility bot built on Twisted, originally developed for [the
 \#yackfest channel on EsperNet][yf].
 Most of its functionality is provided through plugins for commands and
