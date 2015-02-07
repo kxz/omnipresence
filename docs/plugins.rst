@@ -175,6 +175,10 @@ as follows:
 * Alternatives are separated by vertical bars (``this|that|other``).
 
 
+Adding configuration options
+============================
+
+
 Writing tests
 =============
 
