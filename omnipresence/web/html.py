@@ -32,13 +32,13 @@ def textify(html, format_output=True):
         else:
             fmt = u'{0}'
         # Recurse into the node's contents.
-        contents = u''
-        for k in soup.contents:
+        text = u''
+        for k in soup.children:
             if isinstance(k, NavigableString):
-                contents += unicode(k)
-            elif hasattr(k, 'name'):  # is another soup element
-                contents += descend(k)
-        return fmt.format(contents)
+                text += unicode(k)
+            else:  # is another soup element
+                text += descend(k)
+        return fmt.format(text)
 
     # Don't strip whitespace until the very end, in order to avoid
     # misparsing constructs like <span>hello<b> world</b></span>.
