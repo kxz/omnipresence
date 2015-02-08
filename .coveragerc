@@ -4,3 +4,4 @@ source =
     omnipresence
 omit =
     omnipresence/test/*
+    omnipresence/plugins/*/test*
