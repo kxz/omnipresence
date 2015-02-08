@@ -48,7 +48,7 @@ def unclosed_formatting(string):
             bold = not bold
         elif code == '\x16':
             reverse = not reverse
-        elif code == '\x1F':
+        elif code == '\x1F':  # pragma: no branch
             underline = not underline
     # Thankfully, we don't have to keep track of proper nesting.
     open_codes = []

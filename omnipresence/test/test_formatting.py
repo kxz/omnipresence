@@ -37,5 +37,11 @@ class UnclosedFormattingTestCase(unittest.TestCase):
     def test_color_reset(self):
         self._test('lorem \x03ipsum', [])
 
+    def test_bold_reverse_reset(self):
+        self._test('\x02lorem\x02 \x16ipsum\x16', [])
+
     def test_complex_formatting(self):
         self._test('\x02a\x0F\x1Fm\x033et', ['\x1F', '\x033'])
+
+    def test_all_open(self):
+        self._test('\x02\x031,1\x16\x1F', ['\x02', '\x031,1', '\x16', '\x1F'])

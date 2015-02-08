@@ -235,6 +235,9 @@ class ExtractionTestCase(unittest.TestCase):
     def test_ignore_missing_prefix(self):
         self.assertIsNone(self._extract('ipsum'))
 
+    def test_ignore_missing_content(self):
+        self.assertIsNone(self._extract('!'))
+
     def test_simple_command(self):
         msg = self._extract('!help')
         self.assertEqual(msg.action, 'command')

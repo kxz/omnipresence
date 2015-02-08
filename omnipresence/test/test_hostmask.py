@@ -36,6 +36,8 @@ class HostmaskTestCase(unittest.TestCase):
         self.assertEqual(mar(r'ni\ck').pattern, r'\Ani\\ck\Z')
 
     def test_matches(self):
+        self.assertTrue(Hostmask('nick', 'user', 'host').matches(
+            Hostmask('nick', 'user', 'host')))
         self.assertTrue(
             Hostmask('nick', 'user', 'host').matches('nick!user@host'))
         self.assertTrue(
