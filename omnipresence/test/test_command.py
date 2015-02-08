@@ -1,8 +1,10 @@
+# -*- coding: utf-8
 """Integration tests for command response handling."""
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
 from itertools import count, imap
+from textwrap import dedent
 
 from twisted.internet.defer import Deferred
 
@@ -245,3 +247,58 @@ class IteratorCommandTestCase(AbstractCommandTestCase):
                          '\x0314{}: No text in buffer.'
                          .format(self.other_user.nick))
         self.assertLoggedErrors(1)
+
+
+#
+# Individual reply truncation
+#
+
+class ReplyTruncationTestCase(AbstractConnectionTestCase):
+    def setUp(self):
+        super(ReplyTruncationTestCase, self).setUp()
+        self.watcher = self.connection.add_event_plugin(
+            OutgoingPlugin, {PRIVATE_CHANNEL: [], '#foo': []})
+        self.request = Message(self.connection, False, 'command',
+            actor=self.other_user, subaction='spam',
+            venue=self.connection.nickname, target=self.other_user.nick)
+
+    def test_str(self):
+        self.connection.reply(collapse("""\
+            Iliquat dictum patin rilit aciduipis, sectem nummolorem
+            esequat. Alisis nummolorem ros quatuer iuscing iure nonsequ,
+            ad commy congue, faccummy aut esequat quisi. Eugiam velis
+            odipsumsan ate a sismolore. Magniat vero sociosqu, mauris
+            quamconsequi irilit urna niscidu consequis, magniamet
+            aciduipis utet. Justo consequipis os, dolummy tempor nulla
+            vel corem adignim, sociis ate verostin."""), self.request)
+        self.assertEqual(self.watcher.last_seen.content, collapse("""\
+            Iliquat dictum patin rilit aciduipis, sectem nummolorem
+            esequat. Alisis nummolorem ros quatuer iuscing iure nonsequ,
+            ad commy congue, faccummy aut esequat quisi. Eugiam velis
+            odipsumsan ate a sismolore. Magniat vero sociosqu, mauris
+            quamconsequi irilit urna niscidu consequis, magniamet
+            aciduipis utet. Justo consequipis..."""))
+
+    def test_unicode(self):
+        self.connection.reply(dedent(u"""\
+            《施氏食狮史》
+            石室诗士施氏，嗜狮，誓食十狮。
+            氏时时适市视狮。
+            十时，适十狮适市。
+            是时，适施氏适市。
+            氏视是十狮，恃矢势，使是十狮逝世。
+            氏拾是十狮尸，适石室。
+            石室湿，氏使侍拭石室。
+            石室拭，氏始试食是十狮。
+            食时，始识是十狮尸，实十石狮尸。
+            试释是事。"""), self.request)
+        self.assertEqual(self.watcher.last_seen.content, collapse(u"""\
+            《施氏食狮史》 /
+            石室诗士施氏，嗜狮，誓食十狮。 /
+            氏时时适市视狮。 /
+            十时，适十狮适市。 /
+            是时，适施氏适市。 /
+            氏视是十狮，恃矢势，使是十狮逝世。 /
+            氏拾是十狮尸，适石室。 /
+            石室湿，氏使侍拭石室。 /
+            石室拭，氏始试食是十狮...""").encode('utf-8'))

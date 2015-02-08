@@ -16,7 +16,7 @@ from twisted.python.failure import Failure
 from twisted.words.protocols.irc import IRCClient
 
 from . import __version__, __source__, mapping
-from .message import Message, chunk
+from .message import Message, chunk, truncate_unicode
 from .plugin import UserVisibleError
 
 
@@ -533,8 +533,14 @@ class Connection(IRCClient):
         if not string:
             return
         string = string.replace('\n', ' / ')
-        if len(string) > MAX_REPLY_LENGTH:
-            string = string[:MAX_REPLY_LENGTH] + '...'
+        if isinstance(string, unicode):
+            truncated = truncate_unicode(string, MAX_REPLY_LENGTH,
+                                         self.factory.encoding)
+            if truncated.decode(self.factory.encoding) != string:
+                string = truncated + u'...'.encode(self.factory.encoding)
+        else:
+            if len(string) > MAX_REPLY_LENGTH:
+                string = string[:MAX_REPLY_LENGTH] + '...'
         if request.private:
             log.msg('Private reply for %s: %s' % (request.actor.nick, string))
             self.notice(request.actor.nick, string)
