@@ -9,6 +9,7 @@ import urlparse
 from twisted.internet import defer, error, threads
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import log
+from twisted.python.failure import Failure
 from twisted.web.client import ResponseFailed
 from twisted.web.error import InfiniteRedirection
 from zope.interface import implements, Interface, Attribute
@@ -230,9 +231,9 @@ class URLTitleFetcher(object):
                                                       location, hostname,
                                                       redirect_count + 1)
                 else:
-                    raise ResponseFailed([InfiniteRedirection(
+                    raise ResponseFailed([Failure(InfiniteRedirection(
                             599, 'Too many soft redirects',
-                            location=processed.location)])
+                            location=processed.location))])
             title = processed
         if title is None:
             title = u'{0} document'.format(ctype or u'Unknown')
