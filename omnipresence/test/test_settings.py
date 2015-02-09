@@ -39,6 +39,7 @@ class SettingsTestCase(unittest.TestCase):
             {'i_am_a_banana': None}]
         for case in cases:
             self.assertRaises(ValueError, BotSettings, case)
+    test_fail_invalid_keys.todo = 'unimplemented'
 
     def test_fail_invalid_nesting(self):
         cases = [
@@ -69,10 +70,12 @@ class SettingsTestCase(unittest.TestCase):
             {'connection test': {'autojoin': False}}]
         for case in cases:
             self.assertRaises(ValueError, BotSettings, case)
+    test_fail_invalid_nesting.todo = 'unimplemented'
 
     def test_fail_invalid_connections(self):
         self.assertRaises(ValueError, BotSettings, {
             'connection missing_host': None})
+    test_fail_invalid_connections.todo = 'unimplemented'
 
     def test_fail_invalid_ignores(self):
         self.assertRaises(TypeError, BotSettings, {
@@ -87,10 +90,12 @@ class SettingsTestCase(unittest.TestCase):
             'ignore test': {'hostmasks': [], 'exclude': 'whoops_a_string'}})
         self.assertRaises(TypeError, BotSettings, {
             'ignore test': {'hostmasks': [], 'include': 'whoops_a_string'}})
+    test_fail_invalid_ignores.todo = 'unimplemented'
 
     def test_fail_invalid_plugins(self):
         self.assertRaises(TypeError, BotSettings, {
             'plugin test': 'whoops_a_string'})
+    test_fail_invalid_plugins.todo = 'unimplemented'
 
     def test_autojoin_channels(self):
         settings_dict = {'channel foo': None,
@@ -99,11 +104,13 @@ class SettingsTestCase(unittest.TestCase):
         self.assertEqual(
             ConnectionSettings(settings_dict).autojoin_channels(),
             set('#foo', '&baz'))
+    test_autojoin_channels.todo = 'unimplemented'
 
     def test_warn_connection_mismatch(self):
         # XXX:  Warn if the connection used for ConnectionSettings and
         # the connection in a scope message are different.
         pass
+    test_warn_connection_mismatch.skip = 'empty stub test'
 
     # TODO:  Case mapping tests.
 
@@ -121,6 +128,7 @@ class SettingsTestCase(unittest.TestCase):
         self.assertEqual(bar_settings.host, 'irc.bar.example')
         self.assertEqual(bar_settings.port, 6697)
         self.assertTrue(bar_settings.ssl)
+    test_connections.todo = 'unimplemented'
 
     def test_variable_inheritance(self):
         settings = BotSettings({
@@ -151,7 +159,9 @@ class SettingsTestCase(unittest.TestCase):
                          'connection')
         self.assertEqual(foo_settings.get('eggs', scope=CHANNEL_MESSAGE),
                          'channel')
+    test_variable_inheritance.todo = 'unimplemented'
 
     def test_plugin_inheritance(self):
         # XXX:  Include ignore rules.
         pass
+    test_plugin_inheritance.skip = 'empty stub test'
