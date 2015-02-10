@@ -214,7 +214,7 @@ Web resource interactions
 =========================
 
 .. automodule:: omnipresence.web
-   :members: WebCommand, request, textify_html
+   :members: request, textify_html
 
 Human-readable output helpers
 =============================
