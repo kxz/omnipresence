@@ -15,6 +15,11 @@ files.
 For information on the settings provided by Omnipresence's built-in
 event plugins, see :doc:`builtins`.
 
+.. seealso::
+
+   The `Wikipedia article on YAML <https://en.wikipedia.org/wiki/YAML>`_
+   gives a rundown of the basic structure and syntax of a YAML file.
+
 
 Essentials
 ==========
@@ -54,6 +59,8 @@ Avoid giving the same directive more than once inside a block.
 The configuration parser may choose to use the value of either one
 depending on the whims of the YAML parser.
 
+
+.. _settings-connection:
 
 Connections
 ===========
@@ -105,6 +112,8 @@ It is an error to place a ``connection`` directive at any level of the
 configuration file except the root.
 
 
+.. _settings-channel:
+
 Channels
 ========
 
@@ -147,14 +156,135 @@ the other hand, and therefore it is an error to put one there.
 Plugins
 =======
 
+The ``plugin`` directive enables or disables a plugin in the current
+block and all blocks below it, unless overridden::
+
+    plugin .rss: on
+    plugin .wikipedia: [w, wp]
+    plugin .wikipedia/Random: [wr]
+    plugin foo.custom: [foo]
+
+It takes the plugin's configuration name as its sole argument.
+Names that begin with a period (``.``) refer to :doc:`built-in plugins
+<builtins>`, while others are custom plugins provided by third-party
+packages.
+If a package provides multiple plugins, alternatives are available by
+adding a slash and a second name (``/Random``).
+
+The value is either a list of command keywords to use for plugins that
+provide a command, or Boolean `True` or `False`.
+Any value that evaluates to false disables the plugin.
+
+.. warning::
+
+   In Python, an empty list is considered false, so providing a list of
+   no keywords for a plugin will disable it.
+
 
 .. _settings-variable:
 
 Variables
 =========
 
+The ``set`` directive sets the value of a configuration variable::
+
+    set nickname: Omnipresence
+    set google.key: 0123456789abcdef
+
+It takes the name of the variable to set as its sole argument.
+By convention, names not containing a period (``.``) are used for
+Omnipresence core settings, while those with a period belong to plugins.
+The value depends on the specific variable being set.
+Note that Omnipresence does not parse directives inside variable blocks,
+so the following configuration syntax is valid::
+
+    set deliberately.unused.variable:
+        connection example: hello world
+
+(You should use :ref:`data blocks <settings-data>` instead of abusing
+variable blocks to store arbitrary data for later reuse, however.)
+
+To unset a variable, set it to `None` using a tilde character (``~``)::
+
+    set rss.feeds: ~
+
+In addition to the variables mentioned in :ref:`settings-connection`,
+Omnipresence also understands the following:
+
+* ``command_prefixes`` is a list of prefixes Omnipresence searches for
+  in public channels to indicate a command.
+  It has no default value.
+
+* ``direct_addressing`` allows the bot's configured or current nickname,
+  followed by a colon or a comma, to be a command prefix.
+  It defaults to true.
+
+* ``reply_format`` is a :ref:`format string <python:formatstrings>` used
+  for replies to public channels.
+  The strings ``{target}`` and ``{message}`` are replaced by the target
+  nickname and content of the reply, respectively.
+  The default is ``"\x0314{target}: {message}"``, which colors the
+  response text gray.
+
+* ``encoding`` is the name of a :ref:`Python character encoding
+  <python:standard-encodings>` used to encode and decode messages.
+  The default is ``"utf-8"``.
+
 
 .. _settings-ignore:
 
 Ignore rules
 ============
+
+The ``ignore`` directive tells Omnipresence to not pass messages from
+certain user hostmasks to certain plugins::
+
+    ignore no_google_for_you:
+        hostmasks: [*!*@foo.example]
+        include: [google]
+    ignore otherbots:
+        hostmasks: [foobot, barbot]
+        exclude: [.chanlog]
+
+It takes an arbitrary name as its sole argument.
+This name can be used in nested blocks to disable the ignore rule::
+
+    connection mercy:
+        ignore no_google_for_you: off
+
+The value is either Boolean `False`, or a mapping containing a
+``hostmasks`` directive and at most one of ``include`` or ``exclude``.
+The value of ``hostmasks`` is a list of hostmasks the ignore rule
+applies to.
+If ``include`` is given, its value is used as an exhaustive list of
+plugins that should not respond to events from the given hostmasks.
+Otherwise, all plugins except those given in ``exclude``, if present,
+ignore those hostmasks.
+
+
+.. _settings-data:
+
+Data blocks
+===========
+
+The ``data`` directive opens a block that can store arbitrary data.
+Its contents are not parsed at all::
+
+    data:
+        channel totalanarchy:
+            connection thismakesnosense: hello world
+        but_here_are_some_defaults: &defaults
+            plugin .help: [h, help]
+            plugin .more: [m, more]
+
+This feature allows the use of YAML references to define repeated
+configuration templates where they will explicitly not be parsed.
+For example, the ``defaults`` value from the data block above can now be
+used for specific channel settings::
+
+    connection foo:
+        channel bar:
+            <<: *defaults
+        channel baz:
+            <<: *defaults
+            plugin baz.plugin: [quux]
