@@ -5,3 +5,8 @@ source =
 omit =
     omnipresence/test/*
     omnipresence/plugins/*/test*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    raise NotImplementedError
