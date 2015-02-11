@@ -175,7 +175,7 @@ Omnipresence defines additional message types for synthetic events:
 
 .. describe:: command
 
-   Represents a command invocation.
+   Represents a :ref:`command invocation <command-replies>`.
    `~.Message.venue` is as for the ``privmsg`` type.
    `~.Message.target` is a string containing the reply redirection
    target, or the actor's nick if none was specified.

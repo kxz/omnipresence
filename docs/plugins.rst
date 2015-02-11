@@ -87,18 +87,18 @@ distribution, see :doc:`builtins`.
                       someone_else_joined()
 
 
-Command plugins
+.. _command-replies:
+
+Command replies
 ===============
 
-Any plugin with an ``on_command`` callback can be assigned a keyword in
-the :doc:`bot configuration <settings>`.
+Any plugin with an ``on_command`` callback can be assigned one or more
+keywords in :doc:`its configuration <settings-plugin>`.
 Unlike most other callbacks, whose return values are ignored, any value
 returned from ``on_command`` becomes the command reply, and is sent as
 either a channel message addressed to the command target or a private
 notice depending on how the command was invoked.
 A command reply may take one of the following forms:
-
-.. _command-replies:
 
 * A byte or Unicode string.
   Long strings are broken into chunks of up to `.CHUNK_LENGTH` bytes and
@@ -175,8 +175,27 @@ as follows:
 * Alternatives are separated by vertical bars (``this|that|other``).
 
 
-Adding configuration options
-============================
+Configuration options
+=====================
+
+Use the `.Message.settings` wrapper to look up the value of a
+configuration variable::
+
+    def on_command(self, msg):
+        return msg.settings.get('foo.bar', 'default value')
+
+The value of a configuration variable may change while the bot is
+running (see :ref:`settings-reload`).
+If a plugin needs to update its internal state on these changes, it can
+do so by defining a ``configure`` callback, which is passed the current
+bot settings::
+
+    def configure(self, settings):
+        self.process(settings.get('foo.bar'))
+
+By convention, plugin configuration variable names should share a common
+prefix ending with a period (``.``).
+Undotted names are reserved for Omnipresence core variables.
 
 
 Writing tests

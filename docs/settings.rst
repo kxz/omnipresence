@@ -288,3 +288,13 @@ used for specific channel settings::
         channel baz:
             <<: *defaults
             plugin baz.plugin: [quux]
+
+
+.. _settings-reload:
+
+Reloading
+=========
+
+To reload the bot configuration, send a SIGUSR1 to the running process.
+Omnipresence may connect and disconnect from servers, or join and part
+channels, depending on the new settings.
