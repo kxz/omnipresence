@@ -11,30 +11,28 @@ class YouTubeSearch(web.WebCommand):
     """
     name = 'youtube'
     arg_type = 'a search query'
-    url = ('http://gdata.youtube.com/feeds/api/videos?v=2&q=%s&alt=json&'
-           "fields=entry(title,link[@rel%%3D'alternate'],yt:statistics)")
+    url = ('https://www.googleapis.com/youtube/v3/search?q=%s&'
+           'type=video&part=snippet&fields=items(id,snippet)')
+
+    def registered(self):
+        self.url += '&key=%s' % self.factory.config.get('google', 'key')
 
     def reply(self, response, bot, prefix, reply_target, channel, args):
-        data = json.loads(response[1])
-        try:
-            results = data['feed']['entry']
-        except KeyError:
-            results = []
-        if not results:
+        items = json.loads(response[1]).get('items', [])
+        if not items:
             bot.reply(prefix, channel,
                       'YouTube: No results found for \x02%s\x02.' % args[1])
             return
         messages = []
-        for i, result in enumerate(results):
-            message = u'YouTube: ({0}/{1}) {2} \u2014 \x02{3}\x02'.format(
-              i + 1, len(results),
-              result['link'][0]['href'].split('&', 1)[0],
-              result['title']['$t'])
-            # A lot of video queries don't return associated view
-            # statistics for one reason or another.
-            if 'yt$statistics' in result:
-                message += u' \u2014 {0:n} views'.format(
-                             int(result['yt$statistics']['viewCount']))
+        for i, item in enumerate(items):
+            message = (u'YouTube: ({}/{}) '
+                       u'https://www.youtube.com/watch?v={} \u2014 '
+                       u'\x02{}\x02'.format(
+                i + 1, len(items),
+                item['id']['videoId'],
+                item['snippet']['title']))
+            if item['snippet']['description']:
+                message += u': ' + item['snippet']['description']
             messages.append(message)
         bot.reply(reply_target, channel, u'\n'.join(messages))
 
