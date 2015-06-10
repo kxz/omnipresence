@@ -12,7 +12,7 @@ from omnipresence.iomnipresence import ICommand
 from omnipresence.util import ago
 
 
-API_SERVER = 'http://ws.geonames.org'
+API_SERVER = 'http://api.geonames.org'
 SEARCH_URL = API_SERVER + '/searchJSON?%s'
 TIME_URL = API_SERVER + '/timezoneJSON?%s'
 WEATHER_URL = API_SERVER + '/findNearByWeatherJSON?%s'
