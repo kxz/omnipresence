@@ -20,7 +20,7 @@ class Tox(test):
 setup(
     name='omnipresence',
     description='An IRC utility bot',
-    version='2.5',
+    version='2.6-dev',
     author='Kevin Xiwei Zheng',
     author_email='blankplacement+omnipresence@gmail.com',
     url='https://github.com/kxz/omnipresence',
