@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 import cgi
 import re
 import socket
-import struct
 import urllib
 import urlparse
 
-from twisted.internet import defer, error, threads
+from twisted.internet import defer, error, reactor, threads
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import log
 from twisted.python.failure import Failure
-from twisted.web.client import ResponseFailed
+from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
+                                RedirectAgent, GzipDecoder, ResponseFailed)
 from twisted.web.error import InfiniteRedirection
 from zope.interface import implements, Interface, Attribute
 
@@ -29,6 +28,10 @@ MAX_DOWNLOAD_SIZE = 65536
 
 """The maximum number of "soft" redirects that will be followed."""
 MAX_SOFT_REDIRECTS = 2
+
+agent = ContentDecoderAgent(
+        RedirectAgent(web.BlacklistingAgent(Agent(reactor))),
+        [('gzip', GzipDecoder)])
 
 
 #
@@ -88,20 +91,6 @@ def extract_urls(text):
             # Yield the resulting URL.
             if simple_url_re.match(middle):
                 yield middle
-
-def is_private_host(hostname):
-    """Check if the given host corresponds to a private network, as
-    specified by RFC 1918.  Only supports IPv4."""
-    addr = socket.gethostbyname(hostname)
-    addr = struct.unpack('!I', socket.inet_aton(addr))[0]
-    if ((addr >> 24 == 0x00  )   # 0.0.0.0/8
-     or (addr >> 24 == 0x0A  )   # 10.0.0.0/8
-     or (addr >> 24 == 0x7F  )   # 127.0.0.0/8
-     or (addr >> 16 == 0xA9DE)   # 169.254.0.0/16
-     or (addr >> 20 == 0xAC1 )   # 172.16.0.0/12
-     or (addr >> 16 == 0xC0A8)): # 192.168.0.0/16
-        return True
-    return False
 
 #
 # Plugin interfaces and helper classes
@@ -204,19 +193,13 @@ class URLTitleFetcher(object):
 
     @defer.inlineCallbacks
     def get_title(self, url, hostname, redirect_count=0):
-        # Twisted Names is full of headaches.  socket is easier.
-        private = yield threads.deferToThread(is_private_host,
-                                              hostname.encode('utf8'))
-        if private:
-            # Pretend that the given host just doesn't exist.
-            raise error.TimeoutError()
-
         # Fetch the title from a title processor if one is available for
         # the response's Content-Type, or craft a default one.
         hostname_tag = None
         title = None
         headers, content = yield web.request('GET', url.encode('utf8'),
-                                             max_bytes=MAX_DOWNLOAD_SIZE)
+                                             max_bytes=MAX_DOWNLOAD_SIZE,
+                                             agent=agent)
         ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
         if ctype in self.title_processors:
             title_processor = self.title_processors[ctype]
@@ -272,7 +255,8 @@ class URLTitleFetcher(object):
                 message = u'Encountered too many redirects.'
             else:
                 message = u'Received incomplete response from server.'
-        elif failure.check(socket.error, error.ConnectError):
+        elif failure.check(socket.error, error.ConnectError,
+                           web.BlacklistedHost):
             message = u'Could not connect to server.'
         else:
             log.err(failure, 'Encountered an error in URL processing.')
@@ -291,7 +275,7 @@ class URLTitleFetcher(object):
                 title = u'Error: \x02{0:s}\x02.'.format(value.value)
 
             if len(title) >= 140:
-                title = u'{0}…{1}'.format(title[:64], title[-64:])
+                title = u'{0}\u2026{1}'.format(title[:64], title[-64:])
 
             if len(results) > 1:
                 message = u'URL ({0}/{1}): {2}'.format(i + 1, len(results),

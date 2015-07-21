@@ -7,14 +7,16 @@ except ImportError:
     import StringIO
 import sys
 import urllib
+from urlparse import urlparse
 
 from bs4 import BeautifulSoup, NavigableString, Tag
+import ipaddress
 from twisted.internet import defer, protocol, reactor
+from twisted.names.client import getResolver
 from twisted.plugin import IPlugin
-from twisted.python import failure
-from twisted.web.client import (Agent, ContentDecoderAgent,
-                                RedirectAgent, GzipDecoder,
-                                ResponseFailed)
+from twisted.python.failure import Failure
+from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
+                                RedirectAgent, GzipDecoder, ResponseFailed)
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -40,10 +42,8 @@ class BufferSizeExceededError(Exception):
         self.buffer_size = buffer_size
 
     def __str__(self):
-        return 'tried to read {0} bytes into {1}-byte buffer'.format(
-            self.actual_size,
-            self.buffer_size
-            )
+        return 'tried to read {} bytes into {}-byte buffer'.format(
+            self.actual_size, self.buffer_size)
 
 
 class ResponseBuffer(protocol.Protocol):
@@ -57,11 +57,9 @@ class ResponseBuffer(protocol.Protocol):
         if self.remaining - len(bytes) < 0:
             self.transport.loseConnection()
             self.buffer.close()
-            failure_ = failure.Failure(BufferSizeExceededError(
-                self.max_bytes - self.remaining + len(bytes),
-                self.max_bytes
-                ))
-            self.finished.errback(ResponseFailed([failure_], self.response))
+            failure = Failure(BufferSizeExceededError(
+                self.max_bytes - self.remaining + len(bytes), self.max_bytes))
+            self.finished.errback(ResponseFailed([failure], self.response))
             return
 
         self.buffer.write(bytes)
@@ -71,8 +69,45 @@ class ResponseBuffer(protocol.Protocol):
         self.finished.callback(self.buffer.getvalue())
 
 
-agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
-                            [('gzip', GzipDecoder)])
+class BlacklistedHost(Exception):
+    def __init__(self, hostname, ip):
+        self.hostname = hostname
+        self.ip = ip
+
+    def __str__(self):
+        return 'host {} corresponds to blacklisted IP {}'.format(
+            self.hostname, self.ip)
+
+
+class BlacklistingAgent(object):
+    """An `~twisted.web.client.Agent` wrapper that forbids requests to
+    loopback, private, and internal IP addresses."""
+    implements(IAgent)
+
+    def __init__(self, agent, resolver=None):
+        self.agent = agent
+        self.resolver = resolver or getResolver()
+
+    @defer.inlineCallbacks
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        hostname = urlparse(uri).hostname
+        # Don't attempt to resolve the hostname if it's already a bare
+        # IP address.
+        try:
+            # `ipaddress` takes a Unicode string and I don't really care
+            # to handle `UnicodeDecodeError` separately.
+            ip = ipaddress.ip_address(hostname.decode('ascii', 'replace'))
+        except ValueError:
+            ip_str = yield self.resolver.getHostByName(hostname)
+            ip = ipaddress.ip_address(ip_str.decode('ascii', 'replace'))
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise BlacklistedHost(hostname, ip)
+        response = yield self.agent.request(method, uri, headers, bodyProducer)
+        defer.returnValue(response)
+
+
+default_agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
+                                    [('gzip', GzipDecoder)])
 
 
 def transform_response(response, **kwargs):
@@ -116,6 +151,7 @@ def request(*args, **kwargs):
     if 'max_bytes' in kwargs:
         transform_kwargs['max_bytes'] = kwargs.pop('max_bytes')
 
+    agent = kwargs.pop('agent', None) or default_agent
     d = agent.request(*args, **kwargs)
     d.addCallback(transform_response, **transform_kwargs)
     return d
