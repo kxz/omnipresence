@@ -1,4 +1,5 @@
 import cgi
+from collections import namedtuple
 import re
 import socket
 import urllib
@@ -97,13 +98,10 @@ def extract_urls(text):
 # Plugin interfaces and helper classes
 #
 
-class Redirect(object):
-    """Returned by title processors to indicate a "soft" redirect, such
-    as an HTML ``<meta>`` refresh.  The *location* parameter indicates
-    the new URL to fetch."""
-
-    def __init__(self, location):
-        self.location = location
+#: Returned by title processors to indicate a "soft" redirect, such as
+#: an HTML ``<meta>`` refresh.  The *location* parameter indicates the
+#: new URL to fetch.
+Redirect = namedtuple('Redirect', ['location'])
 
 
 class ITitleProcessor(Interface):
@@ -137,7 +135,9 @@ class URLTitleFetcher(object):
     implements(IPlugin, IHandler)
     name = 'url'
 
-    title_processors = {}
+    def __init__(self):
+        self.ignore_list = []
+        self.title_processors = {}
 
     def registered(self):
         self.ignore_list = self.factory.config.getspacelist(
@@ -161,7 +161,7 @@ class URLTitleFetcher(object):
             # Make sure we have a valid hostname.
             hostname = parsed.hostname
             if hostname is None:
-                log.msg('Could not extract hostname from URL {0}; '
+                log.msg('Could not extract hostname from URL {}; '
                         'ignoring.'.format(url.encode('utf8')))
                 continue
 
@@ -193,34 +193,33 @@ class URLTitleFetcher(object):
     action = privmsg
 
     @defer.inlineCallbacks
-    def get_title(self, url, hostname, redirect_count=0):
+    def get_title(self, url, hostname):
         # Fetch the title from a title processor if one is available for
         # the response's Content-Type, or craft a default one.
-        hostname_tag = None
         title = None
-        headers, content = yield web.request('GET', url.encode('utf8'),
-                                             max_bytes=MAX_DOWNLOAD_SIZE,
-                                             agent=agent)
-        ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
-        if ctype in self.title_processors:
-            title_processor = self.title_processors[ctype]
-            processed = yield threads.deferToThread(
-                                title_processor.process, headers, content)
-            if isinstance(processed, Redirect):
-                if redirect_count < MAX_SOFT_REDIRECTS:
+        for _ in xrange(MAX_SOFT_REDIRECTS):
+            headers, content = yield web.request(
+                'GET', url.encode('utf8'),
+                max_bytes=MAX_DOWNLOAD_SIZE, agent=agent)
+            ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
+            if ctype in self.title_processors:
+                title_processor = self.title_processors[ctype]
+                processed = yield threads.deferToThread(
+                    title_processor.process, headers, content)
+                if isinstance(processed, Redirect):
                     # Join the new location with the current URL, in
-                    # order to handle relative URIs.
-                    location = urlparse.urljoin(url, processed.location)
-                    hostname_tag, processed = yield self.get_title(
-                                                      location, hostname,
-                                                      redirect_count + 1)
-                else:
-                    raise ResponseFailed([Failure(InfiniteRedirection(
-                            599, 'Too many soft redirects',
-                            location=processed.location))])
-            title = processed
+                    # order to handle relative URLs.
+                    url = urlparse.urljoin(url, processed.location)
+                    continue
+                title = processed
+            # The only case where we'd want to loop again is when the
+            # response returned is a soft redirect.
+            break
+        else:
+            raise ResponseFailed([Failure(InfiniteRedirection(
+                599, 'Too many soft redirects', location=url))])
         if title is None:
-            title = u'{0} document'.format(ctype or u'Unknown')
+            title = u'{} document'.format(ctype or u'Unknown')
             clength = headers.get('X-Omni-Length')
             if clength:
                 try:
@@ -229,20 +228,16 @@ class URLTitleFetcher(object):
                     # Couldn't parse the content-length string.
                     pass
                 else:
-                    title += u' ({0})'.format(add_si_prefix(clength, 'byte'))
+                    title += u' ({})'.format(add_si_prefix(clength, 'byte'))
 
         # Add a hostname tag to the returned title, indicating any
         # redirects to a different host that occurred.
         final_hostname = hostname
-        if hostname_tag:
-            # Some soft redirection occurred during title processing.
-            final_hostname = hostname_tag.split()[-1]
-        else:
-            location = headers.get('X-Omni-Location')
-            if location:
-                final_hostname = urlparse.urlparse(location).hostname
-        if final_hostname is not None and hostname != final_hostname:
-            hostname_tag = u'{0} \u2192 {1}'.format(hostname, final_hostname)
+        location = headers.get('X-Omni-Location')
+        if location:
+            final_hostname = urlparse.urlparse(location).hostname
+        if hostname != final_hostname:
+            hostname_tag = u'{} \u2192 {}'.format(hostname, final_hostname)
         else:
             hostname_tag = hostname
 
@@ -260,7 +255,7 @@ class URLTitleFetcher(object):
             message = u'Could not connect to server.'
         else:
             log.err(failure, 'Encountered an error in URL processing.')
-        return (hostname, u'Error: {0:s}'.format(message or failure.value))
+        return (hostname, u'Error: {:s}'.format(message or failure.value))
 
     def reply(self, results, bot, prefix, channel):
         for i, result in enumerate(results):
@@ -268,20 +263,18 @@ class URLTitleFetcher(object):
 
             if success:
                 hostname, title = value
-                title = u'[{0}] {1}'.format(hostname, title)
+                title = u'[{}] {}'.format(hostname, title)
             else:
-                # This should only happen if make_reply() bombs.
                 log.err(value, 'Encountered an error in URL processing.')
-                title = u'Error: \x02{0:s}\x02.'.format(value.value)
+                title = u'Error: \x02{:s}\x02.'.format(value.value)
 
             if len(title) >= 140:
-                title = u'{0}\u2026{1}'.format(title[:64], title[-64:])
+                title = u'{}\u2026{}'.format(title[:64], title[-64:])
 
             if len(results) > 1:
-                message = u'URL ({0}/{1}): {2}'.format(i + 1, len(results),
-                                                       title)
+                message = u'URL ({}/{}): {}'.format(i + 1, len(results), title)
             else:
-                message = u'URL: {0}'.format(title)
+                message = u'URL: {}'.format(title)
 
             # In the event that we're enabled for private messages...
             if channel == bot.nickname:
