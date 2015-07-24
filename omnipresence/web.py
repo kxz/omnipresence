@@ -12,7 +12,6 @@ from urlparse import urlparse
 from bs4 import BeautifulSoup, NavigableString, Tag
 import ipaddress
 from twisted.internet import defer, protocol, reactor
-from twisted.names.client import getResolver
 from twisted.plugin import IPlugin
 from twisted.python.failure import Failure
 from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
@@ -84,22 +83,17 @@ class BlacklistingAgent(object):
     loopback, private, and internal IP addresses."""
     implements(IAgent)
 
-    def __init__(self, agent, resolver=None):
+    def __init__(self, agent, resolve=None):
         self.agent = agent
-        self.resolver = resolver or getResolver()
+        self.resolve = resolve or reactor.resolve
 
     @defer.inlineCallbacks
     def request(self, method, uri, headers=None, bodyProducer=None):
         hostname = urlparse(uri).hostname
-        # Don't attempt to resolve the hostname if it's already a bare
-        # IP address.
-        try:
-            # `ipaddress` takes a Unicode string and I don't really care
-            # to handle `UnicodeDecodeError` separately.
-            ip = ipaddress.ip_address(hostname.decode('ascii', 'replace'))
-        except ValueError:
-            ip_str = yield self.resolver.getHostByName(hostname)
-            ip = ipaddress.ip_address(ip_str.decode('ascii', 'replace'))
+        ip_str = yield self.resolve(hostname)
+        # `ipaddress` takes a Unicode string and I don't really care to
+        # handle `UnicodeDecodeError` separately.
+        ip = ipaddress.ip_address(ip_str.decode('ascii', 'replace'))
         if ip.is_private or ip.is_loopback or ip.is_link_local:
             raise BlacklistedHost(hostname, ip)
         response = yield self.agent.request(method, uri, headers, bodyProducer)

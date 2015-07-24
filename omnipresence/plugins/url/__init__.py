@@ -5,8 +5,7 @@ import urllib
 import urlparse
 
 from twisted.internet import defer, reactor, threads
-from twisted.internet.error import ConnectError
-from twisted.names.error import DNSNameError
+from twisted.internet.error import ConnectError, DNSLookupError
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -257,7 +256,7 @@ class URLTitleFetcher(object):
                 message = u'Encountered too many redirects.'
             else:
                 message = u'Received incomplete response from server.'
-        elif failure.check(ConnectError, DNSNameError, web.BlacklistedHost):
+        elif failure.check(ConnectError, DNSLookupError, web.BlacklistedHost):
             message = u'Could not connect to server.'
         else:
             log.err(failure, 'Encountered an error in URL processing.')

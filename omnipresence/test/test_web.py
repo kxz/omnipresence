@@ -1,5 +1,5 @@
 from bs4 import BeautifulSoup
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import succeed
 from twisted.trial import unittest
 from twisted.web.test.test_agent import (AgentTestsMixin,
                                          FakeReactorAndConnectMixin)
@@ -7,11 +7,8 @@ from twisted.web.test.test_agent import (AgentTestsMixin,
 from omnipresence.web import BlacklistingAgent, BlacklistedHost, textify_html
 
 
-class DummyResolver(object):
-    def getHostByName(self, hostname):
-        d = Deferred()
-        d.callback('127.0.0.1' if hostname == 'localhost' else '8.8.8.8')
-        return d
+def dummy_resolve(hostname):
+    return succeed('127.0.0.1' if hostname == 'localhost' else '8.8.8.8')
 
 
 class BlacklistingAgentTestCase(unittest.TestCase,
@@ -25,7 +22,7 @@ class BlacklistingAgentTestCase(unittest.TestCase,
 
     def makeAgent(self):
         return BlacklistingAgent(self.buildAgentForWrapperTest(self.reactor),
-                                 resolver=DummyResolver())
+                                 resolve=dummy_resolve)
 
     def setUp(self):
         self.reactor = self.Reactor()
