@@ -41,9 +41,9 @@ class TruncatingReadBodyProtocol(_ReadBodyProtocol):
     """A protocol that collects data sent to it up to a maximum of
     *max_bytes*, then discards the rest."""
 
-    def __init__(self, status, message, deferred, max_bytes=sys.maxsize):
+    def __init__(self, status, message, deferred, max_bytes=None):
         _ReadBodyProtocol.__init__(self, status, message, deferred)
-        self.remaining = self.max_bytes = max_bytes
+        self.remaining = self.max_bytes = (max_bytes or sys.maxsize)
 
     def dataReceived(self, data):
         if self.remaining > 0:
@@ -88,24 +88,7 @@ default_agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
                                     [('gzip', GzipDecoder)])
 
 
-def transform_response(response, **kwargs):
-    """Return an httplib2-style ``(headers, content)`` tuple from the
-    given Twisted Web response."""
-    headers = dict((k, v[0]) for k, v in response.headers.getAllRawHeaders())
-    # Add the ultimately requested URL as a custom X-header.
-    headers['X-Omni-Location'] = response.request.absoluteURI
-    # Calling deliverBody causes the response's Content-Length header to
-    # be overwritten with how much of the body was actually delivered.
-    # In some cases, the original value is needed, so we store it in a
-    # custom X-header field.
-    headers['X-Omni-Length'] = str(response.length)
-    d = defer.Deferred()
-    response.deliverBody(TruncatingReadBodyProtocol(
-        response.code, response.phrase, d, **kwargs))
-    d.addCallback(lambda content: (headers, content))
-    return d
-
-
+@defer.inlineCallbacks
 def request(*args, **kwargs):
     """Make an HTTP request, and return a Deferred that will yield an
     httplib2-style ``(headers, content)`` tuple to its callback.
@@ -125,15 +108,22 @@ def request(*args, **kwargs):
     kwargs.setdefault('headers', Headers())
     if not kwargs['headers'].hasHeader('User-Agent'):
         kwargs['headers'].addRawHeader('User-Agent', USER_AGENT)
-
-    transform_kwargs = {}
-    if 'max_bytes' in kwargs:
-        transform_kwargs['max_bytes'] = kwargs.pop('max_bytes')
-
+    max_bytes = kwargs.pop('max_bytes', None)
     agent = kwargs.pop('agent', None) or default_agent
-    d = agent.request(*args, **kwargs)
-    d.addCallback(transform_response, **transform_kwargs)
-    return d
+    response = yield agent.request(*args, **kwargs)
+    headers = dict((k, v[0]) for k, v in response.headers.getAllRawHeaders())
+    # Add the ultimately requested URL as a custom X-header.
+    headers['X-Omni-Location'] = response.request.absoluteURI
+    # Calling deliverBody causes the response's Content-Length header to
+    # be overwritten with how much of the body was actually delivered.
+    # In some cases, the original value is needed, so we store it in a
+    # custom X-header field.
+    headers['X-Omni-Length'] = str(response.length)
+    d = defer.Deferred()
+    response.deliverBody(TruncatingReadBodyProtocol(
+        response.code, response.phrase, d, max_bytes=max_bytes))
+    content = yield d
+    defer.returnValue((headers, content))
 
 
 #
