@@ -1,7 +1,7 @@
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import PRIVATE_CHANNEL, util
+from omnipresence import PRIVATE_CHANNEL
 from omnipresence.iomnipresence import ICommand
 
 

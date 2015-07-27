@@ -1,7 +1,7 @@
 import cgi
 import re
 
-from bs4 import BeautifulSoup, SoupStrainer
+from bs4 import BeautifulSoup
 from twisted.plugin import IPlugin
 from zope.interface import implements
 

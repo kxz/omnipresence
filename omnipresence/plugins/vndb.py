@@ -1,8 +1,6 @@
 import urlparse
 
 from bs4 import BeautifulSoup
-from twisted.plugin import IPlugin
-from zope.interface import implements
 
 from omnipresence.web import textify_html as txt, WebCommand
 

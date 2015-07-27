@@ -2,7 +2,6 @@ try:
     from xml.etree.cElementTree import ParseError, XML
 except ImportError:
     from xml.etree.ElementTree import ParseError, XML
-import urllib
 
 from omnipresence.web import WebCommand
 

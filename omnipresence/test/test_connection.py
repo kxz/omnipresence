@@ -3,7 +3,7 @@
 
 from collections import defaultdict
 
-from twisted.internet.task import Clock, LoopingCall
+from twisted.internet.task import Clock
 from twisted.test.proto_helpers import StringTransport
 from twisted.trial import unittest
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES

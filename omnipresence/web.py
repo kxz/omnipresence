@@ -1,10 +1,6 @@
 # -*- test-case-name: omnipresence.test.test_web -*-
 """Utility methods for retrieving and manipulating data from Web resources."""
 
-try:
-    import cStringIO as StringIO
-except ImportError:
-    import StringIO
 import sys
 import urllib
 from urlparse import urlparse
@@ -13,10 +9,8 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 import ipaddress
 from twisted.internet import defer, reactor
 from twisted.plugin import IPlugin
-from twisted.python.failure import Failure
 from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
-                                RedirectAgent, GzipDecoder, ResponseFailed,
-                                _ReadBodyProtocol)
+                                RedirectAgent, GzipDecoder, _ReadBodyProtocol)
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 

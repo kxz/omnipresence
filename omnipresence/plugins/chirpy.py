@@ -5,7 +5,6 @@ import sqlobject
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
 from omnipresence.iomnipresence import ICommand
 
 ID_SYNTAX = re.compile(r'^#([0-9]+)$')

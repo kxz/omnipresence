@@ -1,7 +1,6 @@
 from twisted.plugin import IPlugin
 from zope.interface import implements
 
-from omnipresence import util
 from omnipresence.iomnipresence import ICommand
 
 class HelpCommand(object):

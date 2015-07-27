@@ -1,15 +1,13 @@
-from zope.interface import implements
-from twisted.plugin import IPlugin
-from omnipresence.iomnipresence import IHandler
-
-from twisted.python import log
-
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
-import time
+
+from twisted.plugin import IPlugin
+from twisted.python import log
+from zope.interface import implements
 
 from omnipresence import ircutil
+from omnipresence.iomnipresence import IHandler
 
 MESSAGE_FORMAT = '[%(asctime)s]  %(message)s'
 DATE_FORMAT = '%d-%b-%Y %H:%M:%S'

@@ -48,7 +48,7 @@ def roll_dice(dice):
         if len(rolls) + number > MAX_DIE_GROUP_SIZE:
             raise ValueError('Cannot roll more than {} dice at once.'
                              .format(MAX_DIE_GROUP_SIZE))
-        for i in xrange(number):
+        for _ in xrange(number):
             rolls.append(size if constant else randint(1, size))
     return rolls
 

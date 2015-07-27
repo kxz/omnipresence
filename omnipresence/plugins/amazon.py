@@ -2,9 +2,8 @@ import itertools
 
 import amazonproduct
 import bitly_api
-from twisted.internet import defer, threads
+from twisted.internet import threads
 from twisted.plugin import IPlugin
-from twisted.python import log
 from zope.interface import implements
 
 from omnipresence.iomnipresence import ICommand

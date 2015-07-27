@@ -11,7 +11,6 @@ import urllib
 
 from twisted.internet import defer
 from twisted.plugin import IPlugin
-from twisted.python import log
 from twisted.web.client import FileBodyProducer
 from twisted.web.http_headers import Headers
 from zope.interface import implements

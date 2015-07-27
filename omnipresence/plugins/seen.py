@@ -1,5 +1,3 @@
-import datetime
-
 import sqlobject
 from twisted.plugin import IPlugin
 from zope.interface import implements
