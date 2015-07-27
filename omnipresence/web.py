@@ -9,8 +9,9 @@ from bs4 import BeautifulSoup, NavigableString, Tag
 import ipaddress
 from twisted.internet import defer, reactor
 from twisted.plugin import IPlugin
-from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
-                                RedirectAgent, GzipDecoder, _ReadBodyProtocol)
+from twisted.web.client import (
+    IAgent, Agent, ContentDecoderAgent, RedirectAgent, GzipDecoder,
+    _ReadBodyProtocol, PartialDownloadError)
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -116,7 +117,10 @@ def request(*args, **kwargs):
     d = defer.Deferred()
     response.deliverBody(TruncatingReadBodyProtocol(
         response.code, response.phrase, d, max_bytes=max_bytes))
-    content = yield d
+    try:
+        content = yield d
+    except PartialDownloadError as e:
+        content = e.response
     defer.returnValue((headers, content))
 
 
