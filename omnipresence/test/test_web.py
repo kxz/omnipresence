@@ -1,14 +1,29 @@
 from bs4 import BeautifulSoup
-from twisted.internet.defer import succeed
+from twisted.internet.defer import Deferred, succeed
+from twisted.python.failure import Failure
 from twisted.trial import unittest
+from twisted.web.client import ResponseDone
 from twisted.web.test.test_agent import (AgentTestsMixin,
                                          FakeReactorAndConnectMixin)
 
-from omnipresence.web import BlacklistingAgent, BlacklistedHost, textify_html
+from omnipresence.web import (TruncatingReadBodyProtocol, BlacklistingAgent,
+                              BlacklistedHost, textify_html)
 
 
-def dummy_resolve(hostname):
-    return succeed('127.0.0.1' if hostname == 'localhost' else '8.8.8.8')
+class TruncatingReadBodyProtocolTestCase(unittest.TestCase):
+    def _assert_delivery(self, data, expected):
+        finished = Deferred()
+        protocol = TruncatingReadBodyProtocol(200, 'OK', finished, 8)
+        finished.addCallback(self.assertEqual, expected)
+        protocol.dataReceived(data)
+        protocol.connectionLost(Failure(ResponseDone()))
+        return finished
+
+    def test_complete(self):
+        return self._assert_delivery('#' * 8, '#' * 8)
+
+    def test_truncated(self):
+        return self._assert_delivery('#' * 16, '#' * 8)
 
 
 class BlacklistingAgentTestCase(unittest.TestCase,
@@ -20,9 +35,17 @@ class BlacklistingAgentTestCase(unittest.TestCase,
     sample_hosts = ('localhost', '0.0.0.0', '10.0.0.1', '127.0.0.1',
                     '169.254.0.1', '172.16.0.1', '192.168.0.1')
 
+    @staticmethod
+    def resolve(hostname):
+        if hostname == 'localhost':
+            return succeed('127.0.0.1')
+        elif hostname == 'foo.test':
+            return succeed('8.8.8.8')
+        return succeed(hostname)
+
     def makeAgent(self):
         return BlacklistingAgent(self.buildAgentForWrapperTest(self.reactor),
-                                 resolve=dummy_resolve)
+                                 resolve=self.resolve)
 
     def setUp(self):
         self.reactor = self.Reactor()

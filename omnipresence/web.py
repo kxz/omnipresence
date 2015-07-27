@@ -11,11 +11,12 @@ from urlparse import urlparse
 
 from bs4 import BeautifulSoup, NavigableString, Tag
 import ipaddress
-from twisted.internet import defer, protocol, reactor
+from twisted.internet import defer, reactor
 from twisted.plugin import IPlugin
 from twisted.python.failure import Failure
 from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
-                                RedirectAgent, GzipDecoder, ResponseFailed)
+                                RedirectAgent, GzipDecoder, ResponseFailed,
+                                _ReadBodyProtocol)
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -35,37 +36,20 @@ USER_AGENT = ('Omnipresence/{0} (+bot; '
 # HTTP request machinery
 #
 
-class BufferSizeExceededError(Exception):
-    def __init__(self, actual_size, buffer_size):
-        self.actual_size = actual_size
-        self.buffer_size = buffer_size
 
-    def __str__(self):
-        return 'tried to read {} bytes into {}-byte buffer'.format(
-            self.actual_size, self.buffer_size)
+class TruncatingReadBodyProtocol(_ReadBodyProtocol):
+    """A protocol that collects data sent to it up to a maximum of
+    *max_bytes*, then discards the rest."""
 
-
-class ResponseBuffer(protocol.Protocol):
-    def __init__(self, response, finished, max_bytes=sys.maxsize):
-        self.buffer = StringIO.StringIO()
-        self.response = response
-        self.finished = finished
+    def __init__(self, status, message, deferred, max_bytes=sys.maxsize):
+        _ReadBodyProtocol.__init__(self, status, message, deferred)
         self.remaining = self.max_bytes = max_bytes
 
-    def dataReceived(self, bytes):
-        if self.remaining - len(bytes) < 0:
-            self.transport.loseConnection()
-            self.buffer.close()
-            failure = Failure(BufferSizeExceededError(
-                self.max_bytes - self.remaining + len(bytes), self.max_bytes))
-            self.finished.errback(ResponseFailed([failure], self.response))
-            return
-
-        self.buffer.write(bytes)
-        self.remaining -= len(bytes)
-
-    def connectionLost(self, reason):
-        self.finished.callback(self.buffer.getvalue())
+    def dataReceived(self, data):
+        if self.remaining > 0:
+            to_buffer = data[:self.remaining]
+            _ReadBodyProtocol.dataReceived(self, to_buffer)
+            self.remaining -= len(to_buffer)
 
 
 class BlacklistedHost(Exception):
@@ -116,7 +100,8 @@ def transform_response(response, **kwargs):
     # custom X-header field.
     headers['X-Omni-Length'] = str(response.length)
     d = defer.Deferred()
-    response.deliverBody(ResponseBuffer(response, d, **kwargs))
+    response.deliverBody(TruncatingReadBodyProtocol(
+        response.code, response.phrase, d, **kwargs))
     d.addCallback(lambda content: (headers, content))
     return d
 
