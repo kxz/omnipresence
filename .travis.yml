@@ -1,3 +1,9 @@
-branches:
-  except:
-    - release-2.x
+language: python
+install:
+  - pip install tox python-coveralls
+script:
+  - tox
+after_success:
+  - coveralls
+env:
+  - TOXENV=py27
