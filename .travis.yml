@@ -7,6 +7,3 @@ after_success:
   - coveralls
 env:
   - TOXENV=py27
-branches:
-  except:
-    - release-2.x

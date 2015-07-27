@@ -3,11 +3,11 @@ Omnipresence
 
 |travis-ci| |coveralls|
 
-.. |travis-ci| image:: https://travis-ci.org/kxz/omnipresence.svg
+.. |travis-ci| image:: https://travis-ci.org/kxz/omnipresence.svg?branch=master
    :alt: Build status
    :target: https://travis-ci.org/kxz/omnipresence
 
-.. |coveralls| image:: https://coveralls.io/repos/kxz/omnipresence/badge.svg
+.. |coveralls| image:: https://coveralls.io/repos/kxz/omnipresence/badge.svg?branch=master
    :alt: Test coverage
    :target: https://coveralls.io/r/kxz/omnipresence
 
