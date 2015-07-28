@@ -35,6 +35,7 @@ setup(
         'Twisted>=14.0.0',
         'pyOpenSSL',
         'service_identity',
+        'ipaddress',
         'PyYAML',
         'SQLObject>=0.10'],
     extras_require={
