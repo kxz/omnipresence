@@ -15,16 +15,11 @@ from twisted.web.client import (
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
-from omnipresence import VERSION_NUM
+from omnipresence import VERSION_NUM, SOURCE_URL
 from omnipresence.iomnipresence import ICommand
 
-#
-# Constants
-#
 
-USER_AGENT = ('Omnipresence/{0} (+bot; '
-              'https://bitbucket.org/kxz/omnipresence)' \
-               .format(VERSION_NUM))
+USER_AGENT = 'Omnipresence/{} (+bot; {})'.format(VERSION_NUM, SOURCE_URL)
 
 
 #
