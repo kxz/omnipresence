@@ -1,69 +1,16 @@
 """Wrappers for Twisted's HTTP request machinery."""
 
 
-import sys
-from urlparse import urlparse
-
-import ipaddress
 from twisted.internet import defer, reactor
-from twisted.web.client import (
-    IAgent, Agent, ContentDecoderAgent, RedirectAgent, GzipDecoder,
-    _ReadBodyProtocol, PartialDownloadError)
+from twisted.web.client import (Agent, ContentDecoderAgent, RedirectAgent,
+                                GzipDecoder, PartialDownloadError)
 from twisted.web.http_headers import Headers
-from zope.interface import implements
 
 from .. import __version__, __source__
 
 
 #: The default HTTP user agent.
 USER_AGENT = 'Omnipresence/{} (+bot; {})'.format(__version__, __source__)
-
-
-class TruncatingReadBodyProtocol(_ReadBodyProtocol):
-    """A protocol that collects data sent to it up to a maximum of
-    *max_bytes*, then discards the rest."""
-
-    def __init__(self, status, message, deferred, max_bytes=None):
-        _ReadBodyProtocol.__init__(self, status, message, deferred)
-        self.remaining = self.max_bytes = (max_bytes or sys.maxsize)
-
-    def dataReceived(self, data):
-        if self.remaining > 0:
-            to_buffer = data[:self.remaining]
-            _ReadBodyProtocol.dataReceived(self, to_buffer)
-            self.remaining -= len(to_buffer)
-
-
-class BlacklistedHost(Exception):
-    def __init__(self, hostname, ip):
-        self.hostname = hostname
-        self.ip = ip
-
-    def __str__(self):
-        return 'host {} corresponds to blacklisted IP {}'.format(
-            self.hostname, self.ip)
-
-
-class BlacklistingAgent(object):
-    """An `~twisted.web.client.Agent` wrapper that forbids requests to
-    loopback, private, and internal IP addresses."""
-    implements(IAgent)
-
-    def __init__(self, agent, resolve=None):
-        self.agent = agent
-        self.resolve = resolve or reactor.resolve
-
-    @defer.inlineCallbacks
-    def request(self, method, uri, headers=None, bodyProducer=None):
-        hostname = urlparse(uri).hostname
-        ip_str = yield self.resolve(hostname)
-        # `ipaddress` takes a Unicode string and I don't really care to
-        # handle `UnicodeDecodeError` separately.
-        ip = ipaddress.ip_address(ip_str.decode('ascii', 'replace'))
-        if ip.is_private or ip.is_loopback or ip.is_link_local:
-            raise BlacklistedHost(hostname, ip)
-        response = yield self.agent.request(method, uri, headers, bodyProducer)
-        defer.returnValue(response)
 
 
 default_agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
