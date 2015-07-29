@@ -1,4 +1,4 @@
-# -*- test-case-name: omnipresence.plugins.help.test
+# -*- test-case-name: omnipresence.plugins.help.test_more
 """Event plugins for reading command reply buffers."""
 
 

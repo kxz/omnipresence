@@ -1,4 +1,4 @@
-# -*- test-case-name: omnipresence.plugins.help.test
+# -*- test-case-name: omnipresence.plugins.help.test_help
 """Event plugins for providing command help."""
 
 
