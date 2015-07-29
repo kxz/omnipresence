@@ -1,11 +1,14 @@
+# -*- test-case-name: omnipresence.plugins.url.test_url
 import cgi
 from collections import namedtuple
 import re
 import socket
+import sys
 import urllib
 import urlparse
 
-from twisted.internet import defer, reactor, threads
+import ipaddress
+from twisted.internet import defer, reactor, protocol, threads
 from twisted.internet.error import ConnectError, DNSLookupError
 from twisted.plugin import getPlugins, pluginPackagePaths, IPlugin
 from twisted.python import log
@@ -13,6 +16,7 @@ from twisted.python.failure import Failure
 from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
                                 RedirectAgent, GzipDecoder, ResponseFailed)
 from twisted.web.error import InfiniteRedirection
+from twisted.web.iweb import UNKNOWN_LENGTH
 from zope.interface import implements, Interface, Attribute
 
 from omnipresence import plugins, web
@@ -30,10 +34,6 @@ MAX_DOWNLOAD_SIZE = 65536
 
 """The maximum number of "soft" redirects that will be followed."""
 MAX_SOFT_REDIRECTS = 2
-
-agent = ContentDecoderAgent(
-        RedirectAgent(web.BlacklistingAgent(Agent(reactor))),
-        [('gzip', GzipDecoder)])
 
 
 #
@@ -64,35 +64,111 @@ def add_si_prefix(number, unit, plural_unit=None):
 
     return '{0:n} {1}'.format(number, plural_unit)
 
-# Based on django.utils.html.urlize from the Django project.
-TRAILING_PUNCTUATION = ['.', ',', ':', ';']
-WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>')]
 
-word_split_re = re.compile(r'(\s+)')
-simple_url_re = re.compile(r'^https?://\w', re.IGNORECASE)
+#
+# Utility methods
+#
+
+# Based on django.utils.html.urlize from the Django project.
+TRAILING_PUNCTUATION = ['.', ',', ':', ';', '.)', '"', "'", '!']
+WRAPPING_PUNCTUATION = [('(', ')'), ('<', '>'), ('[', ']'),
+                        ('"', '"'), ("'", "'")]
+WORD_SPLIT_RE = re.compile(r'''([\s<>"']+)''')
+SIMPLE_URL_RE = re.compile(r'^https?://\[?\w', re.IGNORECASE)
+
 
 def extract_urls(text):
     """Return an iterator yielding URLs contained in *text*."""
-    for word in word_split_re.split(text):
-        if '.' in word or ':' in word:
-            # Deal with punctuation.
-            lead, middle, trail = '', word, ''
-            for punctuation in TRAILING_PUNCTUATION:
-                if middle.endswith(punctuation):
-                    middle = middle[:-len(punctuation)]
-                    trail = punctuation + trail
-            for opening, closing in WRAPPING_PUNCTUATION:
-                if middle.startswith(opening):
-                    middle = middle[len(opening):]
-                    lead = lead + opening
-                # Keep parentheses at the end only if they're balanced.
-                if (middle.endswith(closing)
+    for word in WORD_SPLIT_RE.split(text):
+        if not ('.' in word or ':' in word):
+            continue
+        # Deal with punctuation.
+        lead, middle, trail = '', word, ''
+        for punctuation in TRAILING_PUNCTUATION:
+            if middle.endswith(punctuation):
+                middle = middle[:-len(punctuation)]
+                trail = punctuation + trail
+        for opening, closing in WRAPPING_PUNCTUATION:
+            if middle.startswith(opening):
+                middle = middle[len(opening):]
+                lead = lead + opening
+            # Keep parentheses at the end only if they're balanced.
+            if (middle.endswith(closing)
                     and middle.count(closing) == middle.count(opening) + 1):
-                    middle = middle[:-len(closing)]
-                    trail = closing + trail
-            # Yield the resulting URL.
-            if simple_url_re.match(middle):
-                yield middle
+                middle = middle[:-len(closing)]
+                trail = closing + trail
+        # Yield the resulting URL.
+        if SIMPLE_URL_RE.match(middle):
+            yield middle
+
+
+#
+# Twisted HTTP machinery
+#
+
+class TruncatingReadBodyProtocol(protocol.Protocol):
+    """A protocol that collects data sent to it up to a maximum of
+    *max_bytes*, then discards the rest."""
+
+    def __init__(self, status, message, finished, max_bytes=None):
+        self.status = status
+        self.message = message
+        self.finished = finished
+        self.data_buffer = []
+        self.remaining = max_bytes or sys.maxsize
+
+    def dataReceived(self, data):
+        if self.remaining > 0:
+            to_buffer = data[:self.remaining]
+            self.data_buffer.append(to_buffer)
+            self.remaining -= len(to_buffer)
+        if self.remaining <= 0:
+            self.transport.loseConnection()
+
+    def connectionLost(self, reason):
+        if not self.finished.called:
+            self.finished.callback(''.join(self.data_buffer))
+
+
+class BlacklistedHost(Exception):
+    """Raised when a `BlacklistingAgent` attempts to request a
+    blacklisted resource."""
+
+    def __init__(self, hostname, ip):
+        self.hostname = hostname
+        self.ip = ip
+
+    def __str__(self):
+        return 'host {} corresponds to blacklisted IP {}'.format(
+            self.hostname, self.ip)
+
+
+class BlacklistingAgent(object):
+    """An `~twisted.web.client.Agent` wrapper that forbids requests to
+    loopback, private, and internal IP addresses."""
+    implements(IAgent)
+
+    def __init__(self, agent, resolve=None):
+        self.agent = agent
+        self.resolve = resolve or reactor.resolve
+
+    @defer.inlineCallbacks
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        """Issue a request to the server indicated by *uri*."""
+        hostname = urlparse.urlparse(uri).hostname
+        ip_str = yield self.resolve(hostname)
+        # `ipaddress` takes a Unicode string and I don't really care to
+        # handle `UnicodeDecodeError` separately.
+        ip = ipaddress.ip_address(ip_str.decode('ascii', 'replace'))
+        if ip.is_private or ip.is_loopback or ip.is_link_local:
+            raise BlacklistedHost(hostname, ip)
+        response = yield self.agent.request(method, uri, headers, bodyProducer)
+        defer.returnValue(response)
+
+agent = ContentDecoderAgent(
+    RedirectAgent(BlacklistingAgent(Agent(reactor))),
+    [('gzip', GzipDecoder)])
+
 
 #
 # Plugin interfaces and helper classes
@@ -198,9 +274,14 @@ class URLTitleFetcher(object):
         # the response's Content-Type, or craft a default one.
         title = None
         for _ in xrange(MAX_SOFT_REDIRECTS):
-            headers, content = yield web.request(
-                'GET', url.encode('utf8'),
-                max_bytes=MAX_DOWNLOAD_SIZE, agent=agent)
+            response = yield agent.request('GET', url.encode('utf8'))
+            clength = response.length
+            headers = {k: v[0] for k, v in response.headers.getAllRawHeaders()}
+            headers['X-Omni-Length'] = str(clength)
+            finished = defer.Deferred()
+            response.deliverBody(TruncatingReadBodyProtocol(
+                response.code, response.phrase, finished, MAX_DOWNLOAD_SIZE))
+            content = yield finished
             ctype, cparams = cgi.parse_header(headers.get('Content-Type', ''))
             if ctype in self.title_processors:
                 title_processor = self.title_processors[ctype]
@@ -220,22 +301,13 @@ class URLTitleFetcher(object):
                 599, 'Too many soft redirects', location=url))])
         if title is None:
             title = u'{} document'.format(ctype or u'Unknown')
-            clength = headers.get('X-Omni-Length')
-            if clength:
-                try:
-                    clength = int(clength, 10)
-                except ValueError:
-                    # Couldn't parse the content-length string.
-                    pass
-                else:
-                    title += u' ({})'.format(add_si_prefix(clength, 'byte'))
+            if clength is not UNKNOWN_LENGTH:
+                title += u' ({})'.format(add_si_prefix(clength, 'byte'))
 
         # Add a hostname tag to the returned title, indicating any
         # redirects to a different host that occurred.
-        final_hostname = hostname
-        location = headers.get('X-Omni-Location')
-        if location:
-            final_hostname = urlparse.urlparse(location).hostname
+        final_hostname = urlparse.urlparse(
+            response.request.absoluteURI).hostname
         if hostname != final_hostname:
             hostname_tag = u'{} \u2192 {}'.format(hostname, final_hostname)
         else:
@@ -251,7 +323,7 @@ class URLTitleFetcher(object):
                 message = u'Encountered too many redirects.'
             else:
                 message = u'Received incomplete response from server.'
-        elif failure.check(ConnectError, DNSLookupError, web.BlacklistedHost):
+        elif failure.check(ConnectError, DNSLookupError, BlacklistedHost):
             message = u'Could not connect to server.'
         else:
             log.err(failure, 'Encountered an error in URL processing.')
