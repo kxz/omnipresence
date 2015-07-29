@@ -2,7 +2,7 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import inlineCallbacks, succeed, fail
 
 from ..connection import PRIVATE_CHANNEL
 from ..plugin import EventPlugin
@@ -245,14 +245,10 @@ class DeferredPlugin(EventPlugin):
         self.seen = []
 
     def on_privmsg(self, msg):
-        deferred = Deferred()
-        deferred.addCallback(self.seen.append)
-        callLater = msg.connection.reactor.callLater
         if msg.content == 'failure':
-            callLater(1, deferred.errback, Exception())
-        else:
-            callLater(1, deferred.callback, msg)
-        return deferred
+            return fail(Exception())
+        self.seen.append(msg)
+        return succeed(None)
 
 
 class DeferredCallbackTestCase(AbstractConnectionTestCase):
@@ -261,12 +257,12 @@ class DeferredCallbackTestCase(AbstractConnectionTestCase):
         self.plugin = self.connection.add_event_plugin(
             DeferredPlugin, {'#foo': []})
 
+    @inlineCallbacks
     def test_deferred_callback(self):
-        self.receive('PRIVMSG #foo :lorem ipsum')
-        self.connection.reactor.advance(2)
+        yield self.receive('PRIVMSG #foo :lorem ipsum')
         self.assertEqual(len(self.plugin.seen), 1)
 
+    @inlineCallbacks
     def test_default_errback(self):
-        self.receive('PRIVMSG #foo :failure')
-        self.connection.reactor.advance(2)
+        yield self.receive('PRIVMSG #foo :failure')
         self.assertLoggedErrors(1)

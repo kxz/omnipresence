@@ -6,7 +6,7 @@
 from itertools import count, imap
 from textwrap import dedent
 
-from twisted.internet.defer import Deferred
+from twisted.internet.defer import inlineCallbacks, fail, succeed
 
 from ..connection import PRIVATE_CHANNEL
 from ..message import Message, collapse
@@ -24,11 +24,11 @@ class AbstractCommandTestCase(AbstractConnectionTestCase):
             OutgoingPlugin, {PRIVATE_CHANNEL: [], '#foo': []})
         self.connection.joined('#foo')
 
-    def more(self):
-        self.connection.reply_from_buffer(
+    def more(self, venue='#foo'):
+        return self.connection.reply_from_buffer(
             self.other_user.nick,
             Message(self.connection, False, 'command',
-                    actor=self.other_user, venue='#foo',
+                    actor=self.other_user, venue=venue,
                     subaction='more', target=self.other_user.nick),
             reply_when_empty=True)
 
@@ -49,17 +49,12 @@ class BasicCommand(EventPlugin):
 
     def on_command(self, msg):
         args = msg.content.split()
-        exc = (UserVisibleError if 'visible' in args else Exception)(
-            'lorem ipsum')
+        exc_class = UserVisibleError if 'visible' in args else Exception
+        exc = exc_class('lorem ipsum')
         if 'defer' in args:
-            deferred = Deferred()
-            deferred.addCallback(lambda _: self.quote)
-            callLater = msg.connection.reactor.callLater
             if 'failure' in args:
-                callLater(1, deferred.errback, exc)
-            else:
-                callLater(1, deferred.callback, msg)
-            return deferred
+                return fail(exc)
+            return succeed(self.quote)
         if 'failure' in args:
             raise exc
         return self.quote
@@ -68,7 +63,7 @@ class BasicCommand(EventPlugin):
 class BasicCommandTestCase(AbstractCommandTestCase):
     command_class = BasicCommand
 
-    def assert_success(self, _=None):
+    def assert_success(self, deferred_result=None):
         self.assertEqual(self.watcher.last_seen.action, 'privmsg')
         self.assertEqual(self.watcher.last_seen.venue, '#foo')
         self.assertEqual(self.watcher.last_seen.content, collapse("""
@@ -85,7 +80,7 @@ class BasicCommandTestCase(AbstractCommandTestCase):
             feum in augait vullam. Tortor augait dignissim."""
             .format(self.other_user.nick)))
 
-    def assert_hidden_error(self, _=None):
+    def assert_hidden_error(self, deferred_result=None):
         self.assertEqual(self.watcher.last_seen.action, 'privmsg')
         self.assertEqual(self.watcher.last_seen.venue, '#foo')
         self.assertEqual(self.watcher.last_seen.content, collapse("""
@@ -93,7 +88,7 @@ class BasicCommandTestCase(AbstractCommandTestCase):
             .format(self.other_user.nick)))
         self.assertLoggedErrors(1)
 
-    def assert_visible_error(self, _=None):
+    def assert_visible_error(self, deferred_result=None):
         self.assertEqual(self.watcher.last_seen.action, 'privmsg')
         self.assertEqual(self.watcher.last_seen.venue, '#foo')
         self.assertEqual(self.watcher.last_seen.content, collapse("""
@@ -122,12 +117,7 @@ class BasicCommandTestCase(AbstractCommandTestCase):
             consectem ipisim esequi. Facidui augiam proin nisit diamet
             ing. Incinim iliquipisl ero alit amconsecte adionse loborer
             odionsequip sagittis, (+210 more characters)"""))
-        self.connection.reply_from_buffer(
-            self.other_user.nick,
-            Message(self.connection, False, 'command',
-                    actor=self.other_user, venue=self.connection.nickname,
-                    subaction='more', target=self.other_user.nick),
-            reply_when_empty=True)
+        self.more(venue=self.connection.nickname)
         self.assertEqual(self.watcher.last_seen.content, collapse("""
             iuscipit hent dipiscipit. Molore proin consecte min amcommo;
             lobortio platea loboreet il consequis. Lan ullut corem
@@ -143,19 +133,19 @@ class BasicCommandTestCase(AbstractCommandTestCase):
         self.assert_visible_error()
 
     def test_deferred_success(self):
-        self.receive('PRIVMSG #foo :!spam defer > party3')
-        self.connection.reactor.advance(2)
-        self.assert_success()
+        d = self.receive('PRIVMSG #foo :!spam defer > party3')
+        d.addCallback(self.assert_success)
+        return d
 
     def test_deferred_hidden_error(self):
-        self.receive('PRIVMSG #foo :!spam defer failure > party3')
-        self.connection.reactor.advance(2)
-        self.assert_hidden_error()
+        d = self.receive('PRIVMSG #foo :!spam defer failure > party3')
+        d.addCallback(self.assert_hidden_error)
+        return d
 
     def test_deferred_visible_error(self):
-        self.receive('PRIVMSG #foo :!spam defer failure visible > party3')
-        self.connection.reactor.advance(2)
-        self.assert_visible_error()
+        d = self.receive('PRIVMSG #foo :!spam defer failure visible > party3')
+        d.addCallback(self.assert_visible_error)
+        return d
 
 
 #
@@ -163,33 +153,28 @@ class BasicCommandTestCase(AbstractCommandTestCase):
 #
 
 class DeferredIterator(object):
-    def __init__(self, maximum, callLater, raise_on):
-        self.count = 0
+    def __init__(self, maximum, raise_on):
+        self.count = -1
         self.maximum = maximum
-        self.callLater = callLater
         self.raise_on = raise_on
 
     def __iter__(self):
         return self
 
     def next(self):
+        self.count += 1
         if self.count >= self.maximum:
             raise StopIteration
-        deferred = Deferred()
         if self.count == self.raise_on:
-            self.callLater(1, deferred.errback, Exception())
-        else:
-            self.callLater(1, deferred.callback, str(self.count))
-        self.count += 1
-        return deferred
+            return fail(Exception())
+        return succeed(str(self.count))
 
 
 class IteratorCommand(EventPlugin):
     def on_command(self, msg):
         args = msg.content.split()
         if args and args[0] == 'defer':
-            return DeferredIterator(2, msg.connection.reactor.callLater,
-                                    raise_on=int(''.join(args[1:]) or -1))
+            return DeferredIterator(2, raise_on=int(''.join(args[1:]) or -2))
         return imap(str, xrange(2))
 
 
@@ -210,39 +195,33 @@ class IteratorCommandTestCase(AbstractCommandTestCase):
                          '\x0314{}: No text in buffer.'
                          .format(self.other_user.nick))
 
-
+    @inlineCallbacks
     def test_deferred(self):
-        self.receive('PRIVMSG #foo :!spam defer > party3')
-        self.connection.reactor.advance(2)
+        yield self.receive('PRIVMSG #foo :!spam defer > party3')
         self.assertEqual(self.watcher.last_seen.action, 'privmsg')
         self.assertEqual(self.watcher.last_seen.venue, '#foo')
         self.assertEqual(self.watcher.last_seen.content,
                          '\x0314party3: 0')
-        self.more()
-        self.connection.reactor.advance(2)
+        yield self.more()
         self.assertEqual(self.watcher.last_seen.content,
                          '\x0314{}: 1'.format(self.other_user.nick))
-        self.more()
-        self.connection.reactor.advance(2)
+        yield self.more()
         self.assertEqual(self.watcher.last_seen.content,
                          '\x0314{}: No text in buffer.'
                          .format(self.other_user.nick))
 
-
+    @inlineCallbacks
     def test_deferred_error(self):
-        self.receive('PRIVMSG #foo :!spam defer 1 > party3')
-        self.connection.reactor.advance(2)
+        yield self.receive('PRIVMSG #foo :!spam defer 1 > party3')
         self.assertEqual(self.watcher.last_seen.action, 'privmsg')
         self.assertEqual(self.watcher.last_seen.venue, '#foo')
         self.assertEqual(self.watcher.last_seen.content,
                          '\x0314party3: 0')
-        self.more()
-        self.connection.reactor.advance(2)
+        yield self.more()
         self.assertEqual(self.watcher.last_seen.content, collapse("""
             \x0314{}: Command \x02more\x02 encountered an error."""
             .format(self.other_user.nick)))
-        self.more()
-        self.connection.reactor.advance(2)
+        yield self.more()
         self.assertEqual(self.watcher.last_seen.content,
                          '\x0314{}: No text in buffer.'
                          .format(self.other_user.nick))
