@@ -7,8 +7,8 @@ import sys
 from urlparse import urlparse
 
 import ipaddress
-from twisted.internet import defer, reactor
-from twisted.web.client import IAgent, _ReadBodyProtocol
+from twisted.internet import defer, reactor, protocol
+from twisted.web.client import IAgent
 from zope.interface import implements
 
 
@@ -53,19 +53,28 @@ def extract_urls(text):
 # Twisted HTTP machinery
 #
 
-class TruncatingReadBodyProtocol(_ReadBodyProtocol):
+class TruncatingReadBodyProtocol(protocol.Protocol):
     """A protocol that collects data sent to it up to a maximum of
     *max_bytes*, then discards the rest."""
 
-    def __init__(self, status, message, deferred, max_bytes=None):
-        _ReadBodyProtocol.__init__(self, status, message, deferred)
-        self.remaining = self.max_bytes = (max_bytes or sys.maxsize)
+    def __init__(self, status, message, finished, max_bytes=None):
+        self.status = status
+        self.message = message
+        self.finished = finished
+        self.data_buffer = []
+        self.remaining = max_bytes or sys.maxsize
 
     def dataReceived(self, data):
         if self.remaining > 0:
             to_buffer = data[:self.remaining]
-            _ReadBodyProtocol.dataReceived(self, to_buffer)
+            self.data_buffer.append(to_buffer)
             self.remaining -= len(to_buffer)
+        if self.remaining <= 0:
+            self.transport.loseConnection()
+
+    def connectionLost(self, reason):
+        if not self.finished.called:
+            self.finished.callback(''.join(self.data_buffer))
 
 
 class BlacklistedHost(Exception):
