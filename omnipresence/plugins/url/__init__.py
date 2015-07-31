@@ -6,7 +6,7 @@ import re
 import urllib
 from urlparse import urlparse, urldefrag
 
-from littlebrother import fetch_title
+from littlebrother import fetch_title, BlacklistedHost
 from twisted.internet.defer import DeferredList, inlineCallbacks, returnValue
 from twisted.internet.error import ConnectError, DNSLookupError
 from twisted.plugin import IPlugin

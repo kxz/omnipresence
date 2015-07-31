@@ -6,9 +6,9 @@ import re
 
 import pkg_resources
 import sqlobject
-from twisted.internet import defer, protocol, reactor, task, threads
+from twisted.internet import defer, protocol, reactor, task
 from twisted.plugin import getPlugins
-from twisted.python import failure, log
+from twisted.python import log
 from twisted.words.protocols import irc
 
 from omnipresence import iomnipresence, plugins, ircutil, util

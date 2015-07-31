@@ -1,16 +1,14 @@
 # -*- test-case-name: omnipresence.test.test_web -*-
 """Utility methods for retrieving and manipulating data from Web resources."""
 
-import sys
+
 import urllib
-from urlparse import urlparse
 
 from bs4 import BeautifulSoup, NavigableString, Tag
-import ipaddress
 from twisted.internet import defer, reactor
 from twisted.plugin import IPlugin
-from twisted.web.client import (IAgent, Agent, ContentDecoderAgent,
-                                RedirectAgent, GzipDecoder, readBody)
+from twisted.web.client import (Agent, ContentDecoderAgent, RedirectAgent,
+                                GzipDecoder, readBody, PartialDownloadError)
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -59,7 +57,6 @@ def request(*args, **kwargs):
     # In some cases, the original value is needed, so we store it in a
     # custom X-header field.
     headers['X-Omni-Length'] = str(response.length)
-    d = defer.Deferred()
     try:
         content = yield readBody(response)
     except PartialDownloadError as e:

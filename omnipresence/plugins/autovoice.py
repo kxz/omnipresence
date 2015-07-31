@@ -9,12 +9,14 @@ class AutoVoicer(object):
     implements(IPlugin, IHandler)
     name = 'autovoice'
 
-    moderated = {}
+    def __init__(self):
+        self.moderated = {}
 
     def joined(self, bot, prefix, channel):
         self.moderated[channel] = False
 
     def modeChanged(self, bot, prefix, channel, set, modes, args):
+        nick = prefix.split('!', 1)[0]
         if 'm' in modes:
             if set:
                 log.msg('%s enabled channel moderation on %s.'

@@ -40,8 +40,9 @@ def format_item(item, show_date=False):
     return msg
 
 
-"""Holds cached feed information."""
 class Feed(object):
+    """Holds cached feed information."""
+
     url = None
     channels = None
     seen_items = None
