@@ -18,6 +18,7 @@ from twisted.words.protocols.irc import IRCClient
 from . import __version__, __source__, mapping
 from .message import Message, chunk, truncate_unicode
 from .plugin import UserVisibleError
+from .settings import ConnectionSettings
 
 
 #: The length to chunk string command replies to, in bytes.
@@ -98,17 +99,12 @@ class Connection(IRCClient):
     #: implementation, hence the unusual capitalization.
     heartbeatInterval = 60
 
-    def __init__(self, factory):
-        #: The `.ConnectionFactory` that created this client.
-        self.factory = factory
+    def __init__(self):
+        #: The `.ConnectionFactory` that created this client, if any.
+        self.factory = None
 
-        # Various instance variables provided by Twisted's IRCClient.
-        self.nickname = factory.config.getdefault('core', 'nickname',
-                                                  default=self.versionName)
-        self.password = factory.config.getdefault('core', 'password')
-        self.realname = factory.config.getdefault('core', 'realname')
-        self.username = factory.config.getdefault('core', 'username')
-        self.userinfo = factory.config.getdefault('core', 'userinfo')
+        #: The settings in use on this client.
+        self.settings = ConnectionSettings()
 
         #: The reactor in use on this client.  This may be overridden
         #: when a deterministic clock is needed, such as in unit tests.
@@ -287,11 +283,10 @@ class Connection(IRCClient):
         # immediately disconnects the client.  In these cases, the delay
         # should continue to increase, especially if the problem is that
         # there are too many connections!
-        self.factory.resetDelay()
-        for channel in self.factory.config.options('channels'):
-            # Skip over "@", which has a special meaning to the bot.
-            if channel != PRIVATE_CHANNEL:
-                self.join(channel)
+        if self.factory:
+            self.factory.resetDelay()
+        for channel in self.settings.autojoin_channels():
+            self.join(channel)
 
     def kickedFrom(self, channel, kicker, message):
         """Called when the bot is kicked from the given *channel*."""
@@ -447,9 +442,11 @@ class Connection(IRCClient):
             if msg.private:
                 command_prefixes = None
             else:
-                defaults = {'current_nickname': self.nickname}
-                command_prefixes = self.factory.config.getspacelist(
-                    'core', 'command_prefixes', False, defaults)
+                command_prefixes = msg.settings.get('command_prefixes',
+                                                    default=[])
+                if msg.settings.get('direct_addressing', default=True):
+                    command_prefixes.append(self.nickname + ':')
+                    command_prefixes.append(self.nickname + ',')
             command_msg = msg.extract_command(prefixes=command_prefixes)
             if command_msg is not None:
                 # Get the command message in immediately after the
@@ -471,7 +468,9 @@ class Connection(IRCClient):
             self.message_buffers[venue].pop(request.actor.nick, None)
             return request.actor.nick
         if isinstance(response, basestring):
-            buf = chunk(response, self.factory.encoding, CHUNK_LENGTH)
+            buf = chunk(response,
+                        request.settings.get('encoding', default='utf-8'),
+                        CHUNK_LENGTH)
         elif isinstance(response, collections.Iterable):
             buf = response
         else:
@@ -534,44 +533,43 @@ class Connection(IRCClient):
             return
         string = string.replace('\n', ' / ')
         if isinstance(string, unicode):
-            truncated = truncate_unicode(string, MAX_REPLY_LENGTH,
-                                         self.factory.encoding)
-            if truncated.decode(self.factory.encoding) != string:
-                string = truncated + u'...'.encode(self.factory.encoding)
+            encoding = request.settings.get('encoding', default='utf-8')
+            truncated = truncate_unicode(string, MAX_REPLY_LENGTH, encoding)
+            if truncated.decode(encoding) != string:
+                string = truncated + u'...'.encode(encoding)
         else:
             if len(string) > MAX_REPLY_LENGTH:
                 string = string[:MAX_REPLY_LENGTH] + '...'
         if request.private:
             log.msg('Private reply for %s: %s' % (request.actor.nick, string))
             self.notice(request.actor.nick, string)
-        else:
-            log.msg('Reply for %s in %s: %s' %
-                    (request.target, request.venue, string))
-            # TODO:  Make the format configurable.
-            reply_format = '\x0314{target}: {message}'
-            self.msg(request.venue, reply_format.format(
-                target=request.target, message=string))
+            return
+        log.msg('Reply for %s in %s: %s' %
+                (request.target, request.venue, string))
+        reply_format = request.settings.get(
+            'reply_format', default='\x0314{target}: {message}')
+        self.msg(request.venue, reply_format.format(
+            target=request.target, message=string))
 
     def reply_from_error(self, failure, request):
         """Call `.reply` with information on a *failure* that occurred
         in the callback invoked to handle a command request. If
-        *failure* wraps a `.UserVisibleError`, reply with its exception
-        string.  Otherwise, log the error and reply with a generic
-        message. If the ``show_errors`` configuration option is true,
-        reply with the exception string regardless of *failure*'s
-        exception type.
+        *failure* wraps a `.UserVisibleError`, or the ``show_errors``
+        configuration option is true, reply with its exception string.
+        Otherwise, log the error and reply with a generic message.
 
         This method is automatically called whenever an unhandled
         exception occurs in a plugin's command callback, and should
         never need to be invoked manually.
         """
-        # TODO:  Implement `show_errors`.
         error_request = request._replace(target=request.actor.nick)
-        message = 'Command \x02{}\x02 encountered an error'.format(
-            request.subaction)
         if failure.check(UserVisibleError):
             self.reply(failure.getErrorMessage(), error_request)
             return
+        message = 'Command \x02{}\x02 encountered an error'.format(
+            request.subaction)
+        if request.settings.get('show_errors', default=False):
+            message += ': \x02{}\x02'.format(failure.getErrorMessage())
         log.err(failure, 'Error during command callback: %s %s' %
                 (request.subaction, request.content))
         self.reply(message + '.', error_request)
@@ -594,20 +592,21 @@ class ConnectionFactory(ReconnectingClientFactory):
     """Creates `.Connection` instances."""
     protocol = Connection
 
-    encoding = 'utf-8'
-
-    def __init__(self, config):
-        self.config = config
-        self.encoding = self.config.getdefault('core', 'encoding',
-                                               self.encoding)
-
-        # Set up the bot's SQLObject connection instance.
-        sqlobject_uri = self.config.get('core', 'database')
-        sqlobject.sqlhub.processConnection = (
-            sqlobject.connectionForURI(sqlobject_uri))
+    def __init__(self):
+        #: The `ConnectionSettings` object associated with this factory.
+        self.settings = ConnectionSettings()
 
     def startedConnecting(self, connector):
         log.msg('Attempting to connect to server')
 
     def buildProtocol(self, addr):
-        return self.protocol(self)
+        protocol = ReconnectingClientFactory.buildProtocol(self, addr)
+        protocol.settings = self.settings
+        # Set various properties defined by Twisted's IRCClient.
+        protocol.nickname = self.settings.get('nickname',
+                                              default=protocol.versionName)
+        protocol.password = self.settings.get('password')
+        protocol.realname = self.settings.get('realname')
+        protocol.username = self.settings.get('username')
+        protocol.userinfo = self.settings.get('userinfo')
+        return protocol

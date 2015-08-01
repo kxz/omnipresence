@@ -10,24 +10,35 @@ import yaml
 
 def parse_key(key):
     """Split a key string into a tuple consisting of a command and a
-    list of arguments.  Raise `.ConfigurationError` if the key is
-    invalid."""
+    list of arguments.  Raise `ValueError` if the key is invalid."""
     try:
         args = shlex.split(key)
     except ValueError:
-        raise ConfigurationError('unparsable key: ' + key)
+        raise ValueError('unparsable key: ' + key)
     try:
         command = args.pop(0)
     except IndexError:
-        raise ConfigurationError('empty key')
+        raise ValueError('empty key')
     return (command, args)
 
 
 class ConnectionSettings(object):
     # XXX:  Docstring.
 
-    def __init__(self, settings_dict):
-        raise NotImplementedError
+    def __init__(self):
+        self.variables = {}  # mock without scope support
+
+    @classmethod
+    def from_dict(cls, dict_):
+        if not isinstance(dict_, collections.Mapping):
+            raise TypeError('settings must be a mapping, not ' +
+                            type(settings_dict).__name__)
+
+    @classmethod
+    def from_yaml(cls, yaml_):
+        """Return a new `.ConnectionSettings` object based on a YAML
+        string or open file object pointing to a YAML file."""
+        return cls(yaml.load(yaml_))
 
     def set_case_mapping(self, case_mapping):
         raise NotImplementedError
@@ -36,18 +47,30 @@ class ConnectionSettings(object):
 
     def autojoin_channels(self):
         """Return a list of channels to automatically join."""
+        return []
+
+    @property
+    def server(self):
+        raise NotImplementedError
+
+    @property
+    def port(self):
+        raise NotImplementedError
+
+    @property
+    def ssl(self):
         raise NotImplementedError
 
     # Configuration variables
 
     def set(self, key, value, scope=None):
         """Set the configuration variable *key* to *value*."""
-        raise NotImplementedError
+        self.variables[key] = value
 
     def get(self, key, scope=None, default=None):
         """Return the value of the configuration variable *key*, or
         *default* if it has not been set."""
-        raise NotImplementedError
+        return self.variables.get(key, default)
 
     # Plugins
 
@@ -88,41 +111,3 @@ class ConnectionSettings(object):
     # validation on bot start or reload:
     # (1) check that all plugins exist
     # (2) actually instantiate and attach plugin objects
-
-
-class BotSettings(object):
-    # XXX:  Docstring.
-
-    def __init__(self, settings_dict):
-        if not isinstance(settings_dict, collections.Mapping):
-            raise TypeError('settings must be a mapping, not ' +
-                            type(settings_dict).__name__)
-        #: A mapping from connection names, as given in *settings_dict*,
-        #: to `.ConnectionSettings` objects.
-        self.connections = {}
-        # Split the settings into global and connection-specific dicts.
-        bot_dict = {}
-        connections_dict = {}
-        for key, value in settings_dict.iteritems():
-            command, args = parse_key(key)
-            if command != 'connection':
-                bot_dict[key] = value
-                continue
-            try:
-                connection_name = args.pop(0)
-            except IndexError:
-                raise ValueError(
-                    '"connection" command without connection name')
-            if args:
-                raise ValueError(
-                    'too many arguments to "connection" command: ' + key)
-            connections_dict[connection_name] = value
-        for name, connection_dict in connections_dict.iteritems():
-            connection_dict.update(bot_dict)
-            self.connections[name] = ConnectionSettings(connection_dict)
-
-    @classmethod
-    def from_yaml(cls, yaml_):
-        """Return a new `.BotSettings` object based on a YAML string or
-        open file object pointing to a YAML file."""
-        return cls(yaml.load(yaml_))

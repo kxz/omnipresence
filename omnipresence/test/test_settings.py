@@ -5,7 +5,7 @@
 from twisted.trial import unittest
 
 from ..message import Message
-from ..settings import BotSettings, ConnectionSettings
+from ..settings import ConnectionSettings
 from .helpers import DummyConnection
 
 
@@ -17,15 +17,10 @@ CHANNEL_MESSAGE = CONNECTION_MESSAGE._replace(venue='#foo')
 
 class SettingsTestCase(unittest.TestCase):
     def test_fail_incorrect_type(self):
-        self.assertRaises(TypeError, BotSettings, 'just a string')
+        self.assertRaises(TypeError, ConnectionSettings, 'just a string')
 
     def test_fail_invalid_keys(self):
         cases = [
-            {'connection': None},
-            {'connection name extra_arg': None},
-            {'connection test': {'channel': None}},
-            {'connection test': {'channel name extra_arg': None}},
-            {'connection test': {'private extra_arg': None}},
             {'set': None},
             {'plugin': None},
             {'ignore': None},
@@ -38,62 +33,43 @@ class SettingsTestCase(unittest.TestCase):
             {'autojoin extra_arg': None},
             {'i_am_a_banana': None}]
         for case in cases:
-            self.assertRaises(ValueError, BotSettings, case)
+            self.assertRaises(ValueError, ConnectionSettings.from_dict, case)
     test_fail_invalid_keys.todo = 'unimplemented'
 
     def test_fail_invalid_nesting(self):
         cases = [
             # XXX:  Ensure connections have a host and port.
-            {'connection test': {
-                'host': 'irc.foo.example', 'port': 6667,
-                'connection nested_connection': None}},
-            {'channel outside_of_connection': None},
-            {'private': None},
-            {'connection test': {
-                'host': 'irc.foo.example', 'port': 6667,
-                'channel test': {
-                    'connection inside_channel': None}}},
-            {'connection test': {
-                'host': 'irc.foo.example', 'port': 6667,
-                'channel test': {
-                    'channel inside_channel': None}}},
-            {'host': 'irc.foo.example'},
-            {'port': 6667},
-            {'ssl': True},
-            {'connection test': {
-                'channel test': {'host': 'irc.foo.example'}}},
-            {'connection test': {
-                'channel test': {'port': 6667}}},
-            {'connection test': {
-                'channel test': {'ssl': True}}},
-            {'autojoin': False},
-            {'connection test': {'autojoin': False}}]
+            {'host': 'irc.foo.example', 'port': 6667, 'channel test': {
+                'channel inside_channel': None}},
+            {'channel test': {'host': 'irc.foo.example'}},
+            {'channel test': {'port': 6667}},
+            {'channel test': {'ssl': True}},
+            {'autojoin': False}]
         for case in cases:
-            self.assertRaises(ValueError, BotSettings, case)
+            self.assertRaises(ValueError, ConnectionSettings.from_dict, case)
     test_fail_invalid_nesting.todo = 'unimplemented'
 
-    def test_fail_invalid_connections(self):
-        self.assertRaises(ValueError, BotSettings, {
-            'connection missing_host': None})
-    test_fail_invalid_connections.todo = 'unimplemented'
+    def test_fail_missing_host(self):
+        self.assertRaises(ValueError, ConnectionSettings.from_dict, {})
+    test_fail_missing_host.todo = 'unimplemented'
 
     def test_fail_invalid_ignores(self):
-        self.assertRaises(TypeError, BotSettings, {
+        self.assertRaises(TypeError, ConnectionSettings.from_dict, {
             'ignore empty': None})
-        self.assertRaises(ValueError, BotSettings, {
+        self.assertRaises(ValueError, ConnectionSettings.from_dict, {
             'ignore test': {'invalid_key': None}})
-        self.assertRaises(ValueError, BotSettings, {
+        self.assertRaises(ValueError, ConnectionSettings.from_dict, {
             'ignore both_ex_and_include': {'exclude': None, 'include': None}})
-        self.assertRaises(TypeError, BotSettings, {
+        self.assertRaises(TypeError, ConnectionSettings.from_dict, {
             'ignore test': {'hostmasks': 'whoops_a_string'}})
-        self.assertRaises(TypeError, BotSettings, {
+        self.assertRaises(TypeError, ConnectionSettings.from_dict, {
             'ignore test': {'hostmasks': [], 'exclude': 'whoops_a_string'}})
-        self.assertRaises(TypeError, BotSettings, {
+        self.assertRaises(TypeError, ConnectionSettings.from_dict, {
             'ignore test': {'hostmasks': [], 'include': 'whoops_a_string'}})
     test_fail_invalid_ignores.todo = 'unimplemented'
 
     def test_fail_invalid_plugins(self):
-        self.assertRaises(TypeError, BotSettings, {
+        self.assertRaises(TypeError, ConnectionSettings.from_dict, {
             'plugin test': 'whoops_a_string'})
     test_fail_invalid_plugins.todo = 'unimplemented'
 
@@ -115,7 +91,7 @@ class SettingsTestCase(unittest.TestCase):
     # TODO:  Case mapping tests.
 
     def test_connections(self):
-        settings = BotSettings({
+        settings = ConnectionSettings.from_dict({
             'connection foo': {
                 'host': 'irc.foo.example', 'port': 6667},
             'connection bar': {
@@ -131,7 +107,7 @@ class SettingsTestCase(unittest.TestCase):
     test_connections.todo = 'unimplemented'
 
     def test_variable_inheritance(self):
-        settings = BotSettings({
+        settings = ConnectionSettings.from_dict({
             'set spam': 'global',
             'set ham': 'global',
             'set eggs': 'global',

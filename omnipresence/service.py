@@ -11,8 +11,8 @@ from twisted.application.internet import SSLClient, TCPClient
 from twisted.internet import ssl
 from twisted.python import usage
 
-from .config import ConfigParser
 from .connection import ConnectionFactory
+from .settings import ConnectionSettings
 
 
 class Options(usage.Options):
@@ -23,11 +23,10 @@ class Options(usage.Options):
 def makeService(options):
     """Return a Twisted service object attaching a `ConnectionFactory`
     instance to an appropriate TCP or SSL transport."""
-    config = ConfigParser()
-    config.read(os.path.join(os.getcwd(), options['config_path']))
-    factory = ConnectionFactory(config)
-    server = config.get('core', 'server')
-    port = config.getint('core', 'port')
-    if config.getboolean('core', 'ssl'):
-        return SSLClient(server, port, factory, ssl.ClientContextFactory())
-    return TCPClient(server, port, factory)
+    factory = ConnectionFactory()
+    settings = ConnectionSettings.from_yaml(options['config_path'])
+    factory.settings = settings
+    if settings.ssl:
+        return SSLClient(settings.server, settings.port, factory,
+                         ssl.ClientContextFactory())
+    return TCPClient(settings.server, settings.port, factory)

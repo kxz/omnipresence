@@ -27,23 +27,6 @@ class AbortableStringTransport(StringTransport):
         self.loseConnection()
 
 
-class DummyFactory(object):
-    """A class that simulates the behavior of a ConnectionFactory."""
-    # TODO:  Refactor Connection so that this isn't necessary for
-    # connection tests.
-
-    def __init__(self):
-        self.config = ConfigParser()
-        self.config.add_section('core')
-        self.config.set('core', 'database', 'sqlite:/:memory:')
-        self.config.set('core', 'command_prefixes', '!')
-        self.config.add_section('channels')
-        self.encoding = 'utf-8'
-
-    def resetDelay(self):
-        pass
-
-
 class DummyConnection(object):
     """A class that simulates the behavior of a live connection."""
 
@@ -93,7 +76,8 @@ class AbstractConnectionTestCase(unittest.TestCase):
 
     def setUp(self):
         self.transport = AbortableStringTransport()
-        self.connection = Connection(DummyFactory())
+        self.connection = Connection()
+        self.connection.settings.set('command_prefixes', ['!'])
         self.connection.reactor = Clock()
         self.connection.makeConnection(self.transport)
         if self.sign_on:
