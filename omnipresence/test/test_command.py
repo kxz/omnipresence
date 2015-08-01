@@ -50,7 +50,7 @@ class BasicCommand(EventPlugin):
     def on_command(self, msg):
         args = msg.content.split()
         exc_class = UserVisibleError if 'visible' in args else Exception
-        exc = exc_class('lorem ipsum')
+        exc = exc_class('Lorem ipsum.')
         if 'defer' in args:
             if 'failure' in args:
                 return fail(exc)
@@ -92,8 +92,7 @@ class BasicCommandTestCase(AbstractCommandTestCase):
         self.assertEqual(self.watcher.last_seen.action, 'privmsg')
         self.assertEqual(self.watcher.last_seen.venue, '#foo')
         self.assertEqual(self.watcher.last_seen.content, collapse("""
-            \x0314{}: Command \x02spam\x02 encountered an error: lorem
-            ipsum.""".format(self.other_user.nick)))
+            \x0314{}: Lorem ipsum.""".format(self.other_user.nick)))
 
     def test_empty_buffer(self):
         self.more()

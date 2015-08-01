@@ -570,9 +570,7 @@ class Connection(IRCClient):
         message = 'Command \x02{}\x02 encountered an error'.format(
             request.subaction)
         if failure.check(UserVisibleError):
-            self.reply(
-                '{}: {}.'.format(message, failure.getErrorMessage()),
-                error_request)
+            self.reply(failure.getErrorMessage(), error_request)
             return
         log.err(failure, 'Error during command callback: %s %s' %
                 (request.subaction, request.content))
