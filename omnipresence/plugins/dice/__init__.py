@@ -134,21 +134,7 @@ class Default(EventPlugin):
             del self.banks[(venue, old_nick)]
 
     def on_cmdhelp(self, msg):
-        if not msg.subaction:
-            help_text = """\
-                [\x02add\x02 \x1Fdice\x1F |
-                    \x02clear\x02 |
-                    \x02new\x02 \x1Fdice\x1F |
-                    \x02roll\x02 \x1Fdice\x1F |
-                    \x02show\x02 [\x1Fnick\x1F] |
-                    \x02use\x02 \x1Frolls\x1F] -
-                Manage your die bank.
-                For more details on a specific subcommand, see help for
-                \x02{0}\x02 \x1Fsubcommand\x1F.
-                For information on dice notation, see help for \x02{0}
-                notation\x02.
-                """
-        elif msg.content == 'add':
+        if msg.content == 'add':
             help_text = """\
                 \x02{1}\x02 \x1Fdice\x1F - Roll the given dice and add
                 the resulting rolls to your die bank.
@@ -191,7 +177,16 @@ class Default(EventPlugin):
                 """
         else:
             help_text = """\
-                There is no \x02{1}\x02 subcommand with the keyword
-                \x02{1}\x02.
+                [\x02add\x02 \x1Fdice\x1F |
+                    \x02clear\x02 |
+                    \x02new\x02 \x1Fdice\x1F |
+                    \x02roll\x02 \x1Fdice\x1F |
+                    \x02show\x02 [\x1Fnick\x1F] |
+                    \x02use\x02 \x1Frolls\x1F] -
+                Manage your die bank.
+                For more details on a specific subcommand, see help for
+                \x02{0}\x02 \x1Fsubcommand\x1F.
+                For information on dice notation, see help for \x02{0}
+                notation\x02.
                 """
         return collapse(help_text).format(msg.subaction, msg.content)
