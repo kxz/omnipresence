@@ -9,7 +9,6 @@ from twisted.test.proto_helpers import StringTransport
 from twisted.trial import unittest
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
-from ..config import ConfigParser
 from ..connection import Connection
 from ..hostmask import Hostmask
 from ..plugin import EventPlugin
