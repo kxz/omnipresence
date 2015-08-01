@@ -15,4 +15,4 @@ class Default(EventPlugin):
         return collapse("""\
             [\x1Fnick\x1F] - Return the next message in \x1Fnick\x1F's
             command reply buffer, or your own if no nick is specified.
-            """.format(msg.subaction))
+            """)

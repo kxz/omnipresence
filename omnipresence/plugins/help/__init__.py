@@ -38,4 +38,4 @@ class Default(EventPlugin):
         return collapse("""\
             [\x1Fkeyword\x1F] - List available command keywords, or,
             given a keyword, get detailed help on a specific command.
-            """.format(msg.subaction))
+            """)
