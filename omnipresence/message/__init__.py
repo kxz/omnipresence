@@ -3,6 +3,7 @@
 
 
 from collections import namedtuple
+from functools import partial
 from itertools import chain
 
 from ..hostmask import Hostmask
@@ -19,6 +20,18 @@ MESSAGE_TYPES = set([
 #
 # Core message class
 #
+
+class MessageSettings(object):
+    """A proxy for `ConnectionSettings` that automatically adds the
+    given *message* as a scope to method calls."""
+
+    def __init__(self, settings, message):
+        self.settings = settings
+        self.message = message
+
+    def __getattr__(self, name):
+        return partial(getattr(self.settings, name), scope=self.message)
+
 
 class Message(namedtuple('Message',
                          ('connection', 'outgoing', 'action', 'actor',
@@ -143,6 +156,13 @@ class Message(namedtuple('Message',
         public channel.  Otherwise, `False`."""
         return not (self.venue is None or
                     self.connection.is_channel(self.venue))
+
+    @property
+    def settings(self):
+        """The settings in place for this message.  Methods are like
+        those for `ConnectionSettings`, with the *scope* argument set to
+        this message."""
+        return MessageSettings(self.connection.settings, self)
 
 
 #
