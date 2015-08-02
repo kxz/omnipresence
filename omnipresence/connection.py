@@ -560,11 +560,16 @@ class Connection(IRCClient):
                 (request.subaction, request.content))
         self.reply(message + '.', error_request)
 
-    def lineReceived(self, line):
-        """Overrides `.IRCClient.lineReceived`."""
+    def _lineReceived(self, line):
+        # Twisted doesn't like it when `lineReceived` returns a value,
+        # but we need to do so for some unit tests.
         deferred = self.respond_to(Message.from_raw(self, False, line))
         IRCClient.lineReceived(self, line)
         return deferred
+
+    def lineReceived(self, line):
+        """Overrides `.IRCClient.lineReceived`."""
+        self._lineReceived(line)
 
     def sendLine(self, line):
         """Overrides `.IRCClient.sendLine`."""

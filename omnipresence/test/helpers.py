@@ -85,12 +85,12 @@ class AbstractConnectionTestCase(unittest.TestCase):
 
     def receive(self, line):
         """Simulate receiving a line from the IRC server."""
-        return self.connection.lineReceived(':{!s} {}'.format(
+        return self.connection._lineReceived(':{!s} {}'.format(
             self.other_user, line))
 
     def echo(self, line):
         """Simulate receiving an echoed action from the IRC server."""
-        return self.connection.lineReceived(':{}!user@host {}'.format(
+        return self.connection._lineReceived(':{}!user@host {}'.format(
             self.connection.nickname, line))
 
     def assertLoggedErrors(self, number):
