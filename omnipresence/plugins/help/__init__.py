@@ -9,9 +9,8 @@ from ...plugin import EventPlugin
 class Default(EventPlugin):
     def on_command(self, msg):
         args = msg.content.split(None, 1)
-        # FIXME:  This definitely shouldn't be implemented here.
         keywords = {}
-        for p, k in msg.connection.event_plugins.get(msg.venue, []):
+        for p, k in msg.settings.active_plugins().iteritems():
             for keyword in k:
                 keywords[keyword] = p
         if not args:

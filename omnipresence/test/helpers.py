@@ -11,7 +11,8 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from ..connection import Connection
 from ..hostmask import Hostmask
-from ..plugin import EventPlugin
+from ..message import Message
+from ..plugin import EventPlugin, UserVisibleError
 
 
 #
@@ -97,3 +98,30 @@ class AbstractConnectionTestCase(unittest.TestCase):
         # <http://stackoverflow.com/a/3252306>
         gc.collect()
         self.assertEqual(len(self.flushLoggedErrors()), number)
+
+
+class AbstractCommandTestCase(AbstractConnectionTestCase):
+    command_class = None
+
+    def setUp(self):
+        super(AbstractCommandTestCase, self).setUp()
+        self.default_venue = self.connection.nickname
+        name = self.command_class.name
+        self.keyword = name.rsplit('/', 1)[-1].rsplit('.', 1)[-1].lower()
+        self.command = self.connection.settings.enable(name, [self.keyword])
+
+    def command_message(self, content, **kwargs):
+        kwargs.setdefault('actor', self.other_user)
+        kwargs.setdefault('subaction', self.keyword)
+        kwargs.setdefault('venue', self.default_venue)
+        return Message(self.connection, False, 'command',
+                       content=content, **kwargs)
+
+    def assert_reply(self, content, expected, **kwargs):
+        msg = self.command_message(content, **kwargs)
+        self.assertEqual(self.command.respond_to(msg), expected)
+
+    def assert_error(self, content, expected, **kwargs):
+        msg = self.command_message(content, **kwargs)
+        e = self.assertRaises(UserVisibleError, self.command.respond_to, msg)
+        self.assertEqual(str(e), expected)

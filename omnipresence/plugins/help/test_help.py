@@ -2,9 +2,9 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from ...message import Message, collapse
+from ...message import collapse
 from ...plugin import EventPlugin
-from ...test.helpers import AbstractConnectionTestCase
+from ...test.helpers import AbstractCommandTestCase
 
 from . import Default
 
@@ -13,18 +13,12 @@ class HelplessPlugin(EventPlugin):
     pass
 
 
-class HelpTestCase(AbstractConnectionTestCase):
+class HelpTestCase(AbstractCommandTestCase):
+    command_class = Default
+
     def setUp(self):
         super(HelpTestCase, self).setUp()
-        self.help = self.connection.add_event_plugin(
-            Default, {'#foo': ['help']})
-        self.connection.add_event_plugin(
-            HelplessPlugin, {'#foo': ['helpless']})
-
-    def assert_reply(self, args, expected_reply):
-        msg = Message(self.connection, False, 'command',
-                      venue='#foo', subaction='help', content=args)
-        self.assertEqual(self.help.respond_to(msg), expected_reply)
+        self.connection.settings.enable(HelplessPlugin.name, ['helpless'])
 
     def test_no_arguments(self):
         self.assert_reply('', collapse("""\

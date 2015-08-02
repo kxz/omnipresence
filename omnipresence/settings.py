@@ -14,8 +14,8 @@ from .hostmask import Hostmask
 from .plugin import load_plugin
 
 
-#: An opaque object used for the private message scope.
-PRIVATE_SCOPE = '@'
+#: A sentinel "channel" used for direct messages to users.
+PRIVATE_CHANNEL = '@'
 
 
 def parse_directive(directive):
@@ -61,7 +61,7 @@ def scopes_for(message):
     if message is None:
         return [None]
     if message.private:
-        return [PRIVATE_SCOPE, None]
+        return [PRIVATE_CHANNEL, None]
     if message.venue:
         return [message.venue, None]
     return [None]
@@ -87,7 +87,7 @@ class SettingsParser(object):
         if not isinstance(dict_, collections.Mapping):
             if scope is None:
                 scope_str = 'connection'
-            elif scope is PRIVATE_SCOPE:
+            elif scope is PRIVATE_CHANNEL:
                 scope_str = 'private messages'
             else:
                 scope_str = scope
@@ -197,7 +197,7 @@ class SettingsParser(object):
                                   'too many arguments to "channel" command')
         if scope:
             raise ValueError('"channel" command outside of root')
-        if not (name[0] in CHANNEL_PREFIXES or name is PRIVATE_SCOPE):
+        if not (name[0] in CHANNEL_PREFIXES or name is PRIVATE_CHANNEL):
             name = '#' + name
         self.settings.autojoin_channels.add(name)
         self.parse_scope(name, value)
@@ -206,7 +206,7 @@ class SettingsParser(object):
         if args:
             raise ValueError('too many arguments to "private" command: '
                              '{}'.format(' '.join(args)))
-        self.parse_channel(scope, [PRIVATE_SCOPE], value)
+        self.parse_channel(scope, [PRIVATE_CHANNEL], value)
 
     def parse_enabled(self, scope, args, value):
         if args:
@@ -214,7 +214,7 @@ class SettingsParser(object):
                              '{}'.format(' '.join(args)))
         if not scope:
             raise ValueError('"enabled" command outside of channel')
-        if scope is PRIVATE_SCOPE:
+        if scope is PRIVATE_CHANNEL:
             raise ValueError('"enabled" command inside "private" block')
         if value is False:
             self.settings.autojoin_channels.discard(scope)
@@ -298,9 +298,10 @@ class ConnectionSettings(object):
     # Plugins
 
     def enable(self, name, keywords=None, scope=None):
-        """Enable the given plugin."""
+        """Enable a plugin and return the loaded plugin instance."""
         self.loaded_plugins.setdefault(name, load_plugin(name)())
         self.plugin_rules.setdefault(scope, {})[name] = keywords or []
+        return self.loaded_plugins[name]
 
     def disable(self, name, scope=None):
         """Disable the given plugin."""
@@ -334,10 +335,11 @@ class ConnectionSettings(object):
                         (exclude and name not in exclude) or
                         (include and name in include))}
 
-    def plugin_with_keyword(self, keyword, message=None):
-        """Return any enabled plugin object with the given keyword, or
-        `None` if no such plugin exists."""
+    def plugins_by_keyword(self, keyword, message=None):
+        """Return a list of enabled plugin objects with the given
+        keyword."""
+        plugins = []
         for plugin, keywords in self.active_plugins(message).iteritems():
             if keyword in keywords:
-                return plugin
-        return None
+                plugins.append(plugin)
+        return plugins

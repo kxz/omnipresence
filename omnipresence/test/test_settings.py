@@ -178,13 +178,14 @@ class SettingsTestCase(unittest.TestCase):
                 PluginA.name: [],
                 PluginB.name: ['baz'],
                 PluginC.name: []})
-        self.assertIs(settings.plugin_with_keyword('foo'),
-                      settings.plugin_with_keyword('bar'))
-        self.assertIsNone(
-            settings.plugin_with_keyword('bar', message=PRIVATE_MESSAGE))
-        self.assertIs(
-            settings.plugin_with_keyword('foo'),
-            settings.plugin_with_keyword('baz', message=PRIVATE_MESSAGE))
+        self.assertEqual(settings.plugins_by_keyword('foo'),
+                         settings.plugins_by_keyword('bar'))
+        self.assertEqual(
+            settings.plugins_by_keyword('bar', message=PRIVATE_MESSAGE),
+            [])
+        self.assertEqual(
+            settings.plugins_by_keyword('foo'),
+            settings.plugins_by_keyword('baz', message=PRIVATE_MESSAGE))
 
     def test_ignore_precedence(self):
         settings = ConnectionSettings({

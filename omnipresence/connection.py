@@ -18,7 +18,7 @@ from twisted.words.protocols.irc import IRCClient
 from . import __version__, __source__, mapping
 from .message import Message, chunk, truncate_unicode
 from .plugin import UserVisibleError
-from .settings import ConnectionSettings
+from .settings import ConnectionSettings, PRIVATE_CHANNEL
 
 
 #: The length to chunk string command replies to, in bytes.
@@ -26,9 +26,6 @@ CHUNK_LENGTH = 256
 
 #: The maximum length of a single command reply, in bytes.
 MAX_REPLY_LENGTH = 320
-
-#: A sentinel "channel" used for direct messages to users.
-PRIVATE_CHANNEL = '@'
 
 
 #
@@ -105,6 +102,7 @@ class Connection(IRCClient):
 
         #: The settings in use on this client.
         self.settings = ConnectionSettings()
+        self.nickname = self.versionName
 
         #: The reactor in use on this client.  This may be overridden
         #: when a deterministic clock is needed, such as in unit tests.
@@ -381,18 +379,8 @@ class Connection(IRCClient):
         self.channel_names[channel].update(names)
 
     #
-    # Temporary shadow implementation of event plugins
+    # Event plugin hooks
     #
-
-    def add_event_plugin(self, plugin_class, channels):
-        """Attach a new instance of *plugin_class* to this connection
-        and return it.  *channels* is a dict mapping channel names to
-        lists of command keywords to assign to the new plugin."""
-        plugin = plugin_class()
-        for channel, keywords in channels.iteritems():
-            self.event_plugins.setdefault(channel, [])
-            self.event_plugins[channel].append((plugin, keywords))
-        return plugin
 
     def respond_to(self, msg):
         """Start the appropriate event plugin callbacks for *msg*, and
@@ -405,28 +393,32 @@ class Connection(IRCClient):
         deferreds = []
         while self.message_queue:
             msg = self.message_queue.pop(0)
-            if msg.private:
-                venues = [PRIVATE_CHANNEL]
-            elif msg.venue:
-                venues = [msg.venue]
-            else:
-                # If there is an actor, forward the message only to
-                # plugins enabled in at least one channel where the
-                # actor was present.  Otherwise, forward it to every
-                # plugin active on the connection.
-                if msg.actor:
-                    venues = [channel for channel, names
-                              in self.channel_names.iteritems()
-                              if msg.actor.nick in names]
-                else:
-                    venues = self.event_plugins.keys()
+            # Build the set of plugins that should be fired.
             plugins = set()
-            for venue in venues:
-                for plugin, keywords in self.event_plugins.get(venue, []):
-                    if (msg.action == 'command' and
-                            msg.subaction not in keywords):
+            if msg.action == 'command':
+                plugins.update(
+                    msg.settings.plugins_by_keyword(msg.subaction))
+            elif msg.venue:
+                plugins.update(msg.settings.active_plugins().iterkeys())
+            elif msg.actor:
+                # Forward the message only to plugins enabled in at
+                # least one channel where the actor is present.
+                #
+                # This implementation does this by creating a synthetic
+                # message for every one of those channels and asking the
+                # settings object for each of those message's active
+                # plugins.  This is an ugly hack and should be replaced
+                # with something less unsightly.
+                for channel, names in self.channel_names.iteritems():
+                    if msg.actor.nick not in names:
                         continue
-                    plugins.add(plugin)
+                    channel_msg = msg._replace(venue=channel)
+                    plugins.update(
+                        channel_msg.settings.active_plugins().iterkeys())
+            else:
+                # Neither a venue nor an actor.  Forward the message to
+                # every plugin active on this connection.
+                plugins.update(self.settings.loaded_plugins.itervalues())
             for plugin in plugins:
                 deferred = maybeDeferred(plugin.respond_to, msg)
                 if msg.action == 'command':
@@ -442,11 +434,12 @@ class Connection(IRCClient):
             if msg.private:
                 command_prefixes = None
             else:
-                command_prefixes = msg.settings.get('command_prefixes',
-                                                    default=[])
+                # Make a copy so we don't accidentally change the value.
+                command_prefixes = tuple(
+                    msg.settings.get('command_prefixes', default=[]))
                 if msg.settings.get('direct_addressing', default=True):
-                    command_prefixes.append(self.nickname + ':')
-                    command_prefixes.append(self.nickname + ',')
+                    command_prefixes += (self.nickname + ':',
+                                         self.nickname + ',')
             command_msg = msg.extract_command(prefixes=command_prefixes)
             if command_msg is not None:
                 # Get the command message in immediately after the
@@ -601,8 +594,7 @@ class ConnectionFactory(ReconnectingClientFactory):
         protocol = ReconnectingClientFactory.buildProtocol(self, addr)
         protocol.settings = self.settings
         # Set various properties defined by Twisted's IRCClient.
-        protocol.nickname = self.settings.get('nickname',
-                                              default=protocol.versionName)
+        protocol.nickname = self.settings.get('nickname')
         protocol.password = self.settings.get('password')
         protocol.realname = self.settings.get('realname')
         protocol.username = self.settings.get('username')
