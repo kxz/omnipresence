@@ -30,7 +30,7 @@ class MessageSettings(object):
         self.message = message
 
     def __getattr__(self, name):
-        return partial(getattr(self.settings, name), scope=self.message)
+        return partial(getattr(self.settings, name), message=self.message)
 
 
 class Message(namedtuple('Message',

@@ -38,9 +38,6 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
             NoticingPlugin, {'#baz': []})
         self.connection.joined('#foo')
 
-    def test_init(self):
-        self.assertEqual(self.one.bot, self.connection)
-
     def test_connected(self):
         self.connection.signedOn()
         self.assertEqual(len(self.two.seen), 1)
@@ -134,7 +131,7 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
 #
 
 class OrderingPluginOne(EventPlugin):
-    def __init__(self, bot):
+    def __init__(self):
         self.quote = 'dolor sit amet'
 
     def on_privmsg(self, msg):
@@ -142,7 +139,7 @@ class OrderingPluginOne(EventPlugin):
 
 
 class OrderingPluginTwo(EventPlugin):
-    def __init__(self, bot):
+    def __init__(self):
         self.seen = []
 
     def on_privmsg(self, msg):
@@ -241,7 +238,7 @@ class OutgoingEventTestCase(AbstractConnectionTestCase):
 #
 
 class DeferredPlugin(EventPlugin):
-    def __init__(self, bot):
+    def __init__(self):
         self.seen = []
 
     def on_privmsg(self, msg):

@@ -43,9 +43,6 @@ class EventPlugin(object):
 
     __metaclass__ = EventPluginMeta
 
-    def __init__(self, bot):
-        pass
-
     def respond_to(self, msg):
         """Start any callback this plugin defines for *msg*, and forward
         its return value, or `None` if no such callback exists."""

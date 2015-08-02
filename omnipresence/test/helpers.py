@@ -40,8 +40,7 @@ class DummyConnection(object):
 class NoticingPlugin(EventPlugin):
     """An event plugin that caches incoming events."""
 
-    def __init__(self, bot):
-        self.bot = bot
+    def __init__(self):
         self.seen = []
 
     def on_privmsg(self, msg):

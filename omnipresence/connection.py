@@ -285,7 +285,7 @@ class Connection(IRCClient):
         # there are too many connections!
         if self.factory:
             self.factory.resetDelay()
-        for channel in self.settings.autojoin_channels():
+        for channel in self.settings.autojoin_channels:
             self.join(channel)
 
     def kickedFrom(self, channel, kicker, message):
@@ -388,7 +388,7 @@ class Connection(IRCClient):
         """Attach a new instance of *plugin_class* to this connection
         and return it.  *channels* is a dict mapping channel names to
         lists of command keywords to assign to the new plugin."""
-        plugin = plugin_class(self)
+        plugin = plugin_class()
         for channel, keywords in channels.iteritems():
             self.event_plugins.setdefault(channel, [])
             self.event_plugins[channel].append((plugin, keywords))

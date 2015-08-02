@@ -27,6 +27,6 @@ def makeService(options):
     settings = ConnectionSettings.from_yaml(options['config_path'])
     factory.settings = settings
     if settings.ssl:
-        return SSLClient(settings.server, settings.port, factory,
+        return SSLClient(settings.host, settings.port, factory,
                          ssl.ClientContextFactory())
-    return TCPClient(settings.server, settings.port, factory)
+    return TCPClient(settings.host, settings.port, factory)

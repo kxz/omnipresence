@@ -26,14 +26,6 @@ distribution, see :doc:`builtins`.
        class Other(EventPlugin):
            pass
 
-   On plugin initialization, Omnipresence passes the current
-   `~.Connection` as a positional parameter, which can be used to read
-   configuration settings needed during setup::
-
-       class Default(EventPlugin):
-           def __init__(self, bot):
-               self.load_data(bot.factory.config.get('foo', 'bar'))
-
    When a message is received, Omnipresence looks for a plugin method
    named ``on_`` followed by the :ref:`message type <message-types>`,
    such as ``on_privmsg``.

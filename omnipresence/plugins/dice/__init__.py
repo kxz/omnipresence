@@ -26,7 +26,7 @@ def format_rolls(rolls):
 
 
 class Default(EventPlugin):
-    def __init__(self, bot):
+    def __init__(self):
         #: User die banks, keyed by a (channel, nick) tuple.
         self.banks = defaultdict(Counter)
         #: The instance of `random.Random` used for die rolls.  This is

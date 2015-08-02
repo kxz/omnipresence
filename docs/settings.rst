@@ -32,17 +32,15 @@ while the value's type depends on the directive.
 
 The directives for :ref:`plugins <settings-plugin>`, :ref:`variables
 <settings-variable>`, and :ref:`ignore rules <settings-ignore>` cascade
-down into individual connections and channels unless explicitly
-overridden.
+down into individual channels unless explicitly overridden.
 For example, given the configuration file::
 
     set foo: 12345
-    connection initech:
-        channel redstapler:
-            set foo: 67890
+      channel redstapler:
+          set foo: 67890
 
 the variable ``foo`` is assumed to have the value ``12345`` everywhere
-except for the #redstapler channel on initech, where it is ``67890``.
+except for the #redstapler channel, where it is ``67890``.
 
 The particular order of directives at the same nesting level does not
 matter; in other words, there is no concept of "earlier" or "later" in
@@ -50,9 +48,8 @@ a file, only "shallower" and "deeper."
 This means that the following configuration is equivalent to the last
 one::
 
-    connection initech:
-        channel redstapler:
-            set foo: 67890
+    channel redstapler:
+        set foo: 67890
     set foo: 12345
 
 Avoid giving the same directive more than once inside a block.
@@ -65,51 +62,30 @@ depending on the whims of the YAML parser.
 Connections
 ===========
 
-The ``connection`` directive specifies a connection to an IRC server.
-It takes a single argument, an arbitrary string name (though special
-characters may require that the directive be quoted)::
+The following directives are only valid at the root of a configuration
+file, and specify the details of the connection to the IRC server:
 
-    connection example:
-        host: irc.server.example
-        port: 6697
-        ssl: yes
-        autojoin: yes
+* ``server`` is the hostname of the server.
+  This directive is mandatory.
 
-        set nickname: Omnipresence
-        set username: omni
-        set realname: Just another IRC bot
-        set password: really_secret_111
+* ``port`` is the port to connect to on the server.
+  It defaults to 6667.
 
-    "connection '::: weird name'":
-        host: irc.server.example
-
-The ``host``, ``port``, and ``ssl`` directives are only valid directly
-inside a ``connection`` block, and specify the hostname of the server,
-the port to connect to, and whether to use SSL, respectively.
-If the ``autojoin`` directive is set to false, Omnipresence does not
-connect to the server when it is started.
-This is useful for temporarily disabling a connection.
-The ``host`` directive is mandatory; ``port`` defaults to 6667, ``ssl``
-to false, and ``autojoin`` to true.
-
-The following :ref:`variables <settings-variable>` also affect
-connections:
+* ``ssl`` determines whether to use SSL.
+  It defaults to `False`.
 
 * ``nickname`` is the bot's initial nickname.
+  It defaults to ``"Omnipresence"``.
 
 * ``username`` is the username to use in the bot's hostmask if one is
   not provided by identd.
+  It defaults to the value of ``nickname``.
 
 * ``realname`` is the bot's "real name," visible in WHOIS.
+  It has no default value.
 
 * ``password`` is the server password to use.
-
-Unlike with the ``host``, ``port``, ``ssl``, and ``autojoin``
-directives, these variables may also be specified at the root level,
-where they cascade to any connections that do not override them.
-
-It is an error to place a ``connection`` directive at any level of the
-configuration file except the root.
+  It has no default value.
 
 
 .. _settings-channel:
@@ -120,16 +96,15 @@ Channels
 The ``channel`` and ``private`` directives give settings specific to a
 channel or direct messages for the bot, respectively::
 
-    connection example:
-        private:
-            plugin .nickserv: on
-        channel foo:
-            plugin foo.specific: [foo]
-        channel bar:
-            autojoin: off
+    private:
+        plugin .nickserv: on
+    channel foo:
+        plugin foo.specific: [foo]
+    channel bar:
+        enabled: off
 
-These directives are only valid directly inside a ``connection`` block,
-and cause an error if placed anywhere else.
+Like the connection control directives, these directives are only valid
+at the root of a configuration file.
 
 The ``channel`` directive takes the name of a channel as its sole
 argument.
@@ -138,17 +113,20 @@ known channel prefix is present.
 As ``#`` is also used to indicate comments in YAML, the directive must
 be quoted if it is given::
 
-    connection example:
-        "channel #foo":
-            plugin foo.specific: [foo]
+    "channel #foo":
+        plugin foo.specific: [foo]
 
 Needless to say, leaving it off is generally easier.
 
-As with connections, the ``autojoin`` directive inside a ``channel``
-block controls whether Omnipresence joins that channel upon connecting
-to the server.
-The ``autojoin`` directive is meaningless inside ``private`` blocks, on
-the other hand, and therefore it is an error to put one there.
+Inside a ``channel`` block, the value of the ``enabled`` directive
+controls Omnipresence's automatic join and part behavior.
+If it is true, the default for all explicitly configured channels, the
+channel is automatically joined on bot start and configuration reload.
+If false, the channel is not joined on bot start, and is parted from on
+reload if the bot is present there.
+If set to the string ``"soft"``, the default for all channels not
+explicitly mentioned in the configuration, the channel is not joined on
+bot start, but is not parted from on reload.
 
 
 .. _settings-plugin:
@@ -173,12 +151,7 @@ adding a slash and a second name (``/Random``).
 
 The value is either a list of command keywords to use for plugins that
 provide a command, or Boolean `True` or `False`.
-Any value that evaluates to false disables the plugin.
-
-.. warning::
-
-   In Python, an empty list is considered false, so providing a list of
-   no keywords for a plugin will disable it.
+`False` disables the plugin.
 
 
 .. _settings-variable:
@@ -199,7 +172,7 @@ Note that Omnipresence does not parse directives inside variable blocks,
 so the following configuration syntax is valid::
 
     set deliberately.unused.variable:
-        connection example: hello world
+        channel example: hello world
 
 (You should use :ref:`data blocks <settings-data>` instead of abusing
 variable blocks to store arbitrary data for later reuse, however.)
@@ -208,8 +181,7 @@ To unset a variable, set it to `None` using a tilde character (``~``)::
 
     set rss.feeds: ~
 
-In addition to the variables mentioned in :ref:`settings-connection`,
-Omnipresence also understands the following:
+The following variables affect Omnipresence's behavior:
 
 * ``command_prefixes`` is a list of prefixes Omnipresence searches for
   in public channels to indicate a command.
@@ -217,7 +189,7 @@ Omnipresence also understands the following:
 
 * ``direct_addressing`` allows the bot's configured or current nickname,
   followed by a colon or a comma, to be a command prefix.
-  It defaults to true.
+  It defaults to `True`.
 
 * ``reply_format`` is a :ref:`format string <python:formatstrings>` used
   for replies to public channels.
@@ -249,7 +221,7 @@ certain user hostmasks to certain plugins::
 It takes an arbitrary name as its sole argument.
 This name can be used in nested blocks to disable the ignore rule::
 
-    connection mercy:
+    channel mercy:
         ignore no_google_for_you: off
 
 The value is either Boolean `False`, or a mapping containing a
@@ -260,6 +232,9 @@ If ``include`` is given, its value is used as an exhaustive list of
 plugins that should not respond to events from the given hostmasks.
 Otherwise, all plugins except those given in ``exclude``, if present,
 ignore those hostmasks.
+If more than one ignore rule applies to a particular user, any rules
+with ``exclude`` take precedence over those with ``include``; in either
+case, all values for each are combined.
 
 
 .. _settings-data:
@@ -271,8 +246,8 @@ The ``data`` directive opens a block that can store arbitrary data.
 Its contents are not parsed at all::
 
     data:
-        channel totalanarchy:
-            connection thismakesnosense: hello world
+        ignore totalanarchy:
+            channel thismakesnosense: hello world
         but_here_are_some_defaults: &defaults
             plugin .help: [h, help]
             plugin .more: [m, more]
@@ -282,12 +257,11 @@ configuration templates where they will explicitly not be parsed.
 For example, the ``defaults`` value from the data block above can now be
 used for specific channel settings::
 
-    connection foo:
-        channel bar:
-            <<: *defaults
-        channel baz:
-            <<: *defaults
-            plugin baz.plugin: [quux]
+    channel bar:
+        <<: *defaults
+    channel baz:
+        <<: *defaults
+        plugin baz.plugin: [quux]
 
 
 .. _settings-reload:
@@ -296,5 +270,7 @@ Reloading
 =========
 
 To reload the bot configuration, send a SIGUSR1 to the running process.
-Omnipresence may connect and disconnect from servers, or join and part
-channels, depending on the new settings.
+Omnipresence will join and part channels according to :ref:`the channel
+configuration <settings-channel>`.
+Changes to :ref:`connection directives <settings-connection>` are
+ignored; they require a full restart of the bot.
