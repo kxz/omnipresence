@@ -159,25 +159,25 @@ class SettingsTestCase(unittest.TestCase):
                 'plugin ..test.test_settings/PluginC': True,
                 'ignore test': False}})
         self.assert_plugins_with_keywords(settings.active_plugins(), {
-            'omnipresence.test.test_settings/PluginA': [],
-            'omnipresence.test.test_settings/PluginB': ['foo', 'bar']})
+            PluginA.name: [],
+            PluginB.name: ['foo', 'bar']})
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=CHANNEL_MESSAGE),
-            {'omnipresence.test.test_settings/PluginA': []})
+            {PluginA.name: []})
         other_message = CHANNEL_MESSAGE._replace(
             actor=Hostmask('other', 'user', 'host'))
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=other_message),
-            {'omnipresence.test.test_settings/PluginA': []})
+            {PluginA.name: []})
         bar_message = CHANNEL_MESSAGE._replace(venue='#bar')
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=bar_message),
-            {'omnipresence.test.test_settings/PluginB': ['foo', 'bar']})
+            {PluginB.name: ['foo', 'bar']})
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=PRIVATE_MESSAGE), {
-                'omnipresence.test.test_settings/PluginA': [],
-                'omnipresence.test.test_settings/PluginB': ['baz'],
-                'omnipresence.test.test_settings/PluginC': []})
+                PluginA.name: [],
+                PluginB.name: ['baz'],
+                PluginC.name: []})
         self.assertIs(settings.plugin_with_keyword('foo'),
                       settings.plugin_with_keyword('bar'))
         self.assertIsNone(
@@ -197,7 +197,7 @@ class SettingsTestCase(unittest.TestCase):
                 '..test.test_settings/PluginB']}})
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=PRIVATE_MESSAGE),
-            {'omnipresence.test.test_settings/PluginB': []})
+            {PluginB.name: []})
 
     def test_data(self):
         # Implicitly assert that no errors are raised.
