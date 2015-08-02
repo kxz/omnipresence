@@ -16,15 +16,16 @@ from .settings import ConnectionSettings
 
 
 class Options(usage.Options):
-    def parseArgs(self, config_path):
-        self['config_path'] = config_path
+    def parseArgs(self, settings_path):
+        self['settings_path'] = settings_path
 
 
 def makeService(options):
     """Return a Twisted service object attaching a `ConnectionFactory`
     instance to an appropriate TCP or SSL transport."""
     factory = ConnectionFactory()
-    settings = ConnectionSettings.from_yaml(options['config_path'])
+    with open(options['settings_path']) as settings_file:
+        settings = ConnectionSettings.from_yaml(settings_file)
     factory.settings = settings
     if settings.ssl:
         return SSLClient(settings.host, settings.port, factory,

@@ -594,9 +594,9 @@ class ConnectionFactory(ReconnectingClientFactory):
         protocol = ReconnectingClientFactory.buildProtocol(self, addr)
         protocol.settings = self.settings
         # Set various properties defined by Twisted's IRCClient.
-        protocol.nickname = self.settings.get('nickname')
-        protocol.password = self.settings.get('password')
-        protocol.realname = self.settings.get('realname')
-        protocol.username = self.settings.get('username')
-        protocol.userinfo = self.settings.get('userinfo')
+        protocol.nickname = self.settings.nickname or protocol.nickname
+        protocol.password = self.settings.password or protocol.password
+        protocol.realname = self.settings.realname or protocol.realname
+        protocol.username = self.settings.username or protocol.username
+        protocol.userinfo = self.settings.userinfo or protocol.userinfo
         return protocol
