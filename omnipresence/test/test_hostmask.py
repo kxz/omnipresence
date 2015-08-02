@@ -5,7 +5,7 @@
 from twisted.trial import unittest
 
 from .. import mapping
-from ..hostmask import Hostmask, _mask_as_regex as mar
+from ..hostmask import Hostmask, mask_as_regex as mar
 
 
 class HostmaskTestCase(unittest.TestCase):
@@ -29,7 +29,7 @@ class HostmaskTestCase(unittest.TestCase):
         self.assertEqual(str(Hostmask('nick', None, None)),
                          'nick')
 
-    def test_mask_to_regex(self):
+    def test_mask_as_regex(self):
         self.assertEqual(mar('*.test').pattern, r'\A.*\.test\Z')
         self.assertEqual(mar('nick?').pattern, r'\Anick.\Z')
         self.assertEqual(mar(r'nick\*').pattern, r'\Anick\*\Z')

@@ -7,7 +7,7 @@ import itertools
 import re
 
 
-def _mask_as_regex(mask):
+def mask_as_regex(mask):
     """Return a regex object corresponding to the IRC hostmask pattern
     string *mask*."""
     pattern = ''
@@ -62,7 +62,7 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
 
     def matches(self, other, case_mapping=None):
         """Check whether this hostmask matches the pattern in *other*,
-        which can be a `.Hostmask` object or a string in the form
+        which can be a `Hostmask` object or a string in the form
         ``"nick!user@host"``, according to the wildcard expansion rules
         in :rfc:`2812#section-2.5`.  A `.CaseMapping` object may
         optionally be provided, in which case nicks are compared
@@ -76,6 +76,16 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
         can be used to escape these special characters.  Components that
         equal `None` are assumed to match all possible values for that
         component.
+
+        .. warning::
+
+           This method only matches wildcards in *other*, not the
+           `Hostmask` object it is called on::
+
+               >>> Hostmask.from_string('nick!user@host').matches('nick!*@*')
+               True
+               >>> Hostmask.from_string('nick!*@*').matches('nick!user@host')
+               False
         """
         # pylint: disable=invalid-name
         me = self
@@ -90,7 +100,7 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
         for mine, theirs in itertools.izip(me, other):
             if mine is None or theirs is None:
                 continue
-            if not _mask_as_regex(theirs).match(mine):
+            if not mask_as_regex(theirs).match(mine):
                 return False
         return True
 
