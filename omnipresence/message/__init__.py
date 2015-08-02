@@ -11,6 +11,10 @@ from .formatting import remove_formatting, unclosed_formatting
 from .parser import parse as parse_raw
 
 
+#: The default text encoding.
+DEFAULT_ENCODING = 'utf-8'
+
+#: The set of recognized Omnipresence message types.
 MESSAGE_TYPES = set([
     'action', 'ctcpquery', 'ctcpreply', 'join', 'kick', 'mode', 'nick',
     'notice', 'part', 'privmsg', 'quit', 'topic',
@@ -98,13 +102,9 @@ class Message(namedtuple('Message',
         return cls.__new__(cls, connection, outgoing, raw=raw, **parser_kwargs)
 
     @property
-    def bot(self):
-        """The bot instance associated with this message.  This is
-        currently an alias for the *connection* attribute.  In the
-        future, Omnipresence is planned to have support for multiple IRC
-        connections in a single bot instance; this attribute will then
-        become a pointer to that global instance."""
-        return self.connection
+    def encoding(self):
+        """The character encoding in effect for this message's venue."""
+        return self.settings.get('encoding', default=DEFAULT_ENCODING)
 
     def extract_command(self, prefixes=None):
         """Attempt to extract a command invocation from this message.
@@ -169,7 +169,7 @@ class Message(namedtuple('Message',
 # Reply buffering
 #
 
-def truncate_unicode(string, byte_limit, encoding='utf-8'):
+def truncate_unicode(string, byte_limit, encoding=DEFAULT_ENCODING):
     """Truncate a Unicode *string* so that it fits within *byte_limit*
     when encoded using *encoding*.  Return the truncated string as a
     byte string."""
@@ -178,7 +178,7 @@ def truncate_unicode(string, byte_limit, encoding='utf-8'):
     return encoded.decode(encoding, 'ignore').encode(encoding)
 
 
-def chunk(string, encoding='utf-8', max_length=256):
+def chunk(string, encoding=DEFAULT_ENCODING, max_length=256):
     """Return a list containing chunks of at most *max_length* bytes
     from *string*.  Breaks are made at whitespace instead of in the
     middle of words when possible.  If *string* is a Unicode string,

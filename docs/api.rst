@@ -55,8 +55,8 @@ Messages
    The following additional properties are derived from the values of
    one or more basic attributes, and are included for convenience:
 
-   .. autoattribute:: bot
    .. autoattribute:: private
+   .. autoattribute:: encoding
 
    New message objects can be created using either the standard
    constructor, or by parsing a raw IRC message string:

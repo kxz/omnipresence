@@ -468,9 +468,7 @@ class Connection(IRCClient):
             self.message_buffers[venue].pop(request.actor.nick, None)
             return request.actor.nick
         if isinstance(response, basestring):
-            buf = chunk(response,
-                        request.settings.get('encoding', default='utf-8'),
-                        CHUNK_LENGTH)
+            buf = chunk(response, request.encoding, CHUNK_LENGTH)
         elif isinstance(response, collections.Iterable):
             buf = response
         else:
@@ -533,7 +531,7 @@ class Connection(IRCClient):
             return
         string = string.replace('\n', ' / ')
         if isinstance(string, unicode):
-            encoding = request.settings.get('encoding', default='utf-8')
+            encoding = request.encoding
             truncated = truncate_unicode(string, MAX_REPLY_LENGTH, encoding)
             if truncated.decode(encoding) != string:
                 string = truncated + u'...'.encode(encoding)
