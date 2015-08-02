@@ -213,8 +213,10 @@ Case mappings
 Web resource interactions
 =========================
 
-.. automodule:: omnipresence.web
-   :members: request, textify_html
+.. module:: omnipresence.web
+
+.. autofunction:: omnipresence.web.http.request
+.. autofunction:: omnipresence.web.html.textify
 
 Human-readable output helpers
 =============================
