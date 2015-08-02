@@ -8,10 +8,8 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.test.proto_helpers import StringTransport
 
-from ..connection import Connection, ConnectionFactory, PRIVATE_CHANNEL
-from ..config import ConfigParser
-from ..plugin import load_plugin
-from .helpers import DummyFactory
+from ..connection import ConnectionFactory, PRIVATE_CHANNEL
+from ..settings import ConnectionSettings
 
 
 PROLOGUE = [
@@ -41,24 +39,14 @@ def main():
     parser = argparse.ArgumentParser(
         description=sys.modules[__name__].__doc__)
     parser.add_argument(
-        'config_path', metavar='CONFIG_PATH', nargs='?',
-        help='path to Omnipresence configuration file')
-    parser.add_argument(
-        '-p', '--event-plugin', metavar='NAME:KEYWORD', action='append',
-        help='enable an event plugin with the given options')
+        'settings_path', metavar='SETTINGS_PATH', nargs='?',
+        help='path to Omnipresence settings file')
     args = parser.parse_args()
-    if args.config_path:
-        config = ConfigParser()
-        config.read(args.config_path)
-        factory = ConnectionFactory(config)
-    else:
-        factory = DummyFactory()
-    protocol = Connection(factory)
-    for spec in args.event_plugin:
-        name, _, keyword = spec.partition(':')
-        keywords = keyword.split(',')
-        protocol.add_event_plugin(load_plugin(name),
-                                  {PRIVATE_CHANNEL: keywords})
+    factory = ConnectionFactory()
+    if args.settings_path:
+        with open(args.settings_path) as settings_file:
+            factory.settings = ConnectionSettings.from_yaml(settings_file)
+    protocol = factory.buildProtocol(('127.0.0.1', 6667))
     transport = StringTransport()
     # Total hack.  Should add formatting support sometime.
     transport.io = sys.stdout
