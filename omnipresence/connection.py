@@ -131,9 +131,6 @@ class Connection(IRCClient):
         #: for each channel, keyed by nick.
         self.message_buffers = {PRIVATE_CHANNEL: {}}
 
-        # See self.add_event_plugin().
-        self.event_plugins = self._case_mapped_dict()
-
         #: If the bot is currently firing callbacks, a queue of
         #: `.Message` objects for which the bot has yet to fire
         #: callbacks.  Otherwise, `None`.
@@ -244,8 +241,6 @@ class Connection(IRCClient):
                 log.msg('Ignoring unsupported server CASEMAPPING "%s"' % name)
             else:
                 log.msg('Using server-provided CASEMAPPING "%s"' % name)
-                self.event_plugins = self._case_mapped_dict(
-                    self.event_plugins.items())
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
