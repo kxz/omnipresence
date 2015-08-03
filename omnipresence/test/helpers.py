@@ -5,8 +5,8 @@
 import gc
 
 from twisted.internet.task import Clock
-from twisted.test.proto_helpers import StringTransport
 from twisted.trial import unittest
+from twisted.web.test.test_agent import AbortableStringTransport
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from ..connection import Connection
@@ -18,14 +18,6 @@ from ..plugin import EventPlugin, UserVisibleError
 #
 # Helper objects
 #
-
-class AbortableStringTransport(StringTransport):
-    """A StringTransport that supports abortConnection()."""
-    # <https://twistedmatrix.com/trac/ticket/6530>
-
-    def abortConnection(self):
-        self.loseConnection()
-
 
 class DummyConnection(object):
     """A class that simulates the behavior of a live connection."""
