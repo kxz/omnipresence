@@ -2,11 +2,20 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
+from base64 import b64decode
 import gc
+from io import BytesIO
+import json
+import os.path
+from urlparse import urlparse, urlunparse
 
+from twisted.internet.defer import maybeDeferred, succeed
 from twisted.internet.task import Clock
 from twisted.trial import unittest
+from twisted.web.client import FileBodyProducer, URI
+from twisted.web.http_headers import Headers
 from twisted.web.test.test_agent import AbortableStringTransport
+from twisted.web._newclient import Request, Response
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from ..connection import Connection
@@ -18,6 +27,50 @@ from ..plugin import EventPlugin, UserVisibleError
 #
 # Helper objects
 #
+
+CASSETTE_LIBRARY = os.path.join(os.path.dirname(__file__),
+                                'fixtures', 'cassettes')
+
+
+class CassetteAgent(object):
+    """A Twisted Web `Agent` that reconstructs a `Response` object from
+    a recorded HTTP response in JSON-serialized VCR cassette format."""
+    # TODO:  Implement recording.
+
+    def __init__(self, cassette_name, record='none'):
+        cassette_path = os.path.join(CASSETTE_LIBRARY, cassette_name + '.json')
+        with open(cassette_path) as cassette_file:
+            cassette = json.load(cassette_file)
+        self.interactions = cassette['http_interactions']
+
+    @staticmethod
+    def _body_of(message):
+        body = message['body']
+        if 'base64_string' in body:
+            return b64decode(body['base64_string'])
+        return body['string'].encode(body['encoding'])
+
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        interaction = self.interactions.pop(0)
+        rq = interaction['request']
+        # TODO:  Implement looser request matching.
+        if not (method == rq['method'] and uri == rq['uri']):
+            raise IOError
+        # Overwrite the scheme and netloc, leaving just the part of the
+        # URI that would be sent in a real request.
+        relative_uri = urlunparse(('', '') + urlparse(rq['uri'])[2:])
+        request = Request._construct(
+            rq['method'], relative_uri, Headers(rq['headers']),
+            FileBodyProducer(BytesIO(self._body_of(rq))), False,
+            URI.fromBytes(rq['uri'].encode('utf-8')))
+        rp = interaction['response']
+        response = Response._construct(
+            ('HTTP', 1, 1), rp['status']['code'], rp['status']['message'],
+            Headers(rp['headers']), AbortableStringTransport(), request)
+        response._bodyDataReceived(self._body_of(rp))
+        response._bodyDataFinished()
+        return succeed(response)
+
 
 class DummyConnection(object):
     """A class that simulates the behavior of a live connection."""
