@@ -1,4 +1,4 @@
-# -*- test-case-name: omnipresence.plugins.help.test_more
+# -*- test-case-name: omnipresence.plugins.dice.test_dice
 """Event plugins for storing banks of die rolls used in role-playing
 games."""
 
