@@ -496,8 +496,9 @@ class Connection(IRCClient):
                 next_reply = buf.pop(0)
                 remaining_chars = sum(map(len, buf))
                 if remaining_chars:
-                    next_reply = '{} (+{} more characters)'.format(
-                        next_reply, remaining_chars)
+                    # Unicode for Unicode, bytes for bytes.
+                    next_reply += type(next_reply)(
+                        ' (+{} more characters)').format(remaining_chars)
             deferred = succeed(next_reply)
         else:  # assume an iterator
             deferred = maybeDeferred(next, buf)

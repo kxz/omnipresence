@@ -232,16 +232,21 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
 
 class UnicodeCommand(EventPlugin):
     def on_command(self, msg):
-        return repeat(u'☃')
+        return [u'☃'] * 2
 
 
 class UnicodeReplyTestCase(AbstractCommandMonitor):
     command_class = UnicodeCommand
 
+    @inlineCallbacks
     def test_synchronous(self):
         self.receive('PRIVMSG #foo :!unicodecommand')
         self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
+        self.assertEqual(self.outgoing.last_seen.content,
+                         '\x0314{}: \xe2\x98\x83 (+1 more characters)'
+                         .format(self.other_user.nick))
+        yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
                          '\x0314{}: \xe2\x98\x83'.format(self.other_user.nick))
 
