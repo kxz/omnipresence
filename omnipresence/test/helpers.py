@@ -162,11 +162,16 @@ class AbstractCommandTestCase(AbstractConnectionTestCase):
         return Message(self.connection, False, 'command',
                        content=content, **kwargs)
 
+    def send_command(self, *args, **kwargs):
+        return maybeDeferred(self.command.respond_to,
+                             self.command_message(*args, **kwargs))
+
     def assert_reply(self, content, expected, **kwargs):
-        msg = self.command_message(content, **kwargs)
-        self.assertEqual(self.command.respond_to(msg), expected)
+        deferred = self.send_command(content, **kwargs)
+        deferred.addCallback(self.assertEqual, expected)
+        return deferred
 
     def assert_error(self, content, expected, **kwargs):
-        msg = self.command_message(content, **kwargs)
-        e = self.assertRaises(UserVisibleError, self.command.respond_to, msg)
-        self.assertEqual(str(e), expected)
+        deferred = self.send_command(content, **kwargs)
+        failure = self.failureResultOf(deferred, UserVisibleError)
+        self.assertEqual(str(failure.value), expected)
