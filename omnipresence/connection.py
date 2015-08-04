@@ -418,7 +418,7 @@ class Connection(IRCClient):
                 deferred = maybeDeferred(plugin.respond_to, msg)
                 if msg.action == 'command':
                     deferred.addCallback(self.buffer_reply, msg)
-                    deferred.addCallback(self.reply_from_buffer, msg)
+                    deferred.addCallback(lambda _: self.reply_from_buffer(msg))
                     deferred.addErrback(self.reply_from_error, msg)
                 else:
                     deferred.addErrback(log.err,
@@ -463,7 +463,6 @@ class Connection(IRCClient):
             raise TypeError('invalid command reply type ' +
                             type(response).__name__)
         self.message_buffers[venue][request.actor.nick] = buf
-        return request.actor.nick
 
     def copy_buffer(self, venue, source, target):
         """Copy a reply buffer from the *source* nick to the *target*
@@ -481,15 +480,14 @@ class Connection(IRCClient):
         self.message_buffers[venue][target] = two
         return two
 
-    def reply_from_buffer(self, nick, request, reply_when_empty=False):
+    def reply_from_buffer(self, request, reply_when_empty=False):
         """Call `.reply` with the next reply from the reply buffer
-        belonging to *nick* in the `~.Message.venue` of the invocation
-        `~.Message` *request*.  Return a
+        corresponding to the invocation `~.Message` *request*.  Return a
         `~twisted.internet.defer.Deferred` yielding either the reply's
         contents, or `None` if no reply was made because of an empty
         reply buffer."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
-        buf = self.copy_buffer(venue, nick, request.actor.nick)
+        buf = self.message_buffers[venue].get(request.actor.nick, [])
         if isinstance(buf, collections.Sequence):
             next_reply = None
             if buf:

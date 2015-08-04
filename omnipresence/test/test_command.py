@@ -25,7 +25,6 @@ class AbstractCommandMonitor(AbstractCommandTestCase):
 
     def more(self, **kwargs):
         return self.connection.reply_from_buffer(
-            self.other_user.nick,
             self.command_message(
                 '', subaction='more', target=self.other_user.nick, **kwargs),
             reply_when_empty=True)

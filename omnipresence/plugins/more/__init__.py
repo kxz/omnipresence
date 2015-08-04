@@ -4,12 +4,15 @@
 
 from ...message import collapse
 from ...plugin import EventPlugin
+from ...settings import PRIVATE_CHANNEL
 
 
 class Default(EventPlugin):
     def on_command(self, msg):
-        msg.connection.reply_from_buffer(msg.content or msg.actor.nick,
-                                         msg, reply_when_empty=True)
+        venue = PRIVATE_CHANNEL if msg.private else msg.venue
+        response = msg.connection.copy_buffer(
+            venue, msg.content or msg.actor.nick, msg.actor.nick)
+        return response or u'No text in buffer.'
 
     def on_cmdhelp(self, msg):
         return collapse("""\

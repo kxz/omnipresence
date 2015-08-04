@@ -22,7 +22,7 @@ class MoreTestCase(AbstractCommandTestCase):
     def assert_reply(self, content, expected, **kwargs):
         kwargs.setdefault('venue', '#foo')
         msg = self.command_message(content, **kwargs)
-        self.command.respond_to(msg)
+        self.connection.respond_to(msg)
         self.assertEqual(self.outgoing.last_seen.content.split(': ', 1)[-1],
                          expected)
 
