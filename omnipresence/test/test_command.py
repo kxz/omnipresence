@@ -3,7 +3,7 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from itertools import count, imap
+from itertools import count, imap, repeat
 from textwrap import dedent
 
 from twisted.internet.defer import inlineCallbacks, fail, succeed
@@ -224,6 +224,26 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
                          '\x0314{}: No text in buffer.'
                          .format(self.other_user.nick))
         self.assertLoggedErrors(1)
+
+
+#
+# Unicode replies
+#
+
+class UnicodeCommand(EventPlugin):
+    def on_command(self, msg):
+        return repeat(u'☃')
+
+
+class UnicodeReplyTestCase(AbstractCommandMonitor):
+    command_class = UnicodeCommand
+
+    def test_synchronous(self):
+        self.receive('PRIVMSG #foo :!unicodecommand')
+        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.venue, '#foo')
+        self.assertEqual(self.outgoing.last_seen.content,
+                         '\x0314{}: \xe2\x98\x83'.format(self.other_user.nick))
 
 
 #

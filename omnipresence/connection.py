@@ -522,7 +522,8 @@ class Connection(IRCClient):
             encoding = request.encoding
             truncated = truncate_unicode(string, MAX_REPLY_LENGTH, encoding)
             if truncated.decode(encoding) != string:
-                string = truncated + u'...'.encode(encoding)
+                truncated += u'...'.encode(encoding)
+            string = truncated
         else:
             if len(string) > MAX_REPLY_LENGTH:
                 string = string[:MAX_REPLY_LENGTH] + '...'
