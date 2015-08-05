@@ -499,9 +499,7 @@ class Connection(IRCClient):
                         ' (+{} more characters)').format(remaining_chars)
             deferred = succeed(next_reply)
         else:  # assume an iterator
-            deferred = maybeDeferred(next, buf)
-            # Return None on StopIteration.  It looks weird, yes.
-            deferred.addErrback(lambda f: f.trap(StopIteration) and None)
+            deferred = maybeDeferred(next, buf, None)
         if reply_when_empty:
             deferred.addCallback(lambda s: s or 'No text in buffer.')
         deferred.addCallback(self.reply, request)
