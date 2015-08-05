@@ -9,6 +9,7 @@ from bs4 import BeautifulSoup
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import readBody
 
+from ...message import collapse
 from ...plugin import EventPlugin, UserVisibleError
 from ...web.html import textify
 from ...web.http import default_agent
@@ -78,3 +79,9 @@ class Default(EventPlugin):
                 message += u' \u2014 rated ' + vn['rating']
             messages.append(message)
         returnValue(messages)
+
+    def on_cmdhelp(self, msg):
+        return collapse("""\
+            \x1Ftitle\x1F - Search the Visual Novel Database
+            <https://vndb.org/> for visual novels with the given title.
+            """)
