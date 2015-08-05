@@ -68,7 +68,7 @@ class BasicCommandTestCase(AbstractCommandMonitor):
             quisque suspendisse faccummy etuerci; vullandigna praestie
             hac consectem ipisim esequi. Facidui augiam proin nisit
             diamet ing. Incinim iliquipisl ero alit amconsecte adionse
-            loborer odionsequip sagittis, (+210 more characters)"""))
+            loborer odionsequip sagittis, (+1 more)"""))
         self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314{}: iuscipit hent dipiscipit. Molore proin consecte
@@ -112,7 +112,7 @@ class BasicCommandTestCase(AbstractCommandMonitor):
             suspendisse faccummy etuerci; vullandigna praestie hac
             consectem ipisim esequi. Facidui augiam proin nisit diamet
             ing. Incinim iliquipisl ero alit amconsecte adionse loborer
-            odionsequip sagittis, (+210 more characters)"""))
+            odionsequip sagittis, (+1 more)"""))
         self.more(venue=self.connection.nickname)
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             iuscipit hent dipiscipit. Molore proin consecte min amcommo;
@@ -243,7 +243,7 @@ class UnicodeReplyTestCase(AbstractCommandMonitor):
         self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: \xe2\x98\x83 (+1 more characters)'
+                         '\x0314{}: \xe2\x98\x83 (+1 more)'
                          .format(self.other_user.nick))
         yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,

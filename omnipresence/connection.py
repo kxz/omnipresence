@@ -3,7 +3,6 @@
 
 
 import collections
-from copy import copy
 from itertools import tee
 import re
 
@@ -16,6 +15,7 @@ from twisted.python.failure import Failure
 from twisted.words.protocols.irc import IRCClient
 
 from . import __version__, __source__, mapping
+from .compat import length_hint
 from .message import Message, chunk, truncate_unicode
 from .plugin import UserVisibleError
 from .settings import ConnectionSettings, PRIVATE_CHANNEL
@@ -471,7 +471,7 @@ class Connection(IRCClient):
         if self.case_mapping.equates(source, target):
             return buf
         if isinstance(buf, collections.Sequence):
-            new = copy(buf)
+            new = buf[:]
             self.message_buffers[venue][target] = new
             return new
         # Assume an iterator.
@@ -489,17 +489,16 @@ class Connection(IRCClient):
         venue = PRIVATE_CHANNEL if request.private else request.venue
         buf = self.message_buffers[venue].get(request.actor.nick, [])
         if isinstance(buf, collections.Sequence):
-            next_reply = None
-            if buf:
-                next_reply = buf.pop(0)
-                remaining_chars = sum(map(len, buf))
-                if remaining_chars:
-                    # Unicode for Unicode, bytes for bytes.
-                    next_reply += type(next_reply)(
-                        ' (+{} more characters)').format(remaining_chars)
-            deferred = succeed(next_reply)
-        else:  # assume an iterator
+            deferred = succeed(buf.pop(0) if buf else None)
+        else:
             deferred = maybeDeferred(next, buf, None)
+        def more_tag(next_reply):
+            remaining = length_hint(buf)
+            if remaining:
+                # Unicode for Unicode, bytes for bytes.
+                next_reply += type(next_reply)(' (+{} more)'.format(remaining))
+            return next_reply
+        deferred.addCallback(more_tag)
         if reply_when_empty:
             deferred.addCallback(lambda s: s or 'No text in buffer.')
         deferred.addCallback(self.reply, request)

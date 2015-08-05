@@ -41,14 +41,14 @@ class MoreTestCase(AbstractCommandTestCase):
         self.connection.buffer_reply(map(str, xrange(10)), Message(
             self.connection, False, 'command',
             actor='party3', venue='#foo'))
-        self.assert_reply('party3', '0 (+9 more characters)')
+        self.assert_reply('party3', '0 (+9 more)')
         # Make sure party3's buffer hasn't been advanced.
-        self.assert_reply('party3', '0 (+9 more characters)')
-        self.assert_reply('', '0 (+9 more characters)', actor='party3')
-        self.assert_reply('party3', '1 (+8 more characters)')
-        self.assert_reply('', '1 (+8 more characters)', actor='party3')
-        self.assert_reply('party3', '2 (+7 more characters)')
-        self.assert_reply('', '2 (+7 more characters)', actor='party3')
+        self.assert_reply('party3', '0 (+9 more)')
+        self.assert_reply('', '0 (+9 more)', actor='party3')
+        self.assert_reply('party3', '1 (+8 more)')
+        self.assert_reply('', '1 (+8 more)', actor='party3')
+        self.assert_reply('party3', '2 (+7 more)')
+        self.assert_reply('', '2 (+7 more)', actor='party3')
 
     def test_other_buffer_iterator(self):
         self.connection.buffer_reply(imap(str, count()), Message(
