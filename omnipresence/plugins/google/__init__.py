@@ -45,7 +45,6 @@ class SearchIterator(object):
         if self.items:
             self.total_results -= 1
             returnValue(SearchIterator.format_item(self.items.pop(0)))
-        print self.start
         if self.start is None:
             # We can't use StopIteration because that gets eaten by
             # inlineCallbacks, so instead we just return None.
