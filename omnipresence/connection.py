@@ -480,12 +480,10 @@ class Connection(IRCClient):
         self.message_buffers[venue][target] = two
         return two
 
-    def reply_from_buffer(self, request, reply_when_empty=False):
+    def reply_from_buffer(self, request):
         """Call `.reply` with the next reply from the reply buffer
         corresponding to the invocation `~.Message` *request*.  Return a
-        `~twisted.internet.defer.Deferred` yielding either the reply's
-        contents, or `None` if no reply was made because of an empty
-        reply buffer."""
+        `Deferred` yielding the reply's contents."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
         buf = self.message_buffers[venue].get(request.actor.nick, [])
         if isinstance(buf, collections.Sequence):
@@ -499,8 +497,7 @@ class Connection(IRCClient):
                 next_reply += type(next_reply)(' (+{} more)'.format(remaining))
             return next_reply
         deferred.addCallback(more_tag)
-        if reply_when_empty:
-            deferred.addCallback(lambda s: s or 'No text in buffer.')
+        deferred.addCallback(lambda s: s or 'No text in buffer.')
         deferred.addCallback(self.reply, request)
         deferred.addErrback(self.reply_from_error, request)
         return deferred

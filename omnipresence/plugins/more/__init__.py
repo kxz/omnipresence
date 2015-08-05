@@ -12,7 +12,7 @@ class Default(EventPlugin):
         venue = PRIVATE_CHANNEL if msg.private else msg.venue
         response = msg.connection.copy_buffer(
             venue, msg.content or msg.actor.nick, msg.actor.nick)
-        return response or u'No text in buffer.'
+        return response
 
     def on_cmdhelp(self, msg):
         return collapse("""\
