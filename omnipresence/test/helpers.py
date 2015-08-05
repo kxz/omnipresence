@@ -55,7 +55,9 @@ class CassetteAgent(object):
         rq = interaction['request']
         # TODO:  Implement looser request matching.
         if not (method == rq['method'] and uri == rq['uri']):
-            raise IOError
+            raise IOError('current {} request for {} differs from '
+                          'saved {} request for {}'.format(
+                method, uri, rq['method'], rq['uri']))
         # Overwrite the scheme and netloc, leaving just the part of the
         # URI that would be sent in a real request.
         relative_uri = urlunparse(('', '') + urlparse(rq['uri'])[2:])
