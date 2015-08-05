@@ -215,7 +215,6 @@ Web resource interactions
 
 .. module:: omnipresence.web
 
-.. autofunction:: omnipresence.web.http.request
 .. autofunction:: omnipresence.web.html.textify
 
 Human-readable output helpers
