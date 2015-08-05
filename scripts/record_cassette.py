@@ -16,9 +16,10 @@ def main():
 
     session = Session()
     session.headers['User-Agent'] = USER_AGENT
-    cassette_path = os.path.splitext(sys.argv[2])[0]
+    cassette_path = os.path.splitext(sys.argv[-1])[0]
     with Betamax(session).use_cassette(cassette_path):
-        session.get(sys.argv[1]).content
+        for uri in sys.argv[1:-1]:
+            session.get(uri).content
 
 
 if __name__ == '__main__':
