@@ -25,6 +25,17 @@ setup(
     author_email='blankplacement+omnipresence@gmail.com',
     url='https://github.com/kxz/omnipresence',
     license='X11',
+    classifiers=[
+        'Development Status :: 2 - Pre-Alpha',
+        'Framework :: Twisted',
+        'Intended Audience :: System Administrators',
+        'License :: OSI Approved :: MIT License',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 2 :: Only',
+        'Topic :: Communications :: Chat :: Internet Relay Chat',
+        'Topic :: Software Development :: Libraries :: Application Frameworks'],
     packages=find_packages() + ['twisted.plugins'],
     package_data={
         'omnipresence': [
