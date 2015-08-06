@@ -2,6 +2,7 @@
 """Event plugins for Google searches."""
 
 
+from collections import Iterator
 import urllib
 
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -13,7 +14,7 @@ from ...web.html import textify
 from ...web.http import default_agent, read_json_body
 
 
-class SearchIterator(object):
+class SearchIterator(Iterator):
     """An iterator returnable as an Omnipresence reply that fetches new
     Google result pages on demand."""
 
@@ -28,9 +29,6 @@ class SearchIterator(object):
         self.items = []
         self.start = 1
         self.total_results = NotImplemented
-
-    def __iter__(self):
-        return self
 
     @staticmethod
     def format_item(item):
