@@ -53,7 +53,10 @@ setup(
         'html': [
             'beautifulsoup4']},
     tests_require=[
+        'stenographer',
         'tox'],
     cmdclass={
         'test': Tox},
+    dependency_links=[
+        'git+https://github.com/kxz/stenographer.git#egg=stenographer-0.1-dev'],
     zip_safe=False)
