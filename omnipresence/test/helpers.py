@@ -2,26 +2,35 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from base64 import b64decode
+from base64 import b64decode, b64encode
+import errno
+from email.utils import formatdate
+from functools import wraps
 import gc
 from io import BytesIO
 import json
 import os.path
 from urlparse import urlparse, urlunparse
 
-from twisted.internet.defer import maybeDeferred, succeed
+from twisted.internet import reactor
+from twisted.internet.defer import (maybeDeferred, succeed,
+                                    inlineCallbacks, returnValue)
 from twisted.internet.task import Clock
 from twisted.trial import unittest
-from twisted.web.client import FileBodyProducer, URI
+from twisted.web.client import (
+    FileBodyProducer, URI, readBody,
+    Agent, ContentDecoderAgent, RedirectAgent, GzipDecoder)
 from twisted.web.http_headers import Headers
 from twisted.web.test.test_agent import AbortableStringTransport
 from twisted.web._newclient import Request, Response
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
+from .. import __version__
 from ..connection import Connection
 from ..hostmask import Hostmask
 from ..message import Message
 from ..plugin import EventPlugin, UserVisibleError
+from ..web.http import IdentifyingAgent
 
 
 #
@@ -34,24 +43,92 @@ CASSETTE_LIBRARY = os.path.join(os.path.dirname(__file__),
 
 class CassetteAgent(object):
     """A Twisted Web `Agent` that reconstructs a `Response` object from
-    a recorded HTTP response in JSON-serialized VCR cassette format."""
-    # TODO:  Implement recording.
+    a recorded HTTP response in JSON-serialized VCR cassette format, or
+    records a new cassette if none exists."""
+    # TODO:  Split this out into its own library and give it some tests.
 
-    def __init__(self, cassette_name, record='none'):
-        cassette_path = os.path.join(CASSETTE_LIBRARY, cassette_name + '.json')
-        with open(cassette_path) as cassette_file:
-            cassette = json.load(cassette_file)
-        self.interactions = cassette['http_interactions']
+    version = 'Omnipresence {} Stenographer'.format(__version__)
+
+    def __init__(self, agent, cassette_name):
+        self.agent = agent
+        self.interactions = []
+        self.recording = True
+        self.cassette_path = os.path.join(
+            CASSETTE_LIBRARY, cassette_name + '.json')
+        try:
+            with open(self.cassette_path) as cassette_file:
+                cassette = json.load(cassette_file)
+        except IOError as e:
+            if e.errno != errno.ENOENT:
+                raise
+        else:
+            self.interactions = cassette['http_interactions']
+            self.recording = False
+            self.request = self.replay_request
 
     @staticmethod
     def _body_of(message):
+        """Return the decoded body of a recorded *message*."""
         body = message['body']
         if 'base64_string' in body:
             return b64decode(body['base64_string'])
         return body['string'].encode(body['encoding'])
 
+    @staticmethod
+    def _make_body(string, headers=None):
+        """Return a VCR-style body dict from *body_string*."""
+        body = {'encoding': 'utf-8'}
+        if (headers and
+                'gzip' in headers.getRawHeaders('content-encoding', [])):
+            body['base64_string'] = b64encode(string)
+        else:
+            body['string'] = string
+        return body
+
+    @inlineCallbacks
     def request(self, method, uri, headers=None, bodyProducer=None):
-        interaction = self.interactions.pop(0)
+        """Make and record an actual HTTP request."""
+        if bodyProducer:
+            body_length = body_producer.length
+            transport = AbortableStringTransport()
+            yield body_producer.startProducing(transport)
+            body_string = transport.value()
+            body = CassetteAgent._make_body(body_string, headers)
+            # Create a new BodyProducer that looks like the old one.
+            bodyProducer = FileBodyProducer(BytesIO(body_string))
+            bodyProducer.length = body_length
+        else:
+            body = {'encoding': 'utf-8', 'string': ''}
+        rq = {
+            'method': method, 'uri': uri, 'body': body,
+            'headers': {k: v for k, v in headers.getAllRawHeaders()}}
+        response = yield self.agent.request(method, uri, headers, bodyProducer)
+        body_string = yield readBody(response)
+        rp = {
+            'http_version': '1.1',  # only thing Twisted Web supports
+            'status': {'code': response.code, 'message': response.phrase},
+            'headers': {k: v for k, v in response.headers.getAllRawHeaders()},
+            'body': CassetteAgent._make_body(body_string, response.headers)}
+        self.interactions.append({'request': rq, 'response': rp,
+                                  'recorded_at': formatdate()})
+        # Make a new Response on which deliverBody can still be called,
+        # and return that instead of the original Response.
+        response = Response._construct(
+            response.version, response.code, response.phrase,
+            response.headers, AbortableStringTransport(), response.request)
+        response._bodyDataReceived(body_string)
+        response._bodyDataFinished()
+        returnValue(response)
+
+    def replay_request(self, method, uri, headers=None, bodyProducer=None):
+        """Replay a recorded HTTP request.  Raise `IOError` if the
+        recorded request does not match the one being made, like VCR's
+        ``once`` record mode."""
+        try:
+            interaction = self.interactions.pop(0)
+        except IndexError:
+            raise IOError('no more saved interactions for current {} '
+                          'request for {}'.format(method, uri))
         rq = interaction['request']
         # TODO:  Implement looser request matching.
         if not (method == rq['method'] and uri == rq['uri']):
@@ -63,15 +140,23 @@ class CassetteAgent(object):
         relative_uri = urlunparse(('', '') + urlparse(rq['uri'])[2:])
         request = Request._construct(
             rq['method'], relative_uri, Headers(rq['headers']),
-            FileBodyProducer(BytesIO(self._body_of(rq))), False,
-            URI.fromBytes(rq['uri'].encode('utf-8')))
+            FileBodyProducer(BytesIO(CassetteAgent._body_of(rq))),
+            False, URI.fromBytes(rq['uri'].encode('utf-8')))
         rp = interaction['response']
         response = Response._construct(
             ('HTTP', 1, 1), rp['status']['code'], rp['status']['message'],
             Headers(rp['headers']), AbortableStringTransport(), request)
-        response._bodyDataReceived(self._body_of(rp))
+        response._bodyDataReceived(CassetteAgent._body_of(rp))
         response._bodyDataFinished()
         return succeed(response)
+
+    def save(self):
+        if not self.recording:
+            return
+        cassette = {'http_interactions': self.interactions,
+                    'recorded_with': self.version}
+        with open(self.cassette_path, 'w') as cassette_file:
+            json.dump(cassette, cassette_file)
 
 
 class DummyConnection(object):
@@ -175,5 +260,28 @@ class AbstractCommandTestCase(AbstractConnectionTestCase):
 
     def assert_error(self, content, expected, **kwargs):
         deferred = self.send_command(content, **kwargs)
-        failure = self.failureResultOf(deferred, UserVisibleError)
-        self.assertEqual(str(failure.value), expected)
+        failed = self.assertFailure(deferred, UserVisibleError)
+        failed.addCallback(lambda e: self.assertEqual(str(e), expected))
+        return failed
+
+
+class AbstractCassetteTestCase(AbstractCommandTestCase):
+    @staticmethod
+    def use_cassette(cassette_name):
+        cassette_agent = CassetteAgent(Agent(reactor), cassette_name)
+
+        def save_cassette(result):
+            cassette_agent.save()
+            return result
+
+        def decorator(func):
+            @wraps(func)
+            def wrapper(self, *args, **kwargs):
+                self.command.agent = IdentifyingAgent(ContentDecoderAgent(
+                    RedirectAgent(cassette_agent), [('gzip', GzipDecoder)]))
+                finished = maybeDeferred(func, self, *args, **kwargs)
+                finished.addBoth(save_cassette)
+                return finished
+            return wrapper
+
+        return decorator

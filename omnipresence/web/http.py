@@ -6,20 +6,41 @@ import json
 
 from twisted.internet import reactor
 from twisted.internet.defer import Deferred
+from twisted.web.iweb import IAgent
 from twisted.web.client import (Agent, ContentDecoderAgent, RedirectAgent,
                                 GzipDecoder, _ReadBodyProtocol)
+from twisted.web.http_headers import Headers
+from zope.interface import implementer
 
 from .. import __version__, __source__
 
 
-#: The default HTTP user agent.
-USER_AGENT = 'Omnipresence/{} (+bot; {})'.format(__version__, __source__)
+@implementer(IAgent)
+class IdentifyingAgent(object):
+    """An `Agent` wrapper that adds a default user agent string to the
+    outgoing request."""
+
+    #: The default HTTP user agent.
+    user_agent = 'Omnipresence/{} (+bot; {})'.format(__version__, __source__)
+
+    def __init__(self, agent):
+        self.agent = agent
+
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        if headers is None:
+            headers = Headers()
+        else:
+            headers = headers.copy()
+        if not headers.hasHeader('user-agent'):
+            headers.addRawHeader('user-agent', self.user_agent)
+        return self.agent.request(method, uri, headers, bodyProducer)
 
 
 #: A Twisted Web `Agent` with reasonable settings for most requests.
 #: Use this if you need to make a request inside a plugin.
-default_agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
-                                    [('gzip', GzipDecoder)])
+default_agent = IdentifyingAgent(
+    ContentDecoderAgent(RedirectAgent(Agent(reactor)),
+                        [('gzip', GzipDecoder)]))
 
 
 #
