@@ -148,7 +148,7 @@ class AbstractCassetteTestCase(AbstractCommandTestCase):
                 self.command.agent = IdentifyingAgent(ContentDecoderAgent(
                     RedirectAgent(cassette_agent), [('gzip', GzipDecoder)]))
                 finished = maybeDeferred(func, self, *args, **kwargs)
-                cassette_agent.save_after(finished)
+                finished.addCallback(cassette_agent.save)
                 return finished
             return wrapper
 
