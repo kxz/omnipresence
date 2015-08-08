@@ -25,7 +25,7 @@ from .settings import ConnectionSettings, PRIVATE_CHANNEL
 CHUNK_LENGTH = 256
 
 #: The maximum length of a single command reply, in bytes.
-MAX_REPLY_LENGTH = 320
+MAX_REPLY_LENGTH = 288
 
 
 #

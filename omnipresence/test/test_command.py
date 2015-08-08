@@ -274,8 +274,8 @@ class ReplyTruncationTestCase(AbstractConnectionTestCase):
             esequat. Alisis nummolorem ros quatuer iuscing iure nonsequ,
             ad commy congue, faccummy aut esequat quisi. Eugiam velis
             odipsumsan ate a sismolore. Magniat vero sociosqu, mauris
-            quamconsequi irilit urna niscidu consequis, magniamet
-            aciduipis utet. Justo consequipis..."""))
+            quamconsequi irilit urna niscidu consequis, magniamet a...
+            """))
 
     def test_unicode(self):
         self.connection.reply(dedent(u"""\
@@ -299,7 +299,7 @@ class ReplyTruncationTestCase(AbstractConnectionTestCase):
             氏视是十狮，恃矢势，使是十狮逝世。 /
             氏拾是十狮尸，适石室。 /
             石室湿，氏使侍拭石室。 /
-            石室拭，氏始试食是十狮...""").encode('utf-8'))
+            石...""").encode('utf-8'))
 
 
 class LongReplyWithMoreCommand(EventPlugin):
