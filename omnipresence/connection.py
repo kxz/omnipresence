@@ -490,22 +490,20 @@ class Connection(IRCClient):
             deferred = succeed(buf.pop(0) if buf else None)
         else:
             deferred = maybeDeferred(next, buf, None)
-        def more_tag(next_reply):
+        def reply_with_tail(next_reply):
             remaining = length_hint(buf)
-            if remaining:
-                # Unicode for Unicode, bytes for bytes.
-                next_reply += type(next_reply)(' (+{} more)'.format(remaining))
-            return next_reply
-        deferred.addCallback(more_tag)
+            tail = ' (+{} more)'.format(remaining) if remaining else ''
+            self.reply(next_reply, request, tail=tail)
         deferred.addCallback(lambda s: s or 'No text in buffer.')
-        deferred.addCallback(self.reply, request)
+        deferred.addCallback(reply_with_tail)
         deferred.addErrback(self.reply_from_error, request)
         return deferred
 
-    def reply(self, string, request):
-        """Send a reply *string*.  If the request venue is a channel,
-        send the reply to the venue as a standard message addressed to
-        *request*'s `~.Message.target`, formatted using the
+    def reply(self, string, request, tail=''):
+        """Send a reply *string*, truncated to `MAX_REPLY_LENGTH`
+        characters, with `tail` appended.  If the request venue is a
+        channel, send the reply to the venue as a standard message
+        addressed to *request*'s `~.Message.target`, formatted using the
         `~.Message.venue`'s reply format.  Otherwise, send the reply as
         a notice to *request*'s `~.Message.actor`."""
         if not string:
@@ -520,6 +518,7 @@ class Connection(IRCClient):
         else:
             if len(string) > MAX_REPLY_LENGTH:
                 string = string[:MAX_REPLY_LENGTH] + '...'
+        string += tail
         if request.private:
             log.msg('Private reply for %s: %s' % (request.actor.nick, string))
             self.notice(request.actor.nick, string)

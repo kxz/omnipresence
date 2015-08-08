@@ -8,7 +8,7 @@ from textwrap import dedent
 
 from twisted.internet.defer import inlineCallbacks, fail, succeed
 
-from ..connection import PRIVATE_CHANNEL
+from ..connection import MAX_REPLY_LENGTH
 from ..message import Message, collapse
 from ..plugin import EventPlugin, UserVisibleError
 from .helpers import (AbstractConnectionTestCase, AbstractCommandTestCase,
@@ -300,3 +300,21 @@ class ReplyTruncationTestCase(AbstractConnectionTestCase):
             氏拾是十狮尸，适石室。 /
             石室湿，氏使侍拭石室。 /
             石室拭，氏始试食是十狮...""").encode('utf-8'))
+
+
+class LongReplyWithMoreCommand(EventPlugin):
+    def on_command(self, msg):
+        return ['*' * 999] * 999
+
+
+class LongReplyWithMoreTestCase(AbstractCommandMonitor):
+    command_class = LongReplyWithMoreCommand
+
+    def test_more_tag_visible(self):
+        self.receive('PRIVMSG {} :longreplywithmorecommand'.format(
+            self.connection.nickname))
+        self.assertEqual(self.outgoing.last_seen.content,
+                         '*' * MAX_REPLY_LENGTH + '... (+998 more)')
+        self.more()
+        self.assertEqual(self.outgoing.last_seen.content,
+                         '*' * MAX_REPLY_LENGTH + '... (+997 more)')
