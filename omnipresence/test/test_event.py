@@ -165,17 +165,13 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
         """Ensure that command messages generated from privmsg messages
         are processed immediately after their originators."""
         self.receive('PRIVMSG #foo :!spam')
-        self.assertEqual(len(self.two.seen), 4)
+        self.assertEqual(len(self.two.seen), 3)
         self.assertEqual(self.two.seen[0].action, 'privmsg')
         self.assertEqual(self.two.seen[0].content, '!spam')
         self.assertEqual(self.two.seen[1].action, 'command')
         self.assertEqual(self.two.seen[1].subaction, 'spam')
         self.assertEqual(self.two.seen[2].action, 'privmsg')
         self.assertEqual(self.two.seen[2].content, 'dolor sit amet')
-        self.assertEqual(self.two.seen[3].action, 'privmsg')
-        self.assertEqual(
-            self.two.seen[3].content,
-            '\x0314{}: No text in buffer.'.format(self.other_user.nick))
 
 
 #
@@ -205,8 +201,7 @@ class OutgoingEventTestCase(AbstractConnectionTestCase):
 
     def test_own_command(self):
         self.connection.sendLine('PRIVMSG #foo :!spam ham eggs')
-        # 2 command requests + 2 empty buffer replies = 4
-        self.assertEqual(len(self.outgoing.seen), 4)
+        self.assertEqual(len(self.outgoing.seen), 2)
         self.assertEqual(len(self.no_outgoing.seen), 0)
 
     def test_own_join(self):

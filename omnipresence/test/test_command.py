@@ -11,6 +11,7 @@ from twisted.internet.defer import inlineCallbacks, fail, succeed
 from ..connection import MAX_REPLY_LENGTH
 from ..message import Message, collapse
 from ..plugin import EventPlugin, UserVisibleError
+from ..plugins.more import Default as More
 from .helpers import (AbstractConnectionTestCase, AbstractCommandTestCase,
                       OutgoingPlugin)
 
@@ -24,8 +25,12 @@ class AbstractCommandMonitor(AbstractCommandTestCase):
         self.connection.joined('#foo')
 
     def more(self, **kwargs):
-        return self.connection.reply_from_buffer(self.command_message(
-            '', subaction='more', target=self.other_user.nick, **kwargs))
+        request = self.command_message(
+            '', subaction='more', target=self.other_user.nick, **kwargs)
+        deferred = self.connection.buffer_and_reply(
+            More().on_command(request), request)
+        deferred.addErrback(self.connection.reply_from_error, request)
+        return deferred
 
 
 #

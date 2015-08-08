@@ -2,13 +2,13 @@
 """Core IRC connection protocol class and supporting machinery."""
 
 
-import collections
-from itertools import tee
+from collections import Iterable, Sequence
 import re
 
 import sqlobject
 from twisted.internet import reactor
-from twisted.internet.defer import DeferredList, maybeDeferred, succeed
+from twisted.internet.defer import (DeferredList, maybeDeferred, succeed,
+                                    inlineCallbacks, returnValue)
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.python import log
 from twisted.python.failure import Failure
@@ -417,8 +417,7 @@ class Connection(IRCClient):
             for plugin in plugins:
                 deferred = maybeDeferred(plugin.respond_to, msg)
                 if msg.action == 'command':
-                    deferred.addCallback(self.buffer_reply, msg)
-                    deferred.addCallback(lambda _: self.reply_from_buffer(msg))
+                    deferred.addCallback(self.buffer_and_reply, msg)
                     deferred.addErrback(self.reply_from_error, msg)
                 else:
                     deferred.addErrback(log.err,
@@ -447,57 +446,32 @@ class Connection(IRCClient):
     # Command replies and message buffering
     #
 
-    def buffer_reply(self, response, request):
+    @inlineCallbacks
+    def buffer_and_reply(self, response, request):
         """Add the :ref:`command reply <command-replies>` *response* to
         the appropriate user's reply buffer according to the invocation
-        `.Message` *request*."""
+        `.Message` *request*, and reply with the first message."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
         if not response:
             self.message_buffers[venue].pop(request.actor.nick, None)
-            return request.actor.nick
+            returnValue(None)
         if isinstance(response, basestring):
             buf = chunk(response, request.encoding, CHUNK_LENGTH)
-        elif isinstance(response, collections.Iterable):
+        elif isinstance(response, (Iterable, Sequence)):
             buf = response
         else:
             raise TypeError('invalid command reply type ' +
                             type(response).__name__)
-        self.message_buffers[venue][request.actor.nick] = buf
-
-    def copy_buffer(self, venue, source, target):
-        """Copy a reply buffer from the *source* nick to the *target*
-        nick in *venue*, and return the copy."""
-        buf = self.message_buffers[venue].get(source, [])
-        if self.case_mapping.equates(source, target):
-            return buf
-        if isinstance(buf, collections.Sequence):
-            new = buf[:]
-            self.message_buffers[venue][target] = new
-            return new
-        # Assume an iterator.
-        one, two = tee(buf)
-        self.message_buffers[venue][source] = one
-        self.message_buffers[venue][target] = two
-        return two
-
-    def reply_from_buffer(self, request):
-        """Call `.reply` with the next reply from the reply buffer
-        corresponding to the invocation `~.Message` *request*.  Return a
-        `Deferred` yielding the reply's contents."""
-        venue = PRIVATE_CHANNEL if request.private else request.venue
-        buf = self.message_buffers[venue].get(request.actor.nick, [])
-        if isinstance(buf, collections.Sequence):
-            deferred = succeed(buf.pop(0) if buf else None)
+        if isinstance(buf, Sequence):
+            reply_string = buf[0] if buf else None
+            buf = buf[1:]
         else:
-            deferred = maybeDeferred(next, buf, None)
-        def reply_with_tail(next_reply):
-            remaining = length_hint(buf)
-            tail = ' (+{} more)'.format(remaining) if remaining else ''
-            self.reply(next_reply, request, tail=tail)
-        deferred.addCallback(lambda s: s or 'No text in buffer.')
-        deferred.addCallback(reply_with_tail)
-        deferred.addErrback(self.reply_from_error, request)
-        return deferred
+            reply_string = yield maybeDeferred(next, buf, None)
+        reply_string = reply_string or 'No text in buffer.'
+        remaining = length_hint(buf)
+        tail = ' (+{} more)'.format(remaining) if remaining else ''
+        self.message_buffers[venue][request.actor.nick] = buf
+        self.reply(reply_string, request, tail=tail)
 
     def reply(self, string, request, tail=''):
         """Send a reply *string*, truncated to `MAX_REPLY_LENGTH`

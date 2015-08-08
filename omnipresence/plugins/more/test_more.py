@@ -30,17 +30,15 @@ class MoreTestCase(AbstractCommandTestCase):
         self.assert_reply('', 'No text in buffer.')
 
     def test_own_buffer(self):
-        self.connection.buffer_reply(imap(str, count()), Message(
-            self.connection, False, 'command',
-            actor=self.other_user, venue='#foo'))
+        self.connection.message_buffers['#foo'][self.other_user.nick] = (
+            imap(str, count()))
         self.assert_reply('', '0')
         self.assert_reply('', '1')
         self.assert_reply('', '2')
 
     def test_other_buffer_sequence(self):
-        self.connection.buffer_reply(map(str, xrange(10)), Message(
-            self.connection, False, 'command',
-            actor='party3', venue='#foo'))
+        self.connection.message_buffers['#foo']['party3'] = map(
+            str, xrange(10))
         self.assert_reply('party3', '0 (+9 more)')
         # Make sure party3's buffer hasn't been advanced.
         self.assert_reply('party3', '0 (+9 more)')
@@ -51,9 +49,8 @@ class MoreTestCase(AbstractCommandTestCase):
         self.assert_reply('', '2 (+7 more)', actor='party3')
 
     def test_other_buffer_iterator(self):
-        self.connection.buffer_reply(imap(str, count()), Message(
-            self.connection, False, 'command',
-            actor='party3', venue='#foo'))
+        self.connection.message_buffers['#foo']['party3'] = (
+            imap(str, count()))
         self.assert_reply('party3', '0')
         # Make sure party3's buffer hasn't been advanced.
         self.assert_reply('party3', '0')
