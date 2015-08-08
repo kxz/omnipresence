@@ -6,7 +6,7 @@ from collections import Sequence
 from itertools import tee
 
 from ...message import collapse
-from ...plugin import EventPlugin
+from ...plugin import EventPlugin, UserVisibleError
 from ...settings import PRIVATE_CHANNEL
 
 
@@ -14,11 +14,13 @@ class Default(EventPlugin):
     def on_command(self, msg):
         venue = PRIVATE_CHANNEL if msg.private else msg.venue
         source = msg.content or msg.actor.nick
-        buf = msg.connection.message_buffers[venue].get(source, [])
-        if not buf:
-            return 'No text in buffer.'
+        buf = (msg.connection.message_buffers[venue].get(source, []) or
+               'No text in buffer.')
         if msg.connection.case_mapping.equates(source, msg.actor.nick):
             return buf
+        if msg.private:
+            raise UserVisibleError("You cannot read another user's "
+                                   "private reply buffer.")
         if isinstance(buf, Sequence):
             return buf[:]
         # Assume an iterator.  The original iterator can no longer be

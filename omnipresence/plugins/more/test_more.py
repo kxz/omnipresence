@@ -5,6 +5,7 @@
 from itertools import count, imap
 
 from ...message import Message, collapse
+from ...settings import PRIVATE_CHANNEL
 from ...test.helpers import AbstractCommandTestCase, OutgoingPlugin
 
 from . import Default
@@ -59,3 +60,13 @@ class MoreTestCase(AbstractCommandTestCase):
         self.assert_reply('', '1', actor='party3')
         self.assert_reply('party3', '2')
         self.assert_reply('', '2', actor='party3')
+
+    def test_other_buffer_private(self):
+        private_buffers = self.connection.message_buffers[PRIVATE_CHANNEL]
+        private_buffers[self.other_user.nick] = ['hello world']
+        private_buffers['party3'] = ['lorem ipsum dolor sit amet']
+        self.assert_reply(
+            'party3',
+            "You cannot read another user's private reply buffer.",
+            venue=self.connection.nickname)
+        self.assert_reply('', 'hello world', venue=self.connection.nickname)
