@@ -20,13 +20,13 @@ class Tox(test):
 setup(
     name='omnipresence',
     description='An IRC utility bot',
-    version='3.0-dev',
+    version='3.0alpha1',
     author='Kevin Xiwei Zheng',
     author_email='blankplacement+omnipresence@gmail.com',
     url='https://github.com/kxz/omnipresence',
     license='X11',
     classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
+        'Development Status :: 3 - Alpha',
         'Framework :: Twisted',
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: MIT License',
