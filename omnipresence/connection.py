@@ -5,7 +5,6 @@
 from collections import Iterable, Sequence
 import re
 
-import sqlobject
 from twisted.internet import reactor
 from twisted.internet.defer import (DeferredList, maybeDeferred, succeed,
                                     inlineCallbacks, returnValue)

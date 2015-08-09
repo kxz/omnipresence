@@ -47,8 +47,7 @@ setup(
         'pyOpenSSL',
         'service_identity',
         'ipaddress',
-        'PyYAML',
-        'SQLObject>=0.10'],
+        'PyYAML'],
     extras_require={
         'html': [
             'beautifulsoup4']},
