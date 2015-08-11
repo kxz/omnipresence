@@ -3,7 +3,7 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
-from itertools import count, imap, repeat
+from itertools import imap
 from textwrap import dedent
 
 from twisted.internet.defer import inlineCallbacks, fail, succeed

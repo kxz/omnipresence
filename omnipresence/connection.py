@@ -6,7 +6,7 @@ from collections import Iterable, Sequence
 import re
 
 from twisted.internet import reactor
-from twisted.internet.defer import (DeferredList, maybeDeferred, succeed,
+from twisted.internet.defer import (DeferredList, maybeDeferred,
                                     inlineCallbacks, returnValue)
 from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.logger import Logger

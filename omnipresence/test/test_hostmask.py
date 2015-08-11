@@ -75,4 +75,4 @@ class HostmaskTestCase(unittest.TestCase):
         self.assertFalse(Hostmask('nick', 'user', 'host').has_wildcard)
         self.assertTrue(Hostmask('nick', None, None).has_wildcard)
         self.assertTrue(Hostmask('nick*', 'user', 'host').has_wildcard)
-        self.assertFalse(Hostmask('nick\*', 'user', 'host').has_wildcard)
+        self.assertFalse(Hostmask(r'nick\*', 'user', 'host').has_wildcard)

@@ -5,8 +5,6 @@
 # pylint: disable=no-name-in-module,too-few-public-methods
 
 
-import os
-
 from twisted.application.internet import SSLClient, TCPClient
 from twisted.internet import ssl
 from twisted.python import usage

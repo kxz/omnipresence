@@ -41,9 +41,8 @@ class Default(EventPlugin):
         if not soup.pre:
             raise UserVisibleError('No results found for \x02{}\x02.'
                                    .format(msg.content))
-        raw = soup.pre.string.strip().splitlines()
         results = []
-        for i, result in enumerate(raw):
+        for result in soup.pre.string.strip().splitlines():
             if not result.strip():
                 continue
             # Find the kana pronunciations and add their romanizations.

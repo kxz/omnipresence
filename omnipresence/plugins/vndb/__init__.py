@@ -40,7 +40,7 @@ class Default(EventPlugin):
                 vn = {'url': urljoin(response.request.absoluteURI,
                                      row_data[0].a['href']),
                       'title': textify(row_data[0].a),
-                      'release_date': textify(row_data[3]) }
+                      'release_date': textify(row_data[3])}
                 alt_title = row_data[0].a['title']
                 if alt_title != vn['title']:
                     vn['alt_title'] = alt_title
@@ -52,7 +52,7 @@ class Default(EventPlugin):
             data = soup.find('div', id='maincontent')
             vn = {'url': response.request.absoluteURI,
                   'title': textify(data.find('h1')),
-                  'release_date': textify(data.find('td', 'tc1')) }
+                  'release_date': textify(data.find('td', 'tc1'))}
             alt_title = data.find('h2', 'alttitle')
             if alt_title:
                 vn['alt_title'] = textify(alt_title)

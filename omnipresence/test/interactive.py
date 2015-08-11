@@ -8,7 +8,7 @@ from twisted.internet import reactor
 from twisted.python import log
 from twisted.test.proto_helpers import StringTransport
 
-from ..connection import ConnectionFactory, PRIVATE_CHANNEL
+from ..connection import ConnectionFactory
 from ..settings import ConnectionSettings
 
 

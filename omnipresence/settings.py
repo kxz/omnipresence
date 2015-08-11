@@ -4,7 +4,6 @@
 
 import collections
 import shlex
-from warnings import warn
 
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 import yaml

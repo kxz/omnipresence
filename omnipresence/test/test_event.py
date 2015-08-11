@@ -4,7 +4,6 @@
 
 from twisted.internet.defer import inlineCallbacks, succeed, fail
 
-from ..connection import PRIVATE_CHANNEL
 from ..plugin import EventPlugin
 from .helpers import (AbstractConnectionTestCase,
                       NoticingPlugin, OutgoingPlugin)

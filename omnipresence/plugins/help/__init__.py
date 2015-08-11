@@ -23,11 +23,11 @@ class Default(EventPlugin):
                     keywords='\x02, \x02'.join(sorted(keywords.iterkeys())),
                     help=msg.subaction))
         if args[0] in keywords:
-            help = keywords[args[0]].respond_to(msg._replace(
+            help_string = keywords[args[0]].respond_to(msg._replace(
                 action='cmdhelp', subaction=args[0],
                 content=''.join(args[1:])))
-            if help:
-                return '\x02{}\x02 {}'.format(args[0], help)
+            if help_string:
+                return '\x02{}\x02 {}'.format(args[0], help_string)
             return ('There is no further help available for \x02{}\x02.'
                     .format(args[0]))
         return 'There is no command with the keyword \x02{}\x02.'.format(
