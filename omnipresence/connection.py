@@ -9,8 +9,7 @@ from twisted.internet import reactor
 from twisted.internet.defer import (DeferredList, maybeDeferred, succeed,
                                     inlineCallbacks, returnValue)
 from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.python import log
-from twisted.python.failure import Failure
+from twisted.logger import Logger
 from twisted.words.protocols.irc import IRCClient
 
 from . import __version__, __source__, mapping
@@ -78,6 +77,8 @@ class ChannelUserInfo(object):
 class Connection(IRCClient):
     """Omnipresence's core IRC client protocol."""
 
+    log = Logger()
+
     # Instance variables handled by IRCClient.
     versionName = 'Omnipresence'
     versionNum = __version__
@@ -116,7 +117,7 @@ class Connection(IRCClient):
         #: normal PING heartbeat.
         self.signon_timeout = None
 
-        log.msg('Assuming default CASEMAPPING "rfc1459"')
+        self.log.info('Assuming default CASEMAPPING "rfc1459"')
         #: The `.CaseMapping` currently in effect on this connection.
         #: Defaults to ``rfc1459`` if none is explicitly provided by the
         #: server.
@@ -168,7 +169,7 @@ class Connection(IRCClient):
         # joins for this client, and we shouldn't clobber the queue.
         if self.suspended_joins is not None:
             return
-        log.msg('Suspending channel joins')
+        self.log.info('Suspending channel joins')
         self.suspended_joins = []
 
     def resume_joins(self):
@@ -177,7 +178,7 @@ class Connection(IRCClient):
         queued in the interim."""
         if self.suspended_joins is None:
             return
-        log.msg('Resuming channel joins')
+        self.log.info('Resuming channel joins')
         suspended_joins = self.suspended_joins
         self.suspended_joins = None
         for channel in suspended_joins:
@@ -188,7 +189,7 @@ class Connection(IRCClient):
     def connectionMade(self):
         """Called when a connection has been successfully made to the
         IRC server."""
-        log.msg('Connected to server')
+        self.log.info('Connected to server')
         IRCClient.connectionMade(self)
         self.signon_timeout = self.reactor.callLater(
             self.max_lag, self.signon_timed_out)
@@ -197,7 +198,8 @@ class Connection(IRCClient):
         """Called when a timeout occurs after connecting to the server,
         but before receiving the ``RPL_WELCOME`` message that starts the
         normal PING heartbeat."""
-        log.msg('Sign-on timeout (%d seconds); disconnecting' % self.max_lag)
+        self.log.info('Sign-on timeout ({log_source.max_lag} seconds); '
+                      'disconnecting')
         self.transport.abortConnection()
 
     def _createHeartbeat(self):
@@ -208,8 +210,8 @@ class Connection(IRCClient):
     def _sendHeartbeat(self):
         lag = self.reactor.seconds() - self.last_pong
         if lag > self.max_lag:
-            log.msg('Ping timeout (%d > %d seconds); disconnecting' %
-                    (lag, self.max_lag))
+            self.log.info('Ping timeout ({lag} > {log_source.max_lag} '
+                          'seconds); disconnecting', lag=lag)
             self.transport.abortConnection()
             return
         IRCClient._sendHeartbeat(self)
@@ -221,7 +223,7 @@ class Connection(IRCClient):
     def connectionLost(self, reason):
         """Called when the connection to the IRC server has been lost
         or disconnected."""
-        log.msg('Disconnected from server')
+        self.log.info('Disconnected from server')
         self.respond_to(Message(self, False, 'disconnected'))
         IRCClient.connectionLost(self, reason)
 
@@ -237,35 +239,39 @@ class Connection(IRCClient):
             try:
                 self.case_mapping = mapping.by_name(name)
             except ValueError:
-                log.msg('Ignoring unsupported server CASEMAPPING "%s"' % name)
+                self.log.info('Ignoring unsupported server CASEMAPPING '
+                              '"{name}"', name=name)
             else:
-                log.msg('Using server-provided CASEMAPPING "%s"' % name)
+                self.log.info('Using server-provided CASEMAPPING '
+                              '"{name}"', name=name)
 
     def privmsg(self, prefix, channel, message):
         """Called when we receive a message from another user."""
         if not self.is_channel(channel):
-            log.msg('Message from %s for %s: %s' % (prefix, channel, message))
+            self.log.info('Message from {prefix} for {channel}: {message}',
+                          prefix=prefix, channel=channel, message=message)
 
     def joined(self, channel):
         """Called when the bot successfully joins the given *channel*."""
-        log.msg('Successfully joined %s' % channel)
+        self.log.info('Successfully joined {channel}', channel=channel)
         self.channel_names[channel] = set()
         self.message_buffers[channel] = {}
 
     def left(self, channel):
         """Called when the bot leaves the given *channel*."""
-        log.msg('Leaving %s' % channel)
+        self.log.info('Leaving {channel}', channel=channel)
         del self.channel_names[channel]
         del self.message_buffers[channel]
 
     def noticed(self, prefix, channel, message):
         """Called when we receive a notice from another user."""
         if not self.is_channel(channel):
-            log.msg('Notice from %s for %s: %s' % (prefix, channel, message))
+            self.log.info('Notice from {prefix} for {channel}: {message}',
+                          prefix=prefix, channel=channel, message=message)
 
     def signedOn(self):
         """Called after successfully signing on to the server."""
-        log.msg('Successfully signed on to server.')
+        self.log.info('Successfully signed on to server')
         if self.signon_timeout:
             self.signon_timeout.cancel()
         self.respond_to(Message(self, False, 'connected'))
@@ -282,7 +288,8 @@ class Connection(IRCClient):
 
     def kickedFrom(self, channel, kicker, message):
         """Called when the bot is kicked from the given *channel*."""
-        log.msg('Kicked from %s by %s: %s' % (channel, kicker, message))
+        self.log.info('Kicked from {channel} by {kicker}: {message}',
+                      channel=channel, kicker=kicker, message=message)
         del self.channel_names[channel]
         del self.message_buffers[channel]
 
@@ -324,10 +331,10 @@ class Connection(IRCClient):
         `.suspend_joins`, add the channel to the join queue and actually
         join it when `.resume_joins` is called."""
         if self.suspended_joins is not None:
-            log.msg('Adding %s to join queue' % channel)
+            self.log.info('Adding {channel} to join queue', channel=channel)
             self.suspended_joins.append(channel)
             return
-        log.msg('Joining %s' % channel)
+        self.log.info('Joining {channel}', channel=channel)
         IRCClient.join(self, channel)
 
     def kick(self, channel, nick, reason=None):
@@ -414,14 +421,16 @@ class Connection(IRCClient):
                 # every plugin active on this connection.
                 plugins.update(self.settings.loaded_plugins.itervalues())
             for plugin in plugins:
+                self.log.debug('Passing message {msg} to plugin {name}',
+                               name=plugin.__class__.name, msg=msg)
                 deferred = maybeDeferred(plugin.respond_to, msg)
                 if msg.action == 'command':
                     deferred.addCallback(self.buffer_and_reply, msg)
                     deferred.addErrback(self.reply_from_error, msg)
                 else:
-                    deferred.addErrback(log.err,
-                        'Error in plugin %s responding to %s' %
-                        (plugin.__class__.name, msg))
+                    deferred.addErrback(self.log.failure,
+                        'Error in plugin {name} responding to {msg}',
+                        name=plugin.__class__.name, msg=msg)
                 deferreds.append(deferred)
             # Extract any command invocations and fire events for them.
             if msg.private:
@@ -493,11 +502,12 @@ class Connection(IRCClient):
                 string = string[:MAX_REPLY_LENGTH] + '...'
         string += tail
         if request.private:
-            log.msg('Private reply for %s: %s' % (request.actor.nick, string))
+            self.log.info('Private reply for {request.actor.nick}: {string}',
+                          request=request, string=string)
             self.notice(request.actor.nick, string)
             return
-        log.msg('Reply for %s in %s: %s' %
-                (request.target, request.venue, string))
+        self.log.info('Reply for {request.actor.nick} in {request.venue}: '
+                      '{string}', request=request, string=string)
         reply_format = request.settings.get(
             'reply_format', default='\x0314{target}: {message}')
         self.msg(request.venue, reply_format.format(
@@ -522,8 +532,9 @@ class Connection(IRCClient):
             request.subaction)
         if request.settings.get('show_errors', default=False):
             message += ': \x02{}\x02'.format(failure.getErrorMessage())
-        log.err(failure, 'Error during command callback: %s %s' %
-                (request.subaction, request.content))
+        self.log.failure('Error during command callback: '
+                         '{request.subaction} {request.content}',
+                         failure=failure, request=request)
         self.reply(message + '.', error_request)
 
     def _lineReceived(self, line):
@@ -548,13 +559,14 @@ class Connection(IRCClient):
 class ConnectionFactory(ReconnectingClientFactory):
     """Creates `.Connection` instances."""
     protocol = Connection
+    log = Logger()
 
     def __init__(self):
         #: The `ConnectionSettings` object associated with this factory.
         self.settings = ConnectionSettings()
 
     def startedConnecting(self, connector):
-        log.msg('Attempting to connect to server')
+        self.log.info('Attempting to connect to server')
 
     def buildProtocol(self, addr):
         protocol = ReconnectingClientFactory.buildProtocol(self, addr)
