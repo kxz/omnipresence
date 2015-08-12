@@ -2,7 +2,6 @@
 """Core IRC connection protocol class and supporting machinery."""
 
 
-from collections import Iterable, Sequence
 import re
 
 from twisted.internet import reactor
@@ -14,13 +13,10 @@ from twisted.words.protocols.irc import IRCClient
 
 from . import __version__, __source__, mapping
 from .compat import length_hint
-from .message import Message, chunk, truncate_unicode
+from .message import Message, ReplyBuffer, truncate_unicode
 from .plugin import UserVisibleError
 from .settings import ConnectionSettings, PRIVATE_CHANNEL
 
-
-#: The length to chunk string command replies to, in bytes.
-CHUNK_LENGTH = 256
 
 #: The maximum length of a single command reply, in bytes.
 MAX_REPLY_LENGTH = 288
@@ -463,19 +459,8 @@ class Connection(IRCClient):
         if not response:
             self.message_buffers[venue].pop(request.actor.nick, None)
             returnValue(None)
-        if isinstance(response, basestring):
-            buf = chunk(response, request.encoding, CHUNK_LENGTH)
-        elif isinstance(response, (Iterable, Sequence)):
-            buf = response
-        else:
-            raise TypeError('invalid command reply type ' +
-                            type(response).__name__)
-        if isinstance(buf, Sequence):
-            reply_string = buf[0] if buf else None
-            buf = buf[1:]
-        else:
-            reply_string = yield maybeDeferred(next, buf, None)
-        reply_string = reply_string or 'No text in buffer.'
+        buf = ReplyBuffer(response, request)
+        reply_string = (yield next(buf)) or 'No text in buffer.'
         remaining = length_hint(buf)
         tail = ' (+{} more)'.format(remaining) if remaining else ''
         self.message_buffers[venue][request.actor.nick] = buf

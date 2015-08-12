@@ -4,7 +4,7 @@
 
 from itertools import count, imap
 
-from ...message import Message, collapse
+from ...message import Message, ReplyBuffer, collapse
 from ...settings import PRIVATE_CHANNEL
 from ...test.helpers import AbstractCommandTestCase, OutgoingPlugin
 
@@ -32,14 +32,14 @@ class MoreTestCase(AbstractCommandTestCase):
 
     def test_own_buffer(self):
         self.connection.message_buffers['#foo'][self.other_user.nick] = (
-            imap(str, count()))
+            ReplyBuffer(imap(str, count())))
         self.assert_reply('', '0')
         self.assert_reply('', '1')
         self.assert_reply('', '2')
 
     def test_other_buffer_sequence(self):
-        self.connection.message_buffers['#foo']['party3'] = map(
-            str, xrange(10))
+        self.connection.message_buffers['#foo']['party3'] = ReplyBuffer(
+            map(str, xrange(10)))
         self.assert_reply('party3', '0 (+9 more)')
         # Make sure party3's buffer hasn't been advanced.
         self.assert_reply('party3', '0 (+9 more)')
@@ -50,21 +50,22 @@ class MoreTestCase(AbstractCommandTestCase):
         self.assert_reply('', '2 (+7 more)', actor='party3')
 
     def test_other_buffer_iterator(self):
-        self.connection.message_buffers['#foo']['party3'] = (
+        self.connection.message_buffers['#foo']['party3'] = ReplyBuffer(
             imap(str, count()))
         self.assert_reply('party3', '0')
         # Make sure party3's buffer hasn't been advanced.
         self.assert_reply('party3', '0')
         self.assert_reply('', '0', actor='party3')
         self.assert_reply('party3', '1')
+        print self.connection.message_buffers
         self.assert_reply('', '1', actor='party3')
         self.assert_reply('party3', '2')
         self.assert_reply('', '2', actor='party3')
 
     def test_other_buffer_private(self):
         private_buffers = self.connection.message_buffers[PRIVATE_CHANNEL]
-        private_buffers[self.other_user.nick] = ['hello world']
-        private_buffers['party3'] = ['lorem ipsum dolor sit amet']
+        private_buffers[self.other_user.nick] = ReplyBuffer('hello world')
+        private_buffers['party3'] = ReplyBuffer('lorem ipsum dolor sit amet')
         self.assert_reply(
             'party3',
             "You cannot read another user's private reply buffer.",

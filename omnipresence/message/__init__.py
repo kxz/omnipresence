@@ -2,10 +2,13 @@
 """Operations on IRC messages."""
 
 
-from collections import namedtuple
+from collections import namedtuple, Iterable, Iterator, Sequence
 from functools import partial
-from itertools import chain
+import itertools
 
+from twisted.internet.defer import maybeDeferred, succeed
+
+from ..compat import length_hint
 from ..hostmask import Hostmask
 from .formatting import remove_formatting, unclosed_formatting
 from .parser import parse as parse_raw
@@ -13,6 +16,9 @@ from .parser import parse as parse_raw
 
 #: The default text encoding.
 DEFAULT_ENCODING = 'utf-8'
+
+#: The length to chunk string command replies to, in bytes.
+CHUNK_LENGTH = 256
 
 #: The set of recognized Omnipresence message types.
 MESSAGE_TYPES = set([
@@ -178,7 +184,7 @@ def truncate_unicode(string, byte_limit, encoding=DEFAULT_ENCODING):
     return encoded.decode(encoding, 'ignore').encode(encoding)
 
 
-def chunk(string, encoding=DEFAULT_ENCODING, max_length=256):
+def chunk(string, encoding=DEFAULT_ENCODING, max_length=CHUNK_LENGTH):
     """Return a list containing chunks of at most *max_length* bytes
     from *string*.  Breaks are made at whitespace instead of in the
     middle of words when possible.  If *string* is a Unicode string,
@@ -226,6 +232,48 @@ def chunk(string, encoding=DEFAULT_ENCODING, max_length=256):
             remaining = ''
         chunks.append(truncated)
     return chunks
+
+
+class ReplyBuffer(Iterator):
+    """An iterator wrapping the :ref:`command reply <command-replies>`
+    *response* for the invocation `.Message` *request*."""
+
+    def __init__(self, response, request=None):
+        if isinstance(response, ReplyBuffer):
+            self.response = response.response
+        elif isinstance(response, basestring):
+            if request is None:
+                encoding = DEFAULT_ENCODING
+            else:
+                encoding = request.encoding
+            self.response = chunk(response, encoding)
+        elif isinstance(response, (Iterable, Sequence)):
+            self.response = response
+        else:
+            raise TypeError('invalid command reply type ' +
+                            type(response).__name__)
+
+    def next(self):
+        """Return a `Deferred` yielding the next reply string."""
+        if isinstance(self.response, Sequence):
+            reply_string = self.response[0] if self.response else None
+            self.response = self.response[1:]
+            return succeed(reply_string)
+        return maybeDeferred(next, self.response, None)
+
+    def tee(self, num=2):
+        """Return *num* independent reply buffers from this one, like
+        `itertools.tee`, but without making unnecessary copies of the
+        underlying response."""
+        if isinstance(self.response, Sequence):
+            return (ReplyBuffer(self.response),) * num
+        return tuple(ReplyBuffer(t) for t in itertools.tee(self.response, num))
+
+    def __length_hint__(self):
+        return length_hint(self.response)
+
+    def __repr__(self):
+        return '{}({})'.format(type(self).__name__, repr(self.response))
 
 
 #
