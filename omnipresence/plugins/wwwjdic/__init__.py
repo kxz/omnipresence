@@ -13,6 +13,7 @@ try:
 except ImportError:
     romanize = None
 
+from ...message import collapse
 from ...plugin import EventPlugin, UserVisibleError
 from ...web.http import default_agent
 
