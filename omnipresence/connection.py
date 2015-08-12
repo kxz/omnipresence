@@ -417,9 +417,7 @@ class Connection(IRCClient):
                 # every plugin active on this connection.
                 plugins.update(self.settings.loaded_plugins.itervalues())
             for plugin in plugins:
-                self.log.debug('Passing message {msg} to plugin {name}',
-                               name=plugin.__class__.name, msg=msg)
-                deferred = maybeDeferred(plugin.respond_to, msg)
+                deferred = plugin.respond_to(msg)
                 if msg.action == 'command':
                     deferred.addCallback(self.buffer_and_reply, msg)
                     deferred.addErrback(self.reply_from_error, msg)
@@ -456,11 +454,11 @@ class Connection(IRCClient):
         the appropriate user's reply buffer according to the invocation
         `.Message` *request*, and reply with the first message."""
         venue = PRIVATE_CHANNEL if request.private else request.venue
-        if not response:
+        if response is None:
             self.message_buffers[venue].pop(request.actor.nick, None)
             returnValue(None)
         buf = ReplyBuffer(response, request)
-        reply_string = (yield next(buf)) or 'No text in buffer.'
+        reply_string = (yield maybeDeferred(next, buf, None)) or 'No results.'
         remaining = length_hint(buf)
         tail = ' (+{} more)'.format(remaining) if remaining else ''
         self.message_buffers[venue][request.actor.nick] = buf

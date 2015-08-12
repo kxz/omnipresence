@@ -1,5 +1,5 @@
 """Unit test helpers."""
-# pylint: disable=missing-docstring,too-few-public-methods
+# pylint: disable=too-few-public-methods
 
 
 from functools import wraps
@@ -10,7 +10,6 @@ from stenographer import CassetteAgent
 from twisted.internet import reactor
 from twisted.internet.defer import maybeDeferred
 from twisted.internet.task import Clock
-from twisted.trial import unittest
 from twisted.web.client import (Agent, ContentDecoderAgent,
                                 RedirectAgent, GzipDecoder)
 from twisted.web.test.test_agent import AbortableStringTransport
@@ -18,9 +17,13 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from ..connection import Connection
 from ..hostmask import Hostmask
-from ..message import Message
+from ..message import Message, ReplyBuffer
 from ..plugin import EventPlugin, UserVisibleError
 from ..web.http import IdentifyingAgent
+
+
+CASSETTE_LIBRARY = os.path.join(os.path.dirname(__file__),
+                                'fixtures', 'cassettes')
 
 
 #
@@ -66,14 +69,28 @@ class OutgoingPlugin(NoticingPlugin):
 
 
 #
-# Abstract test cases
+# Test case mixins
 #
 
-class AbstractConnectionTestCase(unittest.TestCase):
-    other_user = Hostmask('other', 'user', 'host')
+class ConnectionTestMixin(object):
+    """A test case mixin that sets up a `Connection` object before each
+    test, and provides constants for mock users and channels."""
+
+    #: A sequence of `Hostmask` objects representing mock users.
+    other_users = (
+        Hostmask('alice', 'athena', 'ankara.test'),
+        Hostmask('bob', 'bellerophon', 'berlin.test'),
+        Hostmask('charlie', 'cronus', 'chongqing.test'))
+
+    #: A sequence of mock channel names, as strings.
+    channels = ('#foo', '#bar', '&baz')
+
+    #: Whether this test case's `Connection` should receive a sign-on
+    #: event during setup.
     sign_on = True
 
     def setUp(self):
+        super(ConnectionTestMixin, self).setUp()
         self.transport = AbortableStringTransport()
         self.connection = Connection()
         self.connection.settings.set('command_prefixes', ['!'])
@@ -81,12 +98,12 @@ class AbstractConnectionTestCase(unittest.TestCase):
         self.connection.makeConnection(self.transport)
         if self.sign_on:
             # The heartbeat is started here, not in signedOn().
-            self.connection.irc_RPL_WELCOME('remote.test', [])
+            self.connection.irc_RPL_WELCOME('irc.server.test', [])
 
     def receive(self, line):
         """Simulate receiving a line from the IRC server."""
         return self.connection._lineReceived(':{!s} {}'.format(
-            self.other_user, line))
+            self.other_users[0], line))
 
     def echo(self, line):
         """Simulate receiving an echoed action from the IRC server."""
@@ -100,48 +117,58 @@ class AbstractConnectionTestCase(unittest.TestCase):
         self.assertEqual(len(self.flushLoggedErrors()), number)
 
 
-class AbstractCommandTestCase(AbstractConnectionTestCase):
+class CommandTestMixin(ConnectionTestMixin):
+    """A subclass of `ConnectionTestMixin` that also sets up a command
+    plugin in addition to a connection and transport."""
+
+    #: The command plugin class to test.
     command_class = None
 
     def setUp(self):
-        super(AbstractCommandTestCase, self).setUp()
+        super(CommandTestMixin, self).setUp()
         self.default_venue = self.connection.nickname
         name = self.command_class.name
         self.keyword = name.rsplit('/', 1)[-1].rsplit('.', 1)[-1].lower()
         self.command = self.connection.settings.enable(name, [self.keyword])
 
     def command_message(self, content, **kwargs):
-        kwargs.setdefault('actor', self.other_user)
+        kwargs.setdefault('actor', self.other_users[0])
         kwargs.setdefault('subaction', self.keyword)
         kwargs.setdefault('venue', self.default_venue)
         return Message(self.connection, False, 'command',
                        content=content, **kwargs)
 
-    def send_command(self, *args, **kwargs):
-        return maybeDeferred(self.command.respond_to,
-                             self.command_message(*args, **kwargs))
+    def set_reply_buffer(self, response, request):
+        self.reply_buffer = ReplyBuffer(response, request)
 
-    def assert_reply(self, content, expected, **kwargs):
-        deferred = self.send_command(content, **kwargs)
-        deferred.addCallback(self.assertEqual, expected)
-        return deferred
+    def set_failure(self, failure):
+        self.failure = failure
 
-    def assert_error(self, content, expected, **kwargs):
-        deferred = self.send_command(content, **kwargs)
-        failed = self.assertFailure(deferred, UserVisibleError)
-        failed.addCallback(lambda e: self.assertEqual(str(e), expected))
-        return failed
+    def send_command(self, content, **kwargs):
+        request = self.command_message(content, **kwargs)
+        finished = self.command.respond_to(request)
+        finished.addCallbacks(self.set_reply_buffer, self.set_failure,
+                              callbackArgs=(request,))
+        return finished
 
+    def assert_reply(self, expected):
+        finished = maybeDeferred(next, self.reply_buffer, None)
+        finished.addCallback(self.assertEqual, expected)
+        return finished
 
-class AbstractCassetteTestCase(AbstractCommandTestCase):
-    library = os.path.join(os.path.dirname(__file__), 'fixtures', 'cassettes')
+    def assert_no_replies(self):
+        finished = maybeDeferred(next, self.reply_buffer, None)
+        finished.addCallback(self.assertIsNone)
+        return finished
+
+    def assert_error(self, expected):
+        self.assertIsNotNone(self.failure.check(UserVisibleError))
+        self.assertEqual(self.failure.getErrorMessage(), expected)
 
     @staticmethod
     def use_cassette(cassette_name):
-        cassette_path = os.path.join(AbstractCassetteTestCase.library,
-                                     cassette_name + '.json')
+        cassette_path = os.path.join(CASSETTE_LIBRARY, cassette_name + '.json')
         cassette_agent = CassetteAgent(Agent(reactor), cassette_path)
-
         def decorator(func):
             @wraps(func)
             def wrapper(self, *args, **kwargs):
@@ -151,5 +178,4 @@ class AbstractCassetteTestCase(AbstractCommandTestCase):
                 finished.addCallback(cassette_agent.save)
                 return finished
             return wrapper
-
         return decorator

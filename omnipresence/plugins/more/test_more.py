@@ -4,14 +4,16 @@
 
 from itertools import count, imap
 
+from twisted.trial.unittest import TestCase
+
 from ...message import Message, ReplyBuffer, collapse
 from ...settings import PRIVATE_CHANNEL
-from ...test.helpers import AbstractCommandTestCase, OutgoingPlugin
+from ...test.helpers import CommandTestMixin, OutgoingPlugin
 
 from . import Default
 
 
-class MoreTestCase(AbstractCommandTestCase):
+class MoreTestCase(CommandTestMixin, TestCase):
     command_class = Default
 
     def setUp(self):
@@ -28,10 +30,10 @@ class MoreTestCase(AbstractCommandTestCase):
                          expected)
 
     def test_no_buffer(self):
-        self.assert_reply('', 'No text in buffer.')
+        self.assert_reply('', 'No results.')
 
     def test_own_buffer(self):
-        self.connection.message_buffers['#foo'][self.other_user.nick] = (
+        self.connection.message_buffers['#foo'][self.other_users[0].nick] = (
             ReplyBuffer(imap(str, count())))
         self.assert_reply('', '0')
         self.assert_reply('', '1')
@@ -57,14 +59,13 @@ class MoreTestCase(AbstractCommandTestCase):
         self.assert_reply('party3', '0')
         self.assert_reply('', '0', actor='party3')
         self.assert_reply('party3', '1')
-        print self.connection.message_buffers
         self.assert_reply('', '1', actor='party3')
         self.assert_reply('party3', '2')
         self.assert_reply('', '2', actor='party3')
 
     def test_other_buffer_private(self):
         private_buffers = self.connection.message_buffers[PRIVATE_CHANNEL]
-        private_buffers[self.other_user.nick] = ReplyBuffer('hello world')
+        private_buffers[self.other_users[0].nick] = ReplyBuffer('hello world')
         private_buffers['party3'] = ReplyBuffer('lorem ipsum dolor sit amet')
         self.assert_reply(
             'party3',

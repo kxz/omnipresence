@@ -7,16 +7,16 @@ from itertools import imap
 from textwrap import dedent
 
 from twisted.internet.defer import inlineCallbacks, fail, succeed
+from twisted.trial.unittest import TestCase
 
 from ..connection import MAX_REPLY_LENGTH
 from ..message import Message, collapse
 from ..plugin import EventPlugin, UserVisibleError
 from ..plugins.more import Default as More
-from .helpers import (AbstractConnectionTestCase, AbstractCommandTestCase,
-                      OutgoingPlugin)
+from .helpers import ConnectionTestMixin, CommandTestMixin, OutgoingPlugin
 
 
-class AbstractCommandMonitor(AbstractCommandTestCase):
+class AbstractCommandMonitor(CommandTestMixin, TestCase):
     def setUp(self):
         super(AbstractCommandMonitor, self).setUp()
         self.connection.settings.set('command_prefixes', ['!'])
@@ -26,7 +26,7 @@ class AbstractCommandMonitor(AbstractCommandTestCase):
 
     def more(self, **kwargs):
         request = self.command_message(
-            '', subaction='more', target=self.other_user.nick, **kwargs)
+            '', subaction='more', target=self.other_users[0].nick, **kwargs)
         deferred = self.connection.buffer_and_reply(
             More().on_command(request), request)
         deferred.addErrback(self.connection.reply_from_error, request)
@@ -78,28 +78,28 @@ class BasicCommandTestCase(AbstractCommandMonitor):
             min amcommo; lobortio platea loboreet il consequis. Lan
             ullut corem esectem vercilisit delent exer, feu inciduipit
             feum in augait vullam. Tortor augait dignissim."""
-            .format(self.other_user.nick)))
+            .format(self.other_users[0].nick)))
 
     def assert_hidden_error(self, deferred_result=None):
         self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314{}: Command \x02basiccommand\x02 encountered an error.
-            """.format(self.other_user.nick)))
+            """.format(self.other_users[0].nick)))
         self.assertLoggedErrors(1)
 
     def assert_visible_error(self, deferred_result=None):
         self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
-            \x0314{}: Lorem ipsum.""".format(self.other_user.nick)))
+            \x0314{}: Lorem ipsum.""".format(self.other_users[0].nick)))
 
     def test_empty_buffer(self):
         self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
-            \x0314{}: No text in buffer.""".format(self.other_user.nick)))
+            \x0314{}: No results.""".format(self.other_users[0].nick)))
 
     def test_synchronous_success(self):
         self.receive('PRIVMSG #foo :!basiccommand > party3')
@@ -109,7 +109,8 @@ class BasicCommandTestCase(AbstractCommandMonitor):
         self.receive('PRIVMSG {} :basiccommand > party3'.format(
             self.connection.nickname))
         self.assertEqual(self.outgoing.last_seen.action, 'notice')
-        self.assertEqual(self.outgoing.last_seen.venue, self.other_user.nick)
+        self.assertEqual(self.outgoing.last_seen.venue,
+                         self.other_users[0].nick)
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             Deliquatue volut pulvinar feugiat eleifend quisque
             suspendisse faccummy etuerci; vullandigna praestie hac
@@ -189,11 +190,11 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
                          '\x0314party3: 0')
         self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: 1'.format(self.other_user.nick))
+                         '\x0314{}: 1'.format(self.other_users[0].nick))
         self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: No text in buffer.'
-                         .format(self.other_user.nick))
+                         '\x0314{}: No results.'
+                         .format(self.other_users[0].nick))
 
     @inlineCallbacks
     def test_deferred(self):
@@ -204,11 +205,11 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
                          '\x0314party3: 0')
         yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: 1'.format(self.other_user.nick))
+                         '\x0314{}: 1'.format(self.other_users[0].nick))
         yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: No text in buffer.'
-                         .format(self.other_user.nick))
+                         '\x0314{}: No results.'
+                         .format(self.other_users[0].nick))
 
     @inlineCallbacks
     def test_deferred_error(self):
@@ -220,11 +221,11 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
         yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314{}: Command \x02more\x02 encountered an error."""
-            .format(self.other_user.nick)))
+            .format(self.other_users[0].nick)))
         yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: No text in buffer.'
-                         .format(self.other_user.nick))
+                         '\x0314{}: No results.'
+                         .format(self.other_users[0].nick))
         self.assertLoggedErrors(1)
 
 
@@ -247,23 +248,24 @@ class UnicodeReplyTestCase(AbstractCommandMonitor):
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content,
                          '\x0314{}: \xe2\x98\x83 (+1 more)'
-                         .format(self.other_user.nick))
+                         .format(self.other_users[0].nick))
         yield self.more(venue='#foo')
         self.assertEqual(self.outgoing.last_seen.content,
-                         '\x0314{}: \xe2\x98\x83'.format(self.other_user.nick))
+                         '\x0314{}: \xe2\x98\x83'
+                         .format(self.other_users[0].nick))
 
 
 #
 # Individual reply truncation
 #
 
-class ReplyTruncationTestCase(AbstractConnectionTestCase):
+class ReplyTruncationTestCase(ConnectionTestMixin, TestCase):
     def setUp(self):
         super(ReplyTruncationTestCase, self).setUp()
         self.outgoing = self.connection.settings.enable(OutgoingPlugin.name)
         self.request = Message(self.connection, False, 'command',
-            actor=self.other_user, subaction='spam',
-            venue=self.connection.nickname, target=self.other_user.nick)
+            actor=self.other_users[0], subaction='spam',
+            venue=self.connection.nickname, target=self.other_users[0].nick)
 
     def test_str(self):
         self.connection.reply(collapse("""\

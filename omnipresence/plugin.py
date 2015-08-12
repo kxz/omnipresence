@@ -21,6 +21,9 @@
 
 import importlib
 
+from twisted.internet.defer import maybeDeferred, succeed
+from twisted.logger import Logger
+
 
 #: The root package name to use for relative plugin module searches.
 PLUGIN_ROOT = 'omnipresence.plugins'
@@ -43,16 +46,21 @@ class EventPlugin(object):
 
     __metaclass__ = EventPluginMeta
 
+    log = Logger()
+
     def respond_to(self, msg):
-        """Start any callback this plugin defines for *msg*, and forward
-        its return value, or `None` if no such callback exists."""
+        """Start any callback this plugin defines for *msg*.  Return a
+        `Deferred` yielding its return value, or `None` if no callback
+        exists for this message."""
         callback_name = 'on_' + msg.action
         if not hasattr(self, callback_name):
-            return
+            return succeed(None)
         callback = getattr(self, callback_name)
         if msg.outgoing and not getattr(callback, 'outgoing', False):
-            return
-        return callback(msg)
+            return succeed(None)
+        self.log.debug('Passing message {msg} to {plugin} callback {name}',
+                       msg=msg, plugin=type(self).name, name=callback_name)
+        return maybeDeferred(callback, msg)
 
 
 def load_plugin(name):

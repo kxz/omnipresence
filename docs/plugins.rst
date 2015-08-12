@@ -92,6 +92,11 @@ either a channel message addressed to the command target or a private
 notice depending on how the command was invoked.
 A command reply may take one of the following forms:
 
+* `None`, in which case no reply is shown to the target user, not even a
+  "no results" message.
+  This is useful for commands that have other visible side effects, such
+  as changing the channel topic or mode.
+
 * A byte or Unicode string.
   Long strings are broken into chunks of up to `.CHUNK_LENGTH` bytes and
   treated as a sequence.
@@ -106,9 +111,9 @@ A command reply may take one of the following forms:
 
 * A `~twisted.internet.defer.Deferred` object yielding any of the above.
 
-In all cases, the first reply is immediately shown to the target user,
-and any remaining replies are placed in a buffer for later retrieval
-using the `.more <.plugins.more>` command.
+Unless the reply is `None`, the first reply is immediately shown to the
+target user, and any remaining replies are placed in a buffer for later
+retrieval using the `.more <.plugins.more>` command.
 Newlines inside replies are displayed as a slash surrounded by spaces.
 
 The following example plugin implements an infinite counter::

@@ -3,13 +3,16 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
+from twisted.internet.defer import inlineCallbacks
+from twisted.trial.unittest import TestCase
+
 from ...message import collapse
-from ...test.helpers import AbstractCassetteTestCase
+from ...test.helpers import CommandTestMixin
 
 from . import Default
 
 
-class WWWJDICTestCase(AbstractCassetteTestCase):
+class WWWJDICTestCase(CommandTestMixin, TestCase):
     command_class = Default
 
     @staticmethod
@@ -18,20 +21,29 @@ class WWWJDICTestCase(AbstractCassetteTestCase):
 
     def setUp(self):
         super(WWWJDICTestCase, self).setUp()
-        self.command.romanize = WWWJDICTestCase.romanize
+        self.command.romanize = self.romanize
 
-    @AbstractCassetteTestCase.use_cassette('wwwjdic/no-results')
+    @CommandTestMixin.use_cassette('wwwjdic/no-results')
+    @inlineCallbacks
     def test_no_results(self):
-        return self.assert_error(
-            'slartibartfast',
-            'No results found for \x02slartibartfast\x02.')
+        yield self.send_command('slartibartfast')
+        yield self.assert_no_replies()
 
-    @AbstractCassetteTestCase.use_cassette('wwwjdic/some-results')
+    @CommandTestMixin.use_cassette('wwwjdic/blank-results')
+    @inlineCallbacks
+    def test_blank_results(self):
+        yield self.send_command('fureba')
+        yield self.assert_no_replies()
+
+    @CommandTestMixin.use_cassette('wwwjdic/some-results')
+    @inlineCallbacks
     def test_some_results(self):
-        return self.assert_reply('amanogawa', map(collapse, [
-            u"""天の川(P);天の河(P)
-                [あまのがわ (mogiroomazi) (P); あまのかわ (mogiroomazi)]
-                (n) Milky Way; (P)""",
-            u"""天の川銀河
-                [あまのがわぎんが (mogiroomazi); あまのかわぎんが (mogiroomazi)]
-                (n) Milky Way Galaxy"""]))
+        yield self.send_command('amanogawa')
+        yield self.assert_reply(collapse(u"""\
+            天の川(P);天の河(P)
+            [あまのがわ (mogiroomazi) (P); あまのかわ (mogiroomazi)]
+            (n) Milky Way; (P)"""))
+        yield self.assert_reply(collapse(u"""\
+            天の川銀河
+            [あまのがわぎんが (mogiroomazi); あまのかわぎんが (mogiroomazi)]
+            (n) Milky Way Galaxy"""))

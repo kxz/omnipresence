@@ -6,8 +6,6 @@ from collections import namedtuple, Iterable, Iterator, Sequence
 from functools import partial
 import itertools
 
-from twisted.internet.defer import maybeDeferred, succeed
-
 from ..compat import length_hint
 from ..hostmask import Hostmask
 from .formatting import remove_formatting, unclosed_formatting
@@ -254,12 +252,13 @@ class ReplyBuffer(Iterator):
                             type(response).__name__)
 
     def next(self):
-        """Return a `Deferred` yielding the next reply string."""
         if isinstance(self.response, Sequence):
-            reply_string = self.response[0] if self.response else None
+            if not self.response:
+                raise StopIteration
+            reply_string = self.response[0]
             self.response = self.response[1:]
-            return succeed(reply_string)
-        return maybeDeferred(next, self.response, None)
+            return reply_string
+        return next(self.response)
 
     def tee(self, num=2):
         """Return *num* independent reply buffers from this one, like

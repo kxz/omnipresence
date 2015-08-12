@@ -38,7 +38,6 @@ Connections
 .. autoclass:: ChannelUserInfo
    :members:
 
-.. autodata:: CHUNK_LENGTH
 .. autodata:: MAX_REPLY_LENGTH
 
 
@@ -67,6 +66,8 @@ Messages
    instances are immutable.
    To create a new object based on the attributes of an existing one,
    use an instance's `~collections.somenamedtuple._replace` method.
+
+.. autodata:: CHUNK_LENGTH
 
 
 .. _message-types:

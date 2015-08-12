@@ -39,10 +39,9 @@ class Default(EventPlugin):
             'http://www.edrdg.org/cgi-bin/wwwjdic/wwwjdic?1ZUJ{}'.format(q))
         content = yield readBody(response)
         soup = BeautifulSoup(content)
-        if not soup.pre:
-            raise UserVisibleError('No results found for \x02{}\x02.'
-                                   .format(msg.content))
         results = []
+        if not soup.pre:
+            returnValue(results)
         for result in soup.pre.string.strip().splitlines():
             if not result.strip():
                 continue

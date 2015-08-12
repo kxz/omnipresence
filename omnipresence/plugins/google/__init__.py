@@ -61,8 +61,8 @@ class SearchIterator(Iterator):
                                    data['error']['message'])
         self.items = data.get('items')
         if not self.items:
-            raise UserVisibleError('No results found for \x02{}\x02.'
-                                   .format(self.q))
+            self.start = None
+            returnValue(None)
         if self.start == 1:
             self.total_results = int(data['searchInformation']['totalResults'])
         if 'nextPage' in data['queries']:

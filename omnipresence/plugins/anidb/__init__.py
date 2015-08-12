@@ -106,17 +106,13 @@ class Default(EventPlugin):
         content = yield readBody(response)
         soup = BeautifulSoup(content)
 
-        # We may get one of three differently-formatted responses
-        # depending on the number of results: if there are no results,
-        # an animelist page with a notice; if there are multiple
-        # results, an animelist page with a table containing them; and
-        # if there is only one result, an individual anime page.
+        # We get one of two response formats, depending on the number
+        # of results.  If there is exactly one result, we're redirected
+        # to the individual anime page, which has an "anime_all" table.
+        # Otherwise, we get an anime listing.
         results = parse_animelist(soup.find('table', 'animelist'))
         if not results:
             results = parse_anime_all(soup.find('div', 'anime_all'))
-        if not results:
-            raise UserVisibleError('No results found for \x02{}\x02.'
-                                   .format(msg.content))
         messages = []
         for anime in results:
             anime = {k: v.strip() for k, v in anime.iteritems()}

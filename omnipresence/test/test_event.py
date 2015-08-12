@@ -3,17 +3,17 @@
 
 
 from twisted.internet.defer import inlineCallbacks, succeed, fail
+from twisted.trial.unittest import TestCase
 
 from ..plugin import EventPlugin
-from .helpers import (AbstractConnectionTestCase,
-                      NoticingPlugin, OutgoingPlugin)
+from .helpers import ConnectionTestMixin, NoticingPlugin, OutgoingPlugin
 
 
 #
 # Base case
 #
 
-class EmptyPluginTestCase(AbstractConnectionTestCase):
+class EmptyPluginTestCase(ConnectionTestMixin, TestCase):
     def test_empty_plugin(self):
         self.connection.settings.enable(EventPlugin.name)
 
@@ -22,7 +22,7 @@ class EmptyPluginTestCase(AbstractConnectionTestCase):
 # Simple event delegation
 #
 
-class EventDelegationTestCase(AbstractConnectionTestCase):
+class EventDelegationTestCase(ConnectionTestMixin, TestCase):
     sign_on = False
 
     def setUp(self):
@@ -54,7 +54,7 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.receive('PRIVMSG #foo :lorem ipsum')
         self.assertEqual(len(self.noticing.seen), 1)
         self.assertEqual(self.noticing.last_seen.action, 'privmsg')
-        self.assertEqual(self.noticing.last_seen.actor, self.other_user)
+        self.assertEqual(self.noticing.last_seen.actor, self.other_users[0])
         self.assertEqual(self.noticing.last_seen.venue, '#foo')
         self.assertEqual(self.noticing.last_seen.content, 'lorem ipsum')
         self.assertFalse(self.noticing.last_seen.private)
@@ -64,7 +64,7 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
             self.connection.nickname))
         self.assertEqual(len(self.noticing.seen), 1)
         self.assertEqual(self.noticing.last_seen.action, 'privmsg')
-        self.assertEqual(self.noticing.last_seen.actor, self.other_user)
+        self.assertEqual(self.noticing.last_seen.actor, self.other_users[0])
         self.assertEqual(self.noticing.last_seen.venue,
                          self.connection.nickname)
         self.assertEqual(self.noticing.last_seen.content, 'lorem ipsum')
@@ -78,7 +78,7 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.receive('PRIVMSG #FOO :lorem ipsum')
         self.assertEqual(len(self.noticing.seen), 1)
         self.assertEqual(self.noticing.last_seen.action, 'privmsg')
-        self.assertEqual(self.noticing.last_seen.actor, self.other_user)
+        self.assertEqual(self.noticing.last_seen.actor, self.other_users[0])
         self.assertEqual(self.noticing.last_seen.venue, '#FOO')
         self.assertEqual(self.noticing.last_seen.content, 'lorem ipsum')
         self.assertFalse(self.noticing.last_seen.private)
@@ -87,9 +87,10 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
         self.receive('PRIVMSG #foo :!spam ham eggs')
         self.assertEqual(len(self.noticing.seen), 2)
         self.assertEqual(self.noticing.last_seen.action, 'command')
-        self.assertEqual(self.noticing.last_seen.actor, self.other_user)
+        self.assertEqual(self.noticing.last_seen.actor, self.other_users[0])
         self.assertEqual(self.noticing.last_seen.venue, '#foo')
-        self.assertEqual(self.noticing.last_seen.target, self.other_user.nick)
+        self.assertEqual(self.noticing.last_seen.target,
+                         self.other_users[0].nick)
         self.assertEqual(self.noticing.last_seen.subaction, 'spam')
         self.assertEqual(self.noticing.last_seen.content, 'ham eggs')
         self.assertFalse(self.noticing.last_seen.private)
@@ -100,11 +101,11 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
 
     def test_visible_quit(self):
         self.connection.joined('#foo')
-        self.connection.channel_names['#foo'].add(self.other_user.nick)
+        self.connection.channel_names['#foo'].add(self.other_users[0].nick)
         self.receive('QUIT :Client Quit')
         self.assertEqual(len(self.noticing.seen), 1)
         self.assertEqual(self.noticing.last_seen.action, 'quit')
-        self.assertEqual(self.noticing.last_seen.actor, self.other_user)
+        self.assertEqual(self.noticing.last_seen.actor, self.other_users[0])
         self.assertIsNone(self.noticing.last_seen.venue)
         self.assertEqual(self.noticing.last_seen.content, 'Client Quit')
         self.assertFalse(self.noticing.last_seen.private)
@@ -112,7 +113,8 @@ class EventDelegationTestCase(AbstractConnectionTestCase):
     def test_visible_quit_call_once(self):
         for channel in ('#foo', '#bar'):
             self.connection.joined(channel)
-            self.connection.channel_names[channel].add(self.other_user.nick)
+            self.connection.channel_names[channel].add(
+                self.other_users[0].nick)
         self.receive('QUIT :Client Quit')
         self.assertEqual(len(self.noticing.seen), 1)
 
@@ -144,7 +146,7 @@ class OrderingPluginTwo(EventPlugin):
     on_command = on_privmsg
 
 
-class EventOrderingTestCase(AbstractConnectionTestCase):
+class EventOrderingTestCase(ConnectionTestMixin, TestCase):
     def setUp(self):
         super(EventOrderingTestCase, self).setUp()
         self.one = self.connection.settings.enable(OrderingPluginOne.name)
@@ -177,7 +179,7 @@ class EventOrderingTestCase(AbstractConnectionTestCase):
 # Outgoing events
 #
 
-class OutgoingEventTestCase(AbstractConnectionTestCase):
+class OutgoingEventTestCase(ConnectionTestMixin, TestCase):
     def setUp(self):
         super(OutgoingEventTestCase, self).setUp()
         self.connection.settings.set('command_prefixes', ['!'])
@@ -243,7 +245,7 @@ class DeferredPlugin(EventPlugin):
         return succeed(None)
 
 
-class DeferredCallbackTestCase(AbstractConnectionTestCase):
+class DeferredCallbackTestCase(ConnectionTestMixin, TestCase):
     def setUp(self):
         super(DeferredCallbackTestCase, self).setUp()
         self.plugin = self.connection.settings.enable(DeferredPlugin.name)

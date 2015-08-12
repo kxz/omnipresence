@@ -2,12 +2,13 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
+from twisted.trial.unittest import TestCase
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
-from .helpers import AbstractConnectionTestCase
+from .helpers import ConnectionTestMixin
 
 
-class JoinSuspensionTestCase(AbstractConnectionTestCase):
+class JoinSuspensionTestCase(ConnectionTestMixin, TestCase):
     def test_join_suspension(self):
         self.transport.clear()
         self.connection.join('#foo')
@@ -31,7 +32,7 @@ class JoinSuspensionTestCase(AbstractConnectionTestCase):
         self.assertEqual(self.transport.value(), '')
 
 
-class NamesCommandTestCase(AbstractConnectionTestCase):
+class NamesCommandTestCase(ConnectionTestMixin, TestCase):
     def test_names_command(self):
         # FIXME:  This doesn't actually directly test that the correct
         # callbacks were invoked, just side effects of their default
@@ -50,7 +51,7 @@ class NamesCommandTestCase(AbstractConnectionTestCase):
                          frozenset(['Chanop', 'Voiced', 'Normal']))
 
 
-class NameTrackingTestCase(AbstractConnectionTestCase):
+class NameTrackingTestCase(ConnectionTestMixin, TestCase):
     # TODO:  Ensure case mapping works properly.
 
     def setUp(self):
@@ -94,7 +95,7 @@ class NameTrackingTestCase(AbstractConnectionTestCase):
         self.assertFalse('#foo' in self.connection.channel_names)
 
 
-class PingTimeoutTestCase(AbstractConnectionTestCase):
+class PingTimeoutTestCase(ConnectionTestMixin, TestCase):
     sign_on = False
 
     def test_signon_timeout(self):

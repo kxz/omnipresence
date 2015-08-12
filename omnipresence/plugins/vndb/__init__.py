@@ -65,9 +65,6 @@ class Default(EventPlugin):
                 vn['rating'] = u'{0} ({1})'.format(rating, votes)
             results.append(vn)
 
-        if not results:
-            raise UserVisibleError('No results found for \x02{}\x02.'
-                                   .format(msg.content))
         messages = []
         for vn in results:
             message = u'{} \u2014 \x02{}\x02'.format(vn['url'], vn['title'])
