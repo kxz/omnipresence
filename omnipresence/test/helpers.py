@@ -8,8 +8,9 @@ import os.path
 
 from stenographer import CassetteAgent
 from twisted.internet import reactor
-from twisted.internet.defer import maybeDeferred
+from twisted.internet.defer import inlineCallbacks, maybeDeferred
 from twisted.internet.task import Clock
+from twisted.python.failure import Failure
 from twisted.web.client import (Agent, ContentDecoderAgent,
                                 RedirectAgent, GzipDecoder)
 from twisted.web.test.test_agent import AbortableStringTransport
@@ -138,18 +139,15 @@ class CommandTestMixin(ConnectionTestMixin):
         return Message(self.connection, False, 'command',
                        content=content, **kwargs)
 
-    def set_reply_buffer(self, response, request):
-        self.reply_buffer = ReplyBuffer(response, request)
-
-    def set_failure(self, failure):
-        self.failure = failure
-
+    @inlineCallbacks
     def send_command(self, content, **kwargs):
         request = self.command_message(content, **kwargs)
-        finished = self.command.respond_to(request)
-        finished.addCallbacks(self.set_reply_buffer, self.set_failure,
-                              callbackArgs=(request,))
-        return finished
+        try:
+            response = yield self.command.respond_to(request)
+        except UserVisibleError:
+            self.failure = Failure()
+        else:
+            self.reply_buffer = ReplyBuffer(response, request)
 
     def assert_reply(self, expected):
         finished = maybeDeferred(next, self.reply_buffer, None)
