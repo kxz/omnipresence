@@ -54,6 +54,8 @@ def parse_animelist(animelist):
                  'rating': textify(row.find('td', 'weighted'))}
         if 'TBC' in anime['episodes']:
             anime['episodes'] = ''
+        if '-' in anime['airdate']:
+            anime['airdate'] = ''
         if '-' in anime['enddate']:
             anime['enddate'] = ''
         results.append(anime)
@@ -78,6 +80,8 @@ def parse_anime_all(anime_all):
     else:
         # Anime aired on a single day.
         anime['airdate'] = year_value
+        if anime['airdate'] == '?':
+            anime['airdate'] = ''
         anime['enddate'] = anime['airdate']
     # Try to get the permanent rating first; if it's "N/A", then
     # move to the temporary rating.
@@ -123,14 +127,16 @@ class Default(EventPlugin):
                 message += u', 1 episode'
             elif episodes:
                 message += u', {} episodes'.format(episodes)
-            airdate = anidb_to_iso8601(anime['airdate'])
-            enddate = anidb_to_iso8601(anime['enddate'])
-            if enddate and airdate != enddate:
-                message += u' from {} to {}'.format(airdate, enddate)
-            elif airdate == enddate:
-                message += u' on {}'.format(airdate)
-            else:
-                message += u' starting {}'.format(airdate)
+            if anime['airdate']:
+                airdate = anidb_to_iso8601(anime['airdate'])
+                if anime['enddate']:
+                    enddate = anidb_to_iso8601(anime['enddate'])
+                    if airdate == enddate:
+                        message += u' on {}'.format(airdate)
+                    else:
+                        message += u' from {} to {}'.format(airdate, enddate)
+                else:
+                    message += u' starting {}'.format(airdate)
             if not anime['rating'].startswith('N/A'):
                 message += u' \u2014 rated {}'.format(anime['rating'])
             messages.append(message)
