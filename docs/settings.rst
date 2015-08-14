@@ -36,8 +36,8 @@ down into individual channels unless explicitly overridden.
 For example, given the configuration file::
 
     set foo: 12345
-      channel redstapler:
-          set foo: 67890
+    channel redstapler:
+        set foo: 67890
 
 the variable ``foo`` is assumed to have the value ``12345`` everywhere
 except for the #redstapler channel, where it is ``67890``.
