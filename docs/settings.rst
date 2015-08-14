@@ -65,7 +65,7 @@ Connections
 The following directives are only valid at the root of a configuration
 file, and specify the details of the connection to the IRC server:
 
-* ``server`` is the hostname of the server.
+* ``host`` is the hostname of the server.
   This directive is mandatory.
 
 * ``port`` is the port to connect to on the server.
