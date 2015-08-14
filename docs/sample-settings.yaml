@@ -1,0 +1,93 @@
+### Connection details
+
+# The hostname of the server to connect to.  Mandatory!
+host: irc.server.example
+
+# The port to connect to.  The default is 6667.
+port: 6697
+
+# Whether to use SSL.  The default is false.
+ssl: yes
+
+# The default nickname to use.  The default is "Omnipresence".
+nickname: Omnipresence
+
+# The username to log into the server with.  Most servers use this
+# solely for the ~user field of the hostmask.  The default is blank,
+# which means to use the nickname.
+username: omni
+
+# The password to log into the server with.  The default is blank.
+password: ":Omnipresence NickServ-password"
+
+# The content of the IRC "real name" field, which appears in WHOIS
+# queries.  The default is blank.
+realname: Operated by ExampleUser
+
+
+### Core variables
+
+# A list of prefixes Omnipresence searches for in public channels to
+# indicate a command.  The default is empty.
+set command_prefixes: ['!']
+
+# Whether to treat the bot's current nickname, followed by a colon or
+# comma, as a command prefix; e.g., "Omnipresence: help".  The default
+# is true.
+set direct_addressing: off
+
+# A Python format string used for replies to public channels.  The
+# placeholder strings "{target}" and "{message}" are replaced by the
+# target nick and the content of the reply, respectively.  The default
+# is "\x0314{target}: {message}", which colors the response text gray.
+set reply_format: "{target}: {message}"
+
+# A Python character encoding used to encode and decode messages.  The
+# default is UTF-8.
+set encoding: "shift-jis"
+
+
+### Plugins
+#
+# Note that command plugins must have keywords explicitly set for them!
+# We recommend always enabling the "help" and "more" plugins.
+#
+# Some plugins require additional variables to be set.  See the built-in
+# plugin documentation for more details.
+
+plugin .help: [help]
+plugin .more: [more]
+
+
+### Ignore rules
+
+# You must specify a name for each ignore rule, which can be used to
+# override it inside private message or channel blocks.
+ignore bots:
+    # A list of hostmasks to ignore.  In most cases, a nickname alone is
+    # sufficient, but full *!*@* patterns also work.
+    hostmasks: [otherbot]
+    # A list of plugins to either include or exclude from this rule.
+    # If the directive is "include", only the plugins specifically named
+    # are covered by this ignore rule.  If it is "exclude", all plugins
+    # *but* those listed are covered by this ignore rule.
+    exclude: [.help, .more]
+
+
+### Private messages and channels
+
+private:
+    # You can override variables, plugins, and ignore rules inside
+    # private message or channel blocks.
+    plugin .help: off
+
+# The "#" prefix on channel names is optional.  Since "#" indicates a
+# comment in YAML, we recommend leaving it off.
+channel foo:
+    set command_prefixes: ['!', '~']
+
+    plugin .chanlog: on
+    set chanlog.directory: /opt/omnipresence/chanlog
+
+channel bar:
+    enabled: yes
