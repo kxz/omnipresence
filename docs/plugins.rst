@@ -85,7 +85,7 @@ Command replies
 ===============
 
 Any plugin with an ``on_command`` callback can be assigned one or more
-keywords in :doc:`its configuration <settings-plugin>`.
+keywords in :ref:`its configuration <settings-plugin>`.
 Unlike most other callbacks, whose return values are ignored, any value
 returned from ``on_command`` becomes the command reply, and is sent as
 either a channel message addressed to the command target or a private
