@@ -136,6 +136,14 @@ Look up weather conditions in a world location.
 .. module:: omnipresence.plugins.google
 
 Perform a Google search.
+The ``google.key`` and ``google.cx`` :ref:`settings variables
+<settings-variable>` must be set to valid Google Custom Search API
+credentials.
+For more information on setting up a Custom Search account, see the
+Stack Overflow topic `"What are the alternatives now that the Google web
+search API has been deprecated?"`__
+
+__ http://stackoverflow.com/a/11206266
 
 :alice: google far-out son of lung
 :bot: https://en.wikipedia.org/wiki/Omnipresence —
