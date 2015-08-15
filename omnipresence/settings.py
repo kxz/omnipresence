@@ -68,8 +68,8 @@ def scopes_for(message):
 
 #: A container for a list of hostmasks and a list of plugins to either
 #: include or exclude from an ignore rule.
-IgnoreRule = collections.namedtuple('IgnoreRule',
-                                    ('hostmasks', 'include', 'exclude'))
+IgnoreRule = collections.namedtuple(
+    'IgnoreRule', ('hostmasks', 'exclusive', 'plugins'))
 
 
 class SettingsParser(object):
@@ -126,17 +126,22 @@ class SettingsParser(object):
         if 'include' in value and 'exclude' in value:
             raise ValueError('both "include" and "exclude" specified '
                              'for ignore rule "{}"'.format(name))
+        elif 'include' in value:
+            plugins = list_or_raise(
+                value['include'],
+                'expected list of inclusions for ignore rule "{}"'.format(name))
+        elif 'exclude' in value:
+            plugins = list_or_raise(
+                value['exclude'],
+                'expected list of exclusions for ignore rule "{}"'.format(name))
+        else:
+            raise ValueError('neither "include" nor "exclude" '
+                             'specified for ignore rule "{}"'.format(name))
         hostmasks = list_or_raise(
             value.get('hostmasks'),
             'expected list of hostmasks for ignore rule "{}"'.format(name))
-        include = list_or_raise(
-            value.get('include', []),
-            'expected list of inclusions for ignore rule "{}"'.format(name))
-        exclude = list_or_raise(
-            value.get('exclude', []),
-            'expected list of exclusions for ignore rule "{}"'.format(name))
         rule = IgnoreRule([Hostmask.from_string(h) for h in hostmasks],
-                          include, exclude)
+                          'exclude' in value, plugins)
         self.settings.ignore(name, rule, scope=scope)
 
     def parse_plugin(self, scope, args, value):
@@ -318,21 +323,26 @@ class ConnectionSettings(object):
             if message and message.actor:
                 ignore_rules.update(self.ignore_rules.get(scope, {}))
         # Figure out which plugins should ignore this message, if any.
-        include = set()
-        exclude = set()
+        exclusive = False
+        plugins = set()
         if message and message.actor:
             for ignore_rule in ignore_rules.itervalues():
                 if not ignore_rule:  # explicit False
                     continue
                 if any(message.actor.matches(hostmask)
                        for hostmask in ignore_rule.hostmasks):
-                    include.update(ignore_rule.include)
-                    exclude.update(ignore_rule.exclude)
+                    if ignore_rule.exclusive:
+                        if not exclusive:
+                            plugins.clear()
+                        exclusive = True
+                        plugins.update(ignore_rule.plugins)
+                    elif not exclusive:
+                        plugins.update(ignore_rule.plugins)
         return {self.loaded_plugins[name]: keywords
                 for name, keywords in plugin_rules.iteritems()
                 if not (plugin_rules[name] is False or
-                        (exclude and name not in exclude) or
-                        (include and name in include))}
+                        (exclusive and name not in plugins) or
+                        (not exclusive and name in plugins))}
 
     def plugins_by_keyword(self, keyword, message=None):
         """Return a list of enabled plugin objects with the given

@@ -72,8 +72,10 @@ class SettingsTestCase(unittest.TestCase):
             'ignore test': {'invalid_key': None}})
         self.assertRaises(ValueError, ConnectionSettings, {
             'ignore both_ex_and_include': {'exclude': None, 'include': None}})
+        self.assertRaises(ValueError, ConnectionSettings, {
+            'ignore without_plugins': {'hostmasks': []}})
         self.assertRaises(TypeError, ConnectionSettings, {
-            'ignore test': {'hostmasks': 'whoops_a_string'}})
+            'ignore test': {'hostmasks': 'whoops_a_string', 'include': []}})
         self.assertRaises(TypeError, ConnectionSettings, {
             'ignore test': {'hostmasks': [], 'exclude': 'whoops_a_string'}})
         self.assertRaises(TypeError, ConnectionSettings, {
@@ -200,9 +202,17 @@ class SettingsTestCase(unittest.TestCase):
             settings.active_plugins(message=PRIVATE_MESSAGE),
             {PluginB.name: []})
 
+    def test_empty_exclude(self):
+        settings = ConnectionSettings({
+            'plugin ..test.test_settings/PluginA': [],
+            'plugin ..test.test_settings/PluginB': [],
+            'ignore all': {'hostmasks': ['nick!*@*'], 'exclude': []}})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(message=PRIVATE_MESSAGE), {})
+
     def test_data(self):
         # Implicitly assert that no errors are raised.
-        settings = ConnectionSettings({
+        ConnectionSettings({
             'data': {
                 'channel i_can_do_whatever': {
                     'private i_want': {}},
