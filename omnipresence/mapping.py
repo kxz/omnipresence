@@ -15,6 +15,21 @@ class CaseMapping(object):
         self.lower_trans = maketrans(upper, lower)
         self.upper_trans = maketrans(lower, upper)
 
+    def __hash__(self):
+        # Translation tables are just strings, which are hashable.
+        return hash(self.lower_trans)
+
+    def __eq__(self, other):
+        if isinstance(other, CaseMapping):
+            return self.lower_trans == other.lower_trans
+        return NotImplemented
+
+    def __ne__(self, other):
+        equal = self.__eq__(other)
+        if equal is NotImplemented:
+            return NotImplemented
+        return not equal
+
     def equates(self, one, two):
         """Return a boolean value indicating whether *a* and *b* are
         equal under this case mapping."""
