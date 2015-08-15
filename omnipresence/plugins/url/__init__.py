@@ -132,8 +132,6 @@ class URLTitleFetcher(object):
             else:
                 log.err(value, 'Encountered an error in URL processing.')
                 title = u'Error: \x02{:s}\x02.'.format(value.value)
-            if len(title) >= 140:
-                title = u'{}\u2026{}'.format(title[:64], title[-64:])
             if len(results) > 1:
                 message = u'URL ({}/{}): {}'.format(i + 1, len(results), title)
             else:
