@@ -70,7 +70,7 @@ class ChannelUserInfo(object):
 # Connection protocol
 #
 
-class Connection(IRCClient):
+class Connection(IRCClient, object):
     """Omnipresence's core IRC client protocol."""
 
     log = Logger()
@@ -186,7 +186,7 @@ class Connection(IRCClient):
         """Called when a connection has been successfully made to the
         IRC server."""
         self.log.info('Connected to server')
-        IRCClient.connectionMade(self)
+        super(Connection, self).connectionMade()
         self.signon_timeout = self.reactor.callLater(
             self.max_lag, self.signon_timed_out)
 
@@ -199,7 +199,7 @@ class Connection(IRCClient):
         self.transport.abortConnection()
 
     def _createHeartbeat(self):
-        heartbeat = IRCClient._createHeartbeat(self)
+        heartbeat = super(Connection, self)._createHeartbeat()
         heartbeat.clock = self.reactor
         return heartbeat
 
@@ -210,18 +210,18 @@ class Connection(IRCClient):
                           'seconds); disconnecting', lag=lag)
             self.transport.abortConnection()
             return
-        IRCClient._sendHeartbeat(self)
+        super(Connection, self)._sendHeartbeat()
 
     def startHeartbeat(self):
         self.last_pong = self.reactor.seconds()
-        IRCClient.startHeartbeat(self)
+        super(Connection, self).startHeartbeat()
 
     def connectionLost(self, reason):
         """Called when the connection to the IRC server has been lost
         or disconnected."""
         self.log.info('Disconnected from server')
         self.respond_to(Message(self, False, 'disconnected'))
-        IRCClient.connectionLost(self, reason)
+        super(Connection, self).connectionLost(reason)
 
     # Callbacks inherited from IRCClient
 
@@ -331,18 +331,18 @@ class Connection(IRCClient):
             self.suspended_joins.append(channel)
             return
         self.log.info('Joining {channel}', channel=channel)
-        IRCClient.join(self, channel)
+        super(Connection, self).join(channel)
 
     def kick(self, channel, nick, reason=None):
         """Kick the the given *nick* from the given *channel*."""
-        IRCClient.kick(self, channel, nick, reason)
+        super(Connection, self).kick(channel, nick, reason)
         self.channel_names[channel].discard(nick)
         self.message_buffers[channel].pop(nick, None)
 
     def setNick(self, nickname):
         """Change the bot's nickname."""
         oldnick = self.nickname
-        IRCClient.setNick(self, nickname)
+        super(Connection, self).setNick(nickname)
         for channel in self.channel_names:
             if oldnick in self.channel_names[channel]:  # sanity check
                 self.channel_names[channel].discard(oldnick)
@@ -353,7 +353,7 @@ class Connection(IRCClient):
 
     def quit(self, message=''):
         """Quit from the IRC server."""
-        IRCClient.quit(self, message)
+        super(Connection, self).quit(message)
         self.channel_names = {}
         self.message_buffers = {PRIVATE_CHANNEL: {}}
 
@@ -524,7 +524,7 @@ class Connection(IRCClient):
         # Twisted doesn't like it when `lineReceived` returns a value,
         # but we need to do so for some unit tests.
         deferred = self.respond_to(Message.from_raw(self, False, line))
-        IRCClient.lineReceived(self, line)
+        super(Connection, self).lineReceived(line)
         return deferred
 
     def lineReceived(self, line):
@@ -535,7 +535,7 @@ class Connection(IRCClient):
         """Overrides `.IRCClient.sendLine`."""
         deferred = self.respond_to(Message.from_raw(
             self, True, line, actor=self.nickname))
-        IRCClient.sendLine(self, line)
+        super(Connection, self).sendLine(line)
         return deferred
 
 

@@ -47,12 +47,12 @@ default_agent = IdentifyingAgent(
 # JSON response helpers
 #
 
-class JSONBodyProtocol(_ReadBodyProtocol):
+class JSONBodyProtocol(_ReadBodyProtocol, object):
     """A protocol that returns a Python object deserialized from JSON
     data sent to it."""
 
     def __init__(self, status, message, deferred):
-        _ReadBodyProtocol.__init__(self, status, message, deferred)
+        super(JSONBodyProtocol, self).__init__(status, message, deferred)
         self.deferred.addCallback(json.loads)
 
 
