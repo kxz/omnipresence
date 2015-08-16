@@ -6,7 +6,6 @@ import collections
 import shlex
 
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
-import yaml
 
 from . import mapping
 from .hostmask import Hostmask
@@ -79,11 +78,11 @@ class SettingsParser(object):
     def __init__(self, settings):
         self.settings = settings
 
-    def parse(self):
-        self.parse_scope(None, self.settings.dict_)
+    def parse(self, dct):
+        self.parse_scope(None, dct)
 
-    def parse_scope(self, scope, dict_):
-        if not isinstance(dict_, collections.Mapping):
+    def parse_scope(self, scope, dct):
+        if not isinstance(dct, collections.Mapping):
             if scope is None:
                 scope_str = 'connection'
             elif scope is PRIVATE_CHANNEL:
@@ -91,8 +90,8 @@ class SettingsParser(object):
             else:
                 scope_str = scope
             raise TypeError('settings for {} must be a mapping, not {}'
-                            .format(scope_str, type(dict_).__name__))
-        for directive, value in dict_.iteritems():
+                            .format(scope_str, type(dct).__name__))
+        for directive, value in dct.iteritems():
             command, args = parse_directive(directive)
             try:
                 parse_method = getattr(self, 'parse_{}'.format(command))
@@ -230,9 +229,15 @@ class SettingsParser(object):
 class ConnectionSettings(object):
     """A container for bot configuration options."""
 
-    def __init__(self, dict_=None, case_mapping=None):
-        #: The dictionary used to initialize this settings object.
-        self.dict_ = dict_ or {}
+    def __init__(self, *args, **kwargs):
+        #: A dictionary mapping plugin names to plugin objects.
+        #
+        # This should persist even across configuration reloads, which
+        # is why it's defined here and not in `replace`.
+        self.loaded_plugins = {}
+        self.replace(*args, **kwargs)
+
+    def replace(self, dct=None, case_mapping=None):
         #: The `CaseMapping` used for channel name case folding.
         self.case_mapping = case_mapping or mapping.by_name('rfc1459')
         #: A `CaseMappedDict` mapping channel names to another dict of
@@ -244,8 +249,6 @@ class ConnectionSettings(object):
         #: enabled rules, or `False` for disabled rules.
         self.ignore_rules = mapping.CaseMappedDict(
             case_mapping=self.case_mapping)
-        #: A dictionary mapping plugin names to plugin objects.
-        self.loaded_plugins = {}
         #: A `CaseMappedDict` mapping channel names to another dict of
         #: plugin objects and either a list of associated keywords for
         #: enabled plugins, or `False` for disabled plugins.
@@ -264,14 +267,8 @@ class ConnectionSettings(object):
         self.realname = None
         self.username = None
         self.userinfo = None
-
-        SettingsParser(self).parse()
-
-    @classmethod
-    def from_yaml(cls, yaml_):
-        """Return a new `.ConnectionSettings` object based on a YAML
-        string or open file object pointing to a YAML file."""
-        return cls(yaml.load(yaml_))
+        # Let `SettingsParser` do its legwork.
+        SettingsParser(self).parse(dct or {})
 
     # Configuration variables
 

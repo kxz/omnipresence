@@ -217,9 +217,8 @@ class Connection(IRCClient, object):
         self.last_pong = self.reactor.seconds()
         super(Connection, self).startHeartbeat()
 
-    def reload_settings(self):
-        """Join or part any channels as needed after a call of
-        `ConnectionSettings.reload_settings`."""
+    def after_reload(self):
+        """Join or part channels after a settings reload."""
         for channel in self.settings.autojoin_channels:
             if channel not in self.channel_names:
                 self.join(channel)
@@ -576,9 +575,10 @@ class ConnectionFactory(ReconnectingClientFactory):
         self.protocols.add(protocol)
         return protocol
 
-    def reload_settings(self):
-        """Update the settings of any associated connections, then call
-        `Connection.reload_settings` on each."""
+    def reload_settings(self, dct):
+        """Update this connection's settings using *dct*, then call
+        `after_reload` on each of this factory's active connections."""
+        self.log.info('Reloading settings')
+        self.settings.replace(dct)
         for protocol in self.protocols:
-            protocol.settings = self.settings
-            protocol.reload_settings()
+            protocol.after_reload()

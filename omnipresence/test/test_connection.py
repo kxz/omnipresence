@@ -135,21 +135,19 @@ class SettingsReloadingTestCase(TestCase):
     def test_joins_and_parts(self):
         self.connection.joined('#bar')
         self.transport.clear()
-        self.factory.settings = ConnectionSettings({
+        self.factory.reload_settings({
             'channel #foo': {'enabled': False},
             'channel #bar': {'enabled': 'soft'},
             'channel #baz': {'enabled': 'soft'},
             'channel #quux': {'enabled': True}})
-        self.factory.reload_settings()
         self.assertEqual(
             set(self.transport.value().splitlines()),
             set(['PART #foo', 'JOIN #quux']))
 
     def test_plugin_identity(self):
         old_plugin = self.factory.settings.active_plugins().keys()[0]
-        self.factory.settings = ConnectionSettings({
+        self.factory.reload_settings({
             'channel #foo': {'enabled': True},
             'plugin {}'.format(NoticingPlugin.name): True})
         new_plugin = self.factory.settings.active_plugins().keys()[0]
         self.assertIs(old_plugin, new_plugin)
-    test_plugin_identity.todo = 'needs settings refactor'
