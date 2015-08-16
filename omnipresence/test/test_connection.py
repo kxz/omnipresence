@@ -2,10 +2,14 @@
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
+from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase
+from twisted.web.test.test_agent import AbortableStringTransport
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
-from .helpers import ConnectionTestMixin
+from ..connection import Connection, ConnectionFactory
+from ..settings import ConnectionSettings
+from .helpers import ConnectionTestMixin, NoticingPlugin
 
 
 class JoinSuspensionTestCase(ConnectionTestMixin, TestCase):
@@ -22,8 +26,6 @@ class JoinSuspensionTestCase(ConnectionTestMixin, TestCase):
         self.connection.join('#bar')
         self.assertEqual(self.transport.value(), '')
         self.connection.resume_joins()
-        # XXX:  Maybe resumption should perform suspended joins in the
-        # order they were requested, even if duplicates are present.
         self.assertEqual(self.transport.value(),
                          'JOIN #foo\r\nJOIN #foo\r\nJOIN #bar\r\n')
         self.transport.clear()
@@ -115,3 +117,39 @@ class PingTimeoutTestCase(ConnectionTestMixin, TestCase):
         self.assertFalse(self.transport.disconnecting)
         self.connection.reactor.advance(self.connection.heartbeatInterval)
         self.assertTrue(self.transport.disconnecting)
+
+
+class SettingsReloadingTestCase(TestCase):
+    def setUp(self):
+        self.transport = AbortableStringTransport()
+        self.factory = ConnectionFactory()
+        self.factory.settings = ConnectionSettings({
+            'channel #foo': {'enabled': True},
+            'plugin {}'.format(NoticingPlugin.name): True})
+        self.connection = self.factory.buildProtocol(None)
+        self.connection.reactor = Clock()
+        self.connection.makeConnection(self.transport)
+        self.connection.irc_RPL_WELCOME('irc.server.test', [])
+        self.connection.joined('#foo')
+
+    def test_joins_and_parts(self):
+        self.connection.joined('#bar')
+        self.transport.clear()
+        self.factory.settings = ConnectionSettings({
+            'channel #foo': {'enabled': False},
+            'channel #bar': {'enabled': 'soft'},
+            'channel #baz': {'enabled': 'soft'},
+            'channel #quux': {'enabled': True}})
+        self.factory.reload_settings()
+        self.assertEqual(
+            set(self.transport.value().splitlines()),
+            set(['PART #foo', 'JOIN #quux']))
+
+    def test_plugin_identity(self):
+        old_plugin = self.factory.settings.active_plugins().keys()[0]
+        self.factory.settings = ConnectionSettings({
+            'channel #foo': {'enabled': True},
+            'plugin {}'.format(NoticingPlugin.name): True})
+        new_plugin = self.factory.settings.active_plugins().keys()[0]
+        self.assertIs(old_plugin, new_plugin)
+    test_plugin_identity.todo = 'needs settings refactor'

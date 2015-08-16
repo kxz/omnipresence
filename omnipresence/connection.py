@@ -3,6 +3,7 @@
 
 
 import re
+from weakref import WeakSet
 
 from twisted.internet import reactor
 from twisted.internet.defer import (DeferredList, maybeDeferred,
@@ -215,6 +216,16 @@ class Connection(IRCClient, object):
     def startHeartbeat(self):
         self.last_pong = self.reactor.seconds()
         super(Connection, self).startHeartbeat()
+
+    def reload_settings(self):
+        """Join or part any channels as needed after a call of
+        `ConnectionSettings.reload_settings`."""
+        for channel in self.settings.autojoin_channels:
+            if channel not in self.channel_names:
+                self.join(channel)
+        for channel in self.settings.autopart_channels:
+            if channel in self.channel_names:
+                self.leave(channel)
 
     def connectionLost(self, reason):
         """Called when the connection to the IRC server has been lost
@@ -547,6 +558,8 @@ class ConnectionFactory(ReconnectingClientFactory):
     def __init__(self):
         #: The `ConnectionSettings` object associated with this factory.
         self.settings = ConnectionSettings()
+        #: A `WeakSet` containing associated `Connection` objects.
+        self.protocols = WeakSet()
 
     def startedConnecting(self, connector):
         self.log.info('Attempting to connect to server')
@@ -560,4 +573,12 @@ class ConnectionFactory(ReconnectingClientFactory):
         protocol.realname = self.settings.realname or protocol.realname
         protocol.username = self.settings.username or protocol.username
         protocol.userinfo = self.settings.userinfo or protocol.userinfo
+        self.protocols.add(protocol)
         return protocol
+
+    def reload_settings(self):
+        """Update the settings of any associated connections, then call
+        `Connection.reload_settings` on each."""
+        for protocol in self.protocols:
+            protocol.settings = self.settings
+            protocol.reload_settings()
