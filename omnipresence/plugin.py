@@ -63,9 +63,9 @@ class EventPlugin(object):
         return maybeDeferred(callback, msg)
 
 
-def load_plugin(name):
-    """Load and return an event plugin class, given the *name* used to
-    refer to it in an Omnipresence configuration file."""
+def plugin_class_by_name(name):
+    """Return an event plugin class given the *name* used to refer to
+    it in an Omnipresence configuration file."""
     module_name, _, member_name = name.partition('/')
     if not member_name:
         member_name = 'Default'

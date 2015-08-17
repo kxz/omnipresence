@@ -9,7 +9,7 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from . import mapping
 from .hostmask import Hostmask
-from .plugin import load_plugin
+from .plugin import plugin_class_by_name
 
 
 #: A sentinel "channel" used for direct messages to users.
@@ -300,7 +300,7 @@ class ConnectionSettings(object):
 
     def enable(self, name, keywords=None, scope=None):
         """Enable a plugin and return the loaded plugin instance."""
-        self.loaded_plugins.setdefault(name, load_plugin(name)())
+        self.loaded_plugins.setdefault(name, plugin_class_by_name(name)())
         self.plugin_rules.setdefault(scope, {})[name] = keywords or []
         return self.loaded_plugins[name]
 
