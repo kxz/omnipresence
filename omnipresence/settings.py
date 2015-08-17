@@ -7,7 +7,7 @@ import shlex
 
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
-from .case_mapping import case_mapping_by_name, CaseMappedDict
+from .case_mapping import CaseMapping, CaseMappedDict
 from .hostmask import Hostmask
 from .plugin import plugin_class_by_name
 
@@ -239,7 +239,7 @@ class ConnectionSettings(object):
 
     def replace(self, dct=None, case_mapping=None):
         #: The `CaseMapping` used for channel name case folding.
-        self.case_mapping = case_mapping or case_mapping_by_name('rfc1459')
+        self.case_mapping = case_mapping or CaseMapping.by_name('rfc1459')
         #: A `CaseMappedDict` mapping channel names to another dict of
         #: variable names and their values.
         self.variables = CaseMappedDict(case_mapping=self.case_mapping)

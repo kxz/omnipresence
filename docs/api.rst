@@ -209,7 +209,7 @@ Case mappings
 =============
 
 .. automodule:: omnipresence.case_mapping
-   :members: CaseMapping, case_mapping_by_name, CaseMappedDict
+   :members: CaseMapping, CaseMappedDict
 
 Web resource interactions
 =========================

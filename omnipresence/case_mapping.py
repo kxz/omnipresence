@@ -7,6 +7,12 @@ from string import maketrans, ascii_lowercase, ascii_uppercase
 from twisted.python.util import InsensitiveDict
 
 
+KNOWN_CASE_MAPPINGS = {
+    'ascii':          (ascii_lowercase,           ascii_uppercase),
+    'rfc1459':        (ascii_lowercase + r'|{}~', ascii_uppercase + r'\[]^'),
+    'strict-rfc1459': (ascii_lowercase + r'|{}',  ascii_uppercase + r'\[]')}
+
+
 class CaseMapping(object):
     """Provides convenience methods for bidirectional string translation
     given a mapping of characters from *lower* to *upper*."""
@@ -14,6 +20,35 @@ class CaseMapping(object):
     def __init__(self, lower, upper):
         self.lower_trans = maketrans(upper, lower)
         self.upper_trans = maketrans(lower, upper)
+
+    @classmethod
+    def by_name(cls, name):
+        """Return an IRC case mapping given the *name* used in the
+        ``CASEMAPPING`` parameter of a ``RPL_ISUPPORT`` IRC message
+        (numeric 005).  The following mapping names are recognized:
+
+        .. describe:: ascii
+
+           Treats the letters *A-Z* as uppercase versions of the letters
+           *a-z*.
+
+        .. describe:: strict-rfc1459
+
+           Extends the ``ascii`` case mapping to further treat *{}|* as
+           the lowercase versions of *\\[\\]\\\\*.  This matches the
+           rules specified in :rfc:`1459#section-2.2`.
+
+        .. describe:: rfc1459
+
+           Extends the ``strict-rfc1459`` case mapping to further treat
+           *~* as the lowercase version of *^*.  This corresponds to
+           most servers' actual implementation of the RFC 1459 rules.
+
+        `ValueError` is raised on an unrecognized mapping name.
+        """
+        if name in KNOWN_CASE_MAPPINGS:
+            return cls(*KNOWN_CASE_MAPPINGS[name])
+        raise ValueError('unrecognized case mapping "{}"'.format(name))
 
     def __hash__(self):
         # Translation tables are just strings, which are hashable.
@@ -47,48 +82,6 @@ class CaseMapping(object):
         return string.translate(self.upper_trans)
 
 
-CASE_MAPPINGS = {
-    'ascii':          CaseMapping(ascii_lowercase,
-                                  ascii_uppercase),
-    'rfc1459':        CaseMapping(ascii_lowercase + r'|{}~',
-                                  ascii_uppercase + r'\[]^'),
-    'strict-rfc1459': CaseMapping(ascii_lowercase + r'|{}',
-                                  ascii_uppercase + r'\[]'),
-}
-
-
-def case_mapping_by_name(name):
-    """Given the *name* of an IRC case mapping, as commonly specified by
-    the value of the ``CASEMAPPING`` parameter in ``RPL_ISUPPORT``
-    messages (numeric 005), return a `.CaseMapping` object that
-    implements that mapping.  The following mapping names are
-    recognized:
-
-    .. describe:: ascii
-
-       Treats the letters *A-Z* as uppercase versions of the letters
-       *a-z*.
-
-    .. describe:: strict-rfc1459
-
-       Extends the ``ascii`` case mapping to further treat *{}|* as the
-       lowercase versions of *\\[\\]\\\\*.  This matches the rules
-       specified in :rfc:`1459#section-2.2`.
-
-
-    .. describe:: rfc1459
-
-       Extends the ``strict-rfc1459`` case mapping to further treat *~*
-       as the lowercase version of *^*.  This corresponds to most
-       servers' actual implementation of the RFC 1459 rules.
-
-    `~exceptions.ValueError` is raised on an unrecognized mapping name.
-    """
-    if name in CASE_MAPPINGS:
-        return CASE_MAPPINGS[name]
-    raise ValueError('unrecognized case mapping "{}"'.format(name))
-
-
 class CaseMappedDict(InsensitiveDict):
     """A dictionary whose keys are treated case-insensitively according
     to a `.CaseMapping` or mapping name string (as given to `.by_name`)
@@ -96,9 +89,9 @@ class CaseMappedDict(InsensitiveDict):
 
     def __init__(self, initial=None, case_mapping=None):
         if case_mapping is None:
-            case_mapping = CASE_MAPPINGS['rfc1459']
+            case_mapping = CaseMapping.by_name('rfc1459')
         elif isinstance(case_mapping, basestring):
-            case_mapping = case_mapping_by_name(case_mapping)
+            case_mapping = CaseMapping.by_name(case_mapping)
         self.case_mapping = case_mapping
         InsensitiveDict.__init__(self, initial, preserve=1)
 

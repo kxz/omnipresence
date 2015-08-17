@@ -4,7 +4,7 @@
 
 from twisted.trial import unittest
 
-from ..case_mapping import case_mapping_by_name
+from ..case_mapping import CaseMapping
 from ..hostmask import Hostmask, mask_as_regex as mar
 
 
@@ -60,7 +60,7 @@ class HostmaskTestCase(unittest.TestCase):
             Hostmask('nick', None, None).matches('ni\\ck'))
 
     def test_case_insensitive_matches(self):
-        rfc1459 = case_mapping_by_name('rfc1459')
+        rfc1459 = CaseMapping.by_name('rfc1459')
         self.assertFalse(
             Hostmask('NICK', 'USER', 'HOST').matches('nick!user@host'))
         self.assertTrue(

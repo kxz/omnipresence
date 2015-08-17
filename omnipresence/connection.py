@@ -13,7 +13,7 @@ from twisted.logger import Logger
 from twisted.words.protocols.irc import IRCClient
 
 from . import __version__, __source__
-from .case_mapping import case_mapping_by_name, CaseMappedDict
+from .case_mapping import CaseMapping, CaseMappedDict
 from .compat import length_hint
 from .message import Message, ReplyBuffer, truncate_unicode
 from .plugin import UserVisibleError
@@ -119,7 +119,7 @@ class Connection(IRCClient, object):
         #: The `.CaseMapping` currently in effect on this connection.
         #: Defaults to ``rfc1459`` if none is explicitly provided by the
         #: server.
-        self.case_mapping = case_mapping_by_name('rfc1459')
+        self.case_mapping = CaseMapping.by_name('rfc1459')
 
         #: A mapping of channels to the set of nicks present in each
         #: channel.
@@ -244,7 +244,7 @@ class Connection(IRCClient, object):
         if case_mappings:
             name = case_mappings[0]
             try:
-                self.case_mapping = case_mapping_by_name(name)
+                self.case_mapping = CaseMapping.by_name(name)
             except ValueError:
                 self.log.info('Ignoring unsupported server CASEMAPPING '
                               '"{name}"', name=name)
