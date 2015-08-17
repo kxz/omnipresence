@@ -14,8 +14,10 @@ class Default(EventPlugin):
     def on_command(self, msg):
         venue = PRIVATE_CHANNEL if msg.private else msg.venue
         source = msg.content or msg.actor.nick
-        buf = msg.connection.message_buffers[venue].get(
-            source, ReplyBuffer([]))
+        try:
+            buf = msg.connection.venues[venue].nicks[source].reply_buffer
+        except KeyError:
+            buf = ReplyBuffer([])
         if msg.connection.case_mapping.equates(source, msg.actor.nick):
             return buf
         if msg.private:
@@ -25,7 +27,8 @@ class Default(EventPlugin):
         # `tee`, so we place one of the children back into the buffer
         # instead.
         one, two = buf.tee()
-        msg.connection.message_buffers[venue][source] = one
+        msg.connection.venues[venue].add_nick(source)
+        msg.connection.venues[venue].nicks[source].reply_buffer = one
         return two
 
     def on_cmdhelp(self, msg):

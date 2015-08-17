@@ -22,6 +22,11 @@ class MoreTestCase(CommandTestMixin, TestCase):
             OutgoingPlugin.name, [])
         self.connection.joined('#foo')
 
+    def buffer_reply(self, venue, nick, buf):
+        self.connection.venues[venue].add_nick(nick)
+        self.connection.venues[venue].nicks[nick].reply_buffer = (
+            ReplyBuffer(buf))
+
     def assert_reply(self, content, expected, **kwargs):
         kwargs.setdefault('venue', '#foo')
         msg = self.command_message(content, **kwargs)
@@ -33,15 +38,13 @@ class MoreTestCase(CommandTestMixin, TestCase):
         self.assert_reply('', 'No results.')
 
     def test_own_buffer(self):
-        self.connection.message_buffers['#foo'][self.other_users[0].nick] = (
-            ReplyBuffer(imap(str, count())))
+        self.buffer_reply('#foo', self.other_users[0].nick, imap(str, count()))
         self.assert_reply('', '0')
         self.assert_reply('', '1')
         self.assert_reply('', '2')
 
     def test_other_buffer_sequence(self):
-        self.connection.message_buffers['#foo']['party3'] = ReplyBuffer(
-            map(str, xrange(10)))
+        self.buffer_reply('#foo', 'party3', map(str, xrange(10)))
         self.assert_reply('party3', '0 (+9 more)')
         # Make sure party3's buffer hasn't been advanced.
         self.assert_reply('party3', '0 (+9 more)')
@@ -52,8 +55,7 @@ class MoreTestCase(CommandTestMixin, TestCase):
         self.assert_reply('', '2 (+7 more)', actor='party3')
 
     def test_other_buffer_iterator(self):
-        self.connection.message_buffers['#foo']['party3'] = ReplyBuffer(
-            imap(str, count()))
+        self.buffer_reply('#foo', 'party3', imap(str, count()))
         self.assert_reply('party3', '0')
         # Make sure party3's buffer hasn't been advanced.
         self.assert_reply('party3', '0')
@@ -64,9 +66,10 @@ class MoreTestCase(CommandTestMixin, TestCase):
         self.assert_reply('', '2', actor='party3')
 
     def test_other_buffer_private(self):
-        private_buffers = self.connection.message_buffers[PRIVATE_CHANNEL]
-        private_buffers[self.other_users[0].nick] = ReplyBuffer('hello world')
-        private_buffers['party3'] = ReplyBuffer('lorem ipsum dolor sit amet')
+        self.buffer_reply(PRIVATE_CHANNEL, self.other_users[0].nick,
+                          'hello world')
+        self.buffer_reply(PRIVATE_CHANNEL, 'party3',
+                          'lorem ipsum dolor sit amet')
         self.assert_reply(
             'party3',
             "You cannot read another user's private reply buffer.",

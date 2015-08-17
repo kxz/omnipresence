@@ -101,7 +101,7 @@ class EventDelegationTestCase(ConnectionTestMixin, TestCase):
 
     def test_visible_quit(self):
         self.connection.joined('#foo')
-        self.connection.channel_names['#foo'].add(self.other_users[0].nick)
+        self.connection.names_arrived('#foo', [self.other_users[0].nick])
         self.receive('QUIT :Client Quit')
         self.assertEqual(len(self.noticing.seen), 1)
         self.assertEqual(self.noticing.last_seen.action, 'quit')
@@ -113,8 +113,7 @@ class EventDelegationTestCase(ConnectionTestMixin, TestCase):
     def test_visible_quit_call_once(self):
         for channel in ('#foo', '#bar'):
             self.connection.joined(channel)
-            self.connection.channel_names[channel].add(
-                self.other_users[0].nick)
+            self.connection.names_arrived(channel, [self.other_users[0].nick])
         self.receive('QUIT :Client Quit')
         self.assertEqual(len(self.noticing.seen), 1)
 
@@ -217,14 +216,14 @@ class OutgoingEventTestCase(ConnectionTestMixin, TestCase):
 
     def test_own_quit(self):
         self.connection.joined('#foo')
-        self.connection.channel_names['#foo'].add(self.connection.nickname)
+        self.connection.names_arrived('#foo', [self.connection.nickname])
         self.connection.sendLine('QUIT :Client Quit')
         self.assertEqual(len(self.outgoing.seen), 1)
         self.assertEqual(len(self.no_outgoing.seen), 0)
 
     def test_echoed_quit(self):
         self.connection.joined('#foo')
-        self.connection.channel_names['#foo'].add(self.connection.nickname)
+        self.connection.names_arrived('#foo', [self.connection.nickname])
         self.echo('QUIT :Client Quit')
         self.assertEqual(len(self.outgoing.seen), 1)
         self.assertEqual(len(self.no_outgoing.seen), 1)

@@ -40,8 +40,8 @@ class NamesCommandTestCase(ConnectionTestMixin, TestCase):
         # callbacks were invoked, just side effects of their default
         # implementations.  Is this worth the effort to actually fix?
         self.connection.joined('#foo')
-        self.assertEqual(self.connection.channel_names['#foo'],
-                         frozenset())
+        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
+                         set())
         self.transport.clear()
         self.connection.lineReceived(
             '{} {} = #foo :@Chanop +Voiced Normal'
@@ -49,8 +49,8 @@ class NamesCommandTestCase(ConnectionTestMixin, TestCase):
         self.connection.lineReceived(
             '{} {} #foo :End of NAMES list'
             .format(RPL_ENDOFNAMES, self.connection.nickname))
-        self.assertEqual(self.connection.channel_names['#foo'],
-                         frozenset(['Chanop', 'Voiced', 'Normal']))
+        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
+                         set(['Chanop', 'Voiced', 'Normal']))
 
 
 class NameTrackingTestCase(ConnectionTestMixin, TestCase):
@@ -59,42 +59,42 @@ class NameTrackingTestCase(ConnectionTestMixin, TestCase):
     def setUp(self):
         super(NameTrackingTestCase, self).setUp()
         self.connection.joined('#foo')
-        self.connection.namesArrived('#foo', ['@Chanop', '+Voiced', 'Normal'])
+        self.connection.names_arrived('#foo', ['@Chanop', '+Voiced', 'Normal'])
         self.connection.joined('#bar')
-        self.connection.namesArrived('#bar', ['@Chanop', '+Voiced'])
+        self.connection.names_arrived('#bar', ['@Chanop', '+Voiced'])
 
     def test_userRenamed(self):
         self.connection.userRenamed('Chanop', 'Chanop_')
-        self.assertEqual(self.connection.channel_names['#foo'],
-                         frozenset(['Chanop_', 'Voiced', 'Normal']))
-        self.assertEqual(self.connection.channel_names['#bar'],
-                         frozenset(['Chanop_', 'Voiced']))
+        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
+                         set(['Chanop_', 'Voiced', 'Normal']))
+        self.assertEqual(set(self.connection.venues['#bar'].nicks.iterkeys()),
+                         set(['Chanop_', 'Voiced']))
 
     def test_userLeft(self):
         self.connection.userLeft('Normal', '#foo')
-        self.assertEqual(self.connection.channel_names['#foo'],
-                         frozenset(['Chanop', 'Voiced']))
+        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
+                         set(['Chanop', 'Voiced']))
 
     def test_userJoined(self):
         self.connection.userJoined('Normal', '#bar')
-        self.assertEqual(self.connection.channel_names['#bar'],
-                         frozenset(['Chanop', 'Voiced', 'Normal']))
+        self.assertEqual(set(self.connection.venues['#bar'].nicks.iterkeys()),
+                         set(['Chanop', 'Voiced', 'Normal']))
 
     def test_userKicked(self):
         self.connection.userKicked('Normal', '#foo', 'Chanop', '')
-        self.assertEqual(self.connection.channel_names['#foo'],
-                         frozenset(['Chanop', 'Voiced']))
+        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
+                         set(['Chanop', 'Voiced']))
 
     def test_userQuit(self):
         self.connection.userQuit('Voiced', 'Client Quit')
-        self.assertEqual(self.connection.channel_names['#foo'],
-                         frozenset(['Chanop', 'Normal']))
-        self.assertEqual(self.connection.channel_names['#bar'],
-                         frozenset(['Chanop']))
+        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
+                         set(['Chanop', 'Normal']))
+        self.assertEqual(set(self.connection.venues['#bar'].nicks.iterkeys()),
+                         set(['Chanop']))
 
     def test_left(self):
         self.connection.left('#foo')
-        self.assertFalse('#foo' in self.connection.channel_names)
+        self.assertFalse('#foo' in self.connection.venues)
 
 
 class PingTimeoutTestCase(ConnectionTestMixin, TestCase):
