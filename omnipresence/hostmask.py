@@ -119,7 +119,7 @@ class Hostmask(namedtuple('Hostmask', ('nick', 'user', 'host'))):
             backslash = False  # was the last character a backslash?
             for char in component:
                 if backslash:
-                    # Same caveat as in _mask_to_regex.
+                    # Same caveat as in mask_as_regex.
                     backslash = False
                 else:
                     if char == '\\':

@@ -208,8 +208,8 @@ Hostmasks
 Case mappings
 =============
 
-.. automodule:: omnipresence.mapping
-   :members: CaseMapping, by_name
+.. automodule:: omnipresence.case_mapping
+   :members: CaseMapping, case_mapping_by_name, CaseMappedDict
 
 Web resource interactions
 =========================

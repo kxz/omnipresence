@@ -7,7 +7,7 @@ import shlex
 
 from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
-from . import mapping
+from .case_mapping import case_mapping_by_name, CaseMappedDict
 from .hostmask import Hostmask
 from .plugin import plugin_class_by_name
 
@@ -239,21 +239,18 @@ class ConnectionSettings(object):
 
     def replace(self, dct=None, case_mapping=None):
         #: The `CaseMapping` used for channel name case folding.
-        self.case_mapping = case_mapping or mapping.by_name('rfc1459')
+        self.case_mapping = case_mapping or case_mapping_by_name('rfc1459')
         #: A `CaseMappedDict` mapping channel names to another dict of
         #: variable names and their values.
-        self.variables = mapping.CaseMappedDict(
-            case_mapping=self.case_mapping)
+        self.variables = CaseMappedDict(case_mapping=self.case_mapping)
         #: A `CaseMappedDict` mapping channel names to another dict of
         #: ignore rule names and either an `IgnoreRule` object for
         #: enabled rules, or `False` for disabled rules.
-        self.ignore_rules = mapping.CaseMappedDict(
-            case_mapping=self.case_mapping)
+        self.ignore_rules = CaseMappedDict(case_mapping=self.case_mapping)
         #: A `CaseMappedDict` mapping channel names to another dict of
         #: plugin objects and either a list of associated keywords for
         #: enabled plugins, or `False` for disabled plugins.
-        self.plugin_rules = mapping.CaseMappedDict(
-            case_mapping=self.case_mapping)
+        self.plugin_rules = CaseMappedDict(case_mapping=self.case_mapping)
         #: The set of channels to automatically join after signing on.
         self.autojoin_channels = set()
         #: The set of channels to forcibly part from after signing on.

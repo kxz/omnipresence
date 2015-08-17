@@ -12,7 +12,8 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.logger import Logger
 from twisted.words.protocols.irc import IRCClient
 
-from . import __version__, __source__, mapping
+from . import __version__, __source__
+from .case_mapping import case_mapping_by_name, CaseMappedDict
 from .compat import length_hint
 from .message import Message, ReplyBuffer, truncate_unicode
 from .plugin import UserVisibleError
@@ -49,7 +50,7 @@ class ChannelInfo(object):
         self.modes = {}
 
         #: A dictionary mapping nicks to `.ChannelUserInfo` objects.
-        self.nicks = mapping.CaseMappedDict(case_mapping=case_mapping)
+        self.nicks = CaseMappedDict(case_mapping=case_mapping)
 
         #: This channel's topic, or the empty string if none is set.
         self.topic = ''
@@ -118,7 +119,7 @@ class Connection(IRCClient, object):
         #: The `.CaseMapping` currently in effect on this connection.
         #: Defaults to ``rfc1459`` if none is explicitly provided by the
         #: server.
-        self.case_mapping = mapping.by_name('rfc1459')
+        self.case_mapping = case_mapping_by_name('rfc1459')
 
         #: A mapping of channels to the set of nicks present in each
         #: channel.
@@ -142,7 +143,7 @@ class Connection(IRCClient, object):
     def _case_mapped_dict(self, initial=None):
         """Return a `.CaseMappedDict` using this connection's current
         case mapping."""
-        return mapping.CaseMappedDict(initial, case_mapping=self.case_mapping)
+        return CaseMappedDict(initial, case_mapping=self.case_mapping)
 
     def _lower(self, string):
         """Convenience alias for ``self.case_mapping.lower``."""
@@ -243,7 +244,7 @@ class Connection(IRCClient, object):
         if case_mappings:
             name = case_mappings[0]
             try:
-                self.case_mapping = mapping.by_name(name)
+                self.case_mapping = case_mapping_by_name(name)
             except ValueError:
                 self.log.info('Ignoring unsupported server CASEMAPPING '
                               '"{name}"', name=name)

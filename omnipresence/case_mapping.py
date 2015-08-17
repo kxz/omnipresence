@@ -1,4 +1,4 @@
-# -*- test-case-name: omnipresence.test.test_mapping -*-
+# -*- test-case-name: omnipresence.test.test_case_mapping -*-
 """Operations on IRC case mappings."""
 
 
@@ -57,7 +57,7 @@ CASE_MAPPINGS = {
 }
 
 
-def by_name(name):
+def case_mapping_by_name(name):
     """Given the *name* of an IRC case mapping, as commonly specified by
     the value of the ``CASEMAPPING`` parameter in ``RPL_ISUPPORT``
     messages (numeric 005), return a `.CaseMapping` object that
@@ -86,7 +86,7 @@ def by_name(name):
     """
     if name in CASE_MAPPINGS:
         return CASE_MAPPINGS[name]
-    raise ValueError('unrecognized case mapping "{0}"'.format(name))
+    raise ValueError('unrecognized case mapping "{}"'.format(name))
 
 
 class CaseMappedDict(InsensitiveDict):
@@ -98,7 +98,7 @@ class CaseMappedDict(InsensitiveDict):
         if case_mapping is None:
             case_mapping = CASE_MAPPINGS['rfc1459']
         elif isinstance(case_mapping, basestring):
-            case_mapping = by_name(case_mapping)
+            case_mapping = case_mapping_by_name(case_mapping)
         self.case_mapping = case_mapping
         InsensitiveDict.__init__(self, initial, preserve=1)
 
