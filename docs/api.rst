@@ -18,24 +18,26 @@ Connections
    .. automethod:: suspend_joins
    .. automethod:: resume_joins
 
-   .. autoinstanceattribute:: case_mapping
-      :annotation:
-   .. autoinstanceattribute:: channel_names
-      :annotation:
-   .. autoinstanceattribute:: message_buffers
-      :annotation:
-   .. autoinstanceattribute:: suspended_joins
-      :annotation:
-   .. autoinstanceattribute:: reactor
-      :annotation:
+   .. attribute:: case_mapping
 
-.. autoclass:: UserInfo
+      The `.CaseMapping` currently in effect on this connection.
+      Defaults to ``rfc1459`` if none is explicitly provided by the
+      server.
+
+   .. attribute:: venues
+
+      A mapping of venue names to `VenueInfo` objects.
+
+   .. attribute:: reactor
+
+      The reactor in use on this client.
+      This may be overridden when a deterministic clock is needed, such
+      as in unit tests.
+
+.. autoclass:: VenueInfo
    :members:
 
-.. autoclass:: ChannelInfo
-   :members:
-
-.. autoclass:: ChannelUserInfo
+.. autoclass:: VenueUserInfo
    :members:
 
 .. autodata:: MAX_REPLY_LENGTH
@@ -199,17 +201,20 @@ Message formatting
 .. automodule:: omnipresence.message.formatting
    :members: remove_formatting, unclosed_formatting
 
+
 Hostmasks
 =========
 
 .. automodule:: omnipresence.hostmask
    :members: Hostmask
 
+
 Case mappings
 =============
 
 .. automodule:: omnipresence.case_mapping
    :members: CaseMapping, CaseMappedDict
+
 
 Web resource interactions
 =========================
@@ -218,6 +223,7 @@ Web resource interactions
 
 .. autofunction:: omnipresence.web.html.textify
 .. autofunction:: omnipresence.web.http.read_json_body
+
 
 Human-readable output helpers
 =============================
