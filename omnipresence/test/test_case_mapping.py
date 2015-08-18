@@ -9,13 +9,13 @@ from ..case_mapping import CaseMapping, KNOWN_CASE_MAPPINGS, CaseMappedDict
 
 EXPECTED = {
     # Strings to compare        # Equal under...
-    ('#foo', '#foo'):           ('ascii', 'strict-rfc1459', 'rfc1459'),
-    ('#foo', '#FOO'):           ('ascii', 'strict-rfc1459', 'rfc1459'),
-    ('#FOO', '#FOO'):           ('ascii', 'strict-rfc1459', 'rfc1459'),
+    ('foo', 'foo'):             ('ascii', 'strict-rfc1459', 'rfc1459'),
+    ('foo', 'FOO'):             ('ascii', 'strict-rfc1459', 'rfc1459'),
+    ('FOO', 'FOO'):             ('ascii', 'strict-rfc1459', 'rfc1459'),
     ('nick[tag]', 'nick{tag}'): ('strict-rfc1459', 'rfc1459'),
     ('foo|bar', 'foo\\bar'):    ('strict-rfc1459', 'rfc1459'),
     ('hello~', 'hello^'):       ('rfc1459'),
-    ('#foo', '#bar'):           tuple()
+    ('foo', 'bar'):             tuple(),
 }
 
 
@@ -46,19 +46,19 @@ class CaseMappingTestCase(TestCase):
         self.assertFalse(CaseMapping('a', 'b') != EqualityTester(False))
 
     def test_equates(self):
-        for (a, b), equal_KNOWN_case_mappings in EXPECTED.iteritems():
+        for (a, b), equal_case_mappings in EXPECTED.iteritems():
             for name in KNOWN_CASE_MAPPINGS:
                 case_mapping = CaseMapping.by_name(name)
                 self.assertIs(case_mapping.equates(a, b),
-                              name in equal_KNOWN_case_mappings)
+                              name in equal_case_mappings)
 
-    def test_upper_equates(self):
-        for (a, b), equal_KNOWN_case_mappings in EXPECTED.iteritems():
+    def test_upper_equality(self):
+        for (a, b), equal_case_mappings in EXPECTED.iteritems():
             for name in KNOWN_CASE_MAPPINGS:
                 case_mapping = CaseMapping.by_name(name)
                 self.assertIs(
                     case_mapping.upper(a) == case_mapping.upper(b),
-                    name in equal_KNOWN_case_mappings)
+                    name in equal_case_mappings)
 
     def test_unrecognized_name(self):
         self.assertRaises(ValueError, CaseMapping.by_name, 'spam')
@@ -66,11 +66,11 @@ class CaseMappingTestCase(TestCase):
 
 class CaseMappedDictTestCase(TestCase):
     def test_lookup(self):
-        for (a, b), equal_KNOWN_case_mappings in EXPECTED.iteritems():
+        for (a, b), equal_case_mappings in EXPECTED.iteritems():
             for name in KNOWN_CASE_MAPPINGS:
                 d = CaseMappedDict(case_mapping=name)
                 d[a] = 1
-                if name in equal_KNOWN_case_mappings:
+                if name in equal_case_mappings:
                     self.assertEqual(d.get(b), 1)
                 else:
                     self.assertIsNone(d.get(b))
