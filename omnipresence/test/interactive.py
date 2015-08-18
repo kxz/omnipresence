@@ -7,6 +7,7 @@ import sys
 from twisted.internet import reactor
 from twisted.python import log
 from twisted.test.proto_helpers import StringTransport
+import yaml
 
 from ..connection import ConnectionFactory
 from ..settings import ConnectionSettings
@@ -45,7 +46,7 @@ def main():
     factory = ConnectionFactory()
     if args.settings_path:
         with open(args.settings_path) as settings_file:
-            factory.settings = ConnectionSettings.from_yaml(settings_file)
+            factory.settings = ConnectionSettings(yaml.load(settings_file))
     protocol = factory.buildProtocol(('127.0.0.1', 6667))
     transport = StringTransport()
     # Total hack.  Should add formatting support sometime.
