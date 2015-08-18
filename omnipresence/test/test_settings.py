@@ -4,6 +4,7 @@
 
 from twisted.trial import unittest
 
+from ..case_mapping import CaseMapping
 from ..hostmask import Hostmask
 from ..message import Message
 from ..plugin import EventPlugin
@@ -135,10 +136,48 @@ class SettingsTestCase(unittest.TestCase):
     def test_case_mapping(self):
         settings = ConnectionSettings({
             'set spam': 'connection',
-            'channel FOO': {
-                'set spam': 'channel'}})
-        self.assertEqual(settings.get('spam', message=CHANNEL_MESSAGE),
-                         'channel')
+            # Have to double-escape the backslash for shlex.split.
+            'channel FOO\\\\^': {'set spam': 'foo'},
+            'channel BAR\\\\': {'set spam': 'bar'},
+            'channel BAZ': {'set spam': 'baz'}})
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#foo|~')),
+            'foo')
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#bar|')),
+            'bar')
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#baz')),
+            'baz')
+        settings.set_case_mapping(CaseMapping.by_name('strict-rfc1459'))
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#foo|~')),
+            'connection')
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#bar|')),
+            'bar')
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#baz')),
+            'baz')
+        settings.set_case_mapping(CaseMapping.by_name('ascii'))
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#foo|~')),
+            'connection')
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#bar|')),
+            'connection')
+        self.assertEqual(
+            settings.get('spam',
+                         message=CHANNEL_MESSAGE._replace(venue='#baz')),
+            'baz')
 
     def assert_plugins_with_keywords(self, actual, expected):
         self.assertEqual({type(plugin).name: keywords for plugin, keywords
@@ -201,6 +240,60 @@ class SettingsTestCase(unittest.TestCase):
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=PRIVATE_MESSAGE),
             {PluginB.name: []})
+
+    def test_ignore_hostmasks_case_mapping(self):
+        settings = ConnectionSettings({
+            'plugin ..test.test_settings/PluginA': True,
+            'ignore test': {
+                'hostmasks': ['FOO\\^', 'BAR\\', 'BAZ'],
+                'exclude': []}})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('foo|~', 'user', 'host'))),
+            {})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('bar|', 'user', 'host'))),
+            {})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('baz', 'user', 'host'))),
+            {})
+        settings.set_case_mapping(CaseMapping.by_name('strict-rfc1459'))
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('foo|~', 'user', 'host'))),
+            {PluginA.name: []})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('bar|', 'user', 'host'))),
+            {})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('baz', 'user', 'host'))),
+            {})
+        settings.set_case_mapping(CaseMapping.by_name('ascii'))
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('foo|~', 'user', 'host'))),
+            {PluginA.name: []})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('bar|', 'user', 'host'))),
+            {PluginA.name: []})
+        self.assert_plugins_with_keywords(
+            settings.active_plugins(
+                message=CHANNEL_MESSAGE._replace(
+                    actor=Hostmask('baz', 'user', 'host'))),
+            {})
 
     def test_empty_exclude(self):
         settings = ConnectionSettings({

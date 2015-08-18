@@ -230,7 +230,7 @@ class ConnectionSettings(object):
     """A container for bot configuration options."""
 
     def __init__(self, *args, **kwargs):
-        #: A dictionary mapping plugin names to plugin objects.
+        #: A mapping of plugin names to plugin objects.
         #
         # This should persist even across configuration reloads, which
         # is why it's defined here and not in `replace`.
@@ -238,6 +238,9 @@ class ConnectionSettings(object):
         self.replace(*args, **kwargs)
 
     def replace(self, dct=None, case_mapping=None):
+        """Reinitialize this settings object."""
+        #: The mapping used to initialize this settings object.
+        self.dct = dct or {}
         #: The `CaseMapping` used for channel name case folding.
         self.case_mapping = case_mapping or CaseMapping.by_name('rfc1459')
         #: A `CaseMappedDict` mapping channel names to another dict of
@@ -265,7 +268,11 @@ class ConnectionSettings(object):
         self.username = None
         self.userinfo = None
         # Let `SettingsParser` do its legwork.
-        SettingsParser(self).parse(dct or {})
+        SettingsParser(self).parse(self.dct)
+
+    def set_case_mapping(self, case_mapping):
+        """Set this settings object's case mapping."""
+        self.replace(self.dct, case_mapping)
 
     # Configuration variables
 
@@ -323,7 +330,7 @@ class ConnectionSettings(object):
             for ignore_rule in ignore_rules.itervalues():
                 if not ignore_rule:  # explicit False
                     continue
-                if any(message.actor.matches(hostmask)
+                if any(message.actor.matches(hostmask, self.case_mapping)
                        for hostmask in ignore_rule.hostmasks):
                     if ignore_rule.exclusive:
                         if not exclusive:

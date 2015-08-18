@@ -149,13 +149,16 @@ class ConnectionBase(IRCClient, object):
         if case_mappings:
             name = case_mappings[0]
             try:
-                self.case_mapping = CaseMapping.by_name(name)
+                case_mapping = CaseMapping.by_name(name)
             except ValueError:
                 self.log.info('Ignoring unsupported server CASEMAPPING '
                               '"{name}"', name=name)
             else:
-                self.log.info('Using server-provided CASEMAPPING '
-                              '"{name}"', name=name)
+                if self.case_mapping != case_mapping:
+                    self.case_mapping = case_mapping
+                    self.settings.set_case_mapping(self.case_mapping)
+                    self.log.info('Using server-provided CASEMAPPING '
+                                  '"{name}"', name=name)
 
     def privmsg(self, prefix, channel, message):
         """See `IRCClient.privmsg`."""
