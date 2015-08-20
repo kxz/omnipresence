@@ -40,8 +40,7 @@ class NamesCommandTestCase(ConnectionTestMixin, TestCase):
         # callbacks were invoked, just side effects of their default
         # implementations.  Is this worth the effort to actually fix?
         self.connection.joined('#foo')
-        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
-                         set())
+        self.assertItemsEqual(self.connection.venues['#foo'].nicks.keys(), [])
         self.transport.clear()
         self.connection.lineReceived(
             '{} {} = #foo :@Chanop +Voiced Normal'
@@ -49,8 +48,8 @@ class NamesCommandTestCase(ConnectionTestMixin, TestCase):
         self.connection.lineReceived(
             '{} {} #foo :End of NAMES list'
             .format(RPL_ENDOFNAMES, self.connection.nickname))
-        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
-                         set(['Chanop', 'Voiced', 'Normal']))
+        self.assertItemsEqual(self.connection.venues['#foo'].nicks.keys(),
+                              ['Chanop', 'Voiced', 'Normal'])
 
 
 class NameTrackingTestCase(ConnectionTestMixin, TestCase):
@@ -65,32 +64,32 @@ class NameTrackingTestCase(ConnectionTestMixin, TestCase):
 
     def test_userRenamed(self):
         self.connection.userRenamed('Chanop', 'Chanop_')
-        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
-                         set(['Chanop_', 'Voiced', 'Normal']))
-        self.assertEqual(set(self.connection.venues['#bar'].nicks.iterkeys()),
-                         set(['Chanop_', 'Voiced']))
+        self.assertItemsEqual(self.connection.venues['#foo'].nicks.keys(),
+                              ['Chanop_', 'Voiced', 'Normal'])
+        self.assertItemsEqual(self.connection.venues['#bar'].nicks.keys(),
+                              ['Chanop_', 'Voiced'])
 
     def test_userLeft(self):
         self.connection.userLeft('Normal', '#foo')
-        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
-                         set(['Chanop', 'Voiced']))
+        self.assertItemsEqual(self.connection.venues['#foo'].nicks.keys(),
+                              ['Chanop', 'Voiced'])
 
     def test_userJoined(self):
         self.connection.userJoined('Normal', '#bar')
-        self.assertEqual(set(self.connection.venues['#bar'].nicks.iterkeys()),
-                         set(['Chanop', 'Voiced', 'Normal']))
+        self.assertItemsEqual(self.connection.venues['#bar'].nicks.keys(),
+                              ['Chanop', 'Voiced', 'Normal'])
 
     def test_userKicked(self):
         self.connection.userKicked('Normal', '#foo', 'Chanop', '')
-        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
-                         set(['Chanop', 'Voiced']))
+        self.assertItemsEqual(self.connection.venues['#foo'].nicks.keys(),
+                              ['Chanop', 'Voiced'])
 
     def test_userQuit(self):
         self.connection.userQuit('Voiced', 'Client Quit')
-        self.assertEqual(set(self.connection.venues['#foo'].nicks.iterkeys()),
-                         set(['Chanop', 'Normal']))
-        self.assertEqual(set(self.connection.venues['#bar'].nicks.iterkeys()),
-                         set(['Chanop']))
+        self.assertItemsEqual(self.connection.venues['#foo'].nicks.keys(),
+                              ['Chanop', 'Normal'])
+        self.assertItemsEqual(self.connection.venues['#bar'].nicks.keys(),
+                              ['Chanop'])
 
     def test_left(self):
         self.connection.left('#foo')
@@ -140,9 +139,8 @@ class SettingsReloadingTestCase(TestCase):
             'channel #bar': {'enabled': 'soft'},
             'channel #baz': {'enabled': 'soft'},
             'channel #quux': {'enabled': True}})
-        self.assertEqual(
-            set(self.transport.value().splitlines()),
-            set(['PART #foo', 'JOIN #quux']))
+        self.assertItemsEqual(self.transport.value().splitlines(),
+                              ['PART #foo', 'JOIN #quux'])
 
     def test_plugin_identity(self):
         old_plugin = self.factory.settings.active_plugins().keys()[0]

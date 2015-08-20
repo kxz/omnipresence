@@ -93,8 +93,8 @@ class SettingsTestCase(unittest.TestCase):
             'channel bar': {'enabled': False},
             'channel #baz': {'enabled': 'soft'},
             'channel &quux': {}})
-        self.assertEqual(settings.autojoin_channels, set(['#foo', '&quux']))
-        self.assertEqual(settings.autopart_channels, set(['#bar']))
+        self.assertItemsEqual(settings.autojoin_channels, ['#foo', '&quux'])
+        self.assertItemsEqual(settings.autopart_channels, ['#bar'])
 
     def test_minimal_connection(self):
         settings = ConnectionSettings({'host': 'irc.foo.test'})

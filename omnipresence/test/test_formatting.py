@@ -26,7 +26,7 @@ class FormattingRemovalTestCase(unittest.TestCase):
 
 class UnclosedFormattingTestCase(unittest.TestCase):
     def _test(self, string, unclosed):
-        self.assertEqual(unclosed_formatting(string), frozenset(unclosed))
+        self.assertItemsEqual(unclosed_formatting(string), unclosed)
 
     def test_unformatted(self):
         self._test('lorem ipsum', [])
