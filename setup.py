@@ -39,7 +39,8 @@ setup(
     packages=find_packages() + ['twisted.plugins'],
     package_data={
         'omnipresence': [
-            'test/fixtures/cassettes/*/*'],
+            'test/fixtures/cassettes/*/*',
+            'test/fixtures/settings/*'],
         'twisted': [
             'plugins/omnipresence_plugin.py']},
     install_requires=[
