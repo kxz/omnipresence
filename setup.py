@@ -44,7 +44,7 @@ setup(
         'twisted': [
             'plugins/omnipresence_plugin.py']},
     install_requires=[
-        'Twisted>=14.0.0',
+        'Twisted>=15.3.0',
         'pyOpenSSL',
         'service_identity',
         'ipaddress',
