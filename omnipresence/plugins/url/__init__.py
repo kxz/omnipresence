@@ -88,7 +88,7 @@ class URLTitleFetcher(object):
             if frag.startswith('!'):
                 url += ('&' if '?' in url else '?' +
                         '_escaped_fragment_=' + urllib.quote(frag[1:]))
-            d = self.get_title(url, hostname)
+            d = fetch_title(url, hostname_tag=True)
             d.addErrback(self.make_error_reply, hostname)
             fetchers.append(d)
         l = DeferredList(fetchers)
@@ -96,18 +96,6 @@ class URLTitleFetcher(object):
         return l
 
     action = privmsg
-
-    @inlineCallbacks
-    def get_title(self, url, hostname):
-        response, title = yield fetch_title(url, with_response=True)
-        # Add a hostname tag to the returned title, indicating any
-        # redirects to a different host that occurred.
-        final_hostname = urlparse(response.request.absoluteURI).hostname
-        if hostname != final_hostname:
-            hostname_tag = u'{} \u2192 {}'.format(hostname, final_hostname)
-        else:
-            hostname_tag = hostname
-        returnValue((hostname_tag, title))
 
     def make_error_reply(self, failure, hostname):
         message = None
@@ -121,25 +109,19 @@ class URLTitleFetcher(object):
             message = u'Could not connect to server.'
         else:
             log.err(failure, 'Encountered an error in URL processing.')
-        return (hostname, u'Error: {:s}'.format(message or failure.value))
+        return u'[{}] Error: {:s}'.format(hostname, message or failure.value)
 
     def reply(self, results, bot, prefix, channel):
-        for i, result in enumerate(results):
-            success, value = result
+        for success, value in results:
             if success:
-                hostname, title = value
-                title = u'[{}] {}'.format(hostname, title)
+                title = value
             else:
                 log.err(value, 'Encountered an error in URL processing.')
                 title = u'Error: \x02{:s}\x02.'.format(value.value)
-            if len(results) > 1:
-                message = u'URL ({}/{}): {}'.format(i + 1, len(results), title)
-            else:
-                message = u'URL: {}'.format(title)
             if channel == bot.nickname:
-                bot.reply(prefix, channel, message)
+                bot.reply(prefix, channel, title)
             else:
-                bot.reply(None, channel, message)
+                bot.reply(None, channel, title)
 
 
 default = URLTitleFetcher()
