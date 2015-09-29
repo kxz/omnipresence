@@ -26,7 +26,7 @@ class WWWJDICSearch(web.WebCommand):
     """
     name = 'wwwjdic'
     arg_type = 'a term to look up'
-    url = 'http://www.csse.monash.edu.au/~jwb/cgi-bin/wwwjdic.cgi?1ZUJ%s'
+    url = 'http://nihongo.monash.edu/cgi-bin/wwwjdic.cgi?1ZUJ%s'
 
     def reply(self, response, bot, prefix, reply_target, channel, args):
         soup = BeautifulSoup(response[1], parse_only=SoupStrainer('pre'))
