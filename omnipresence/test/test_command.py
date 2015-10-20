@@ -10,7 +10,7 @@ from twisted.internet.defer import inlineCallbacks, fail, succeed
 from twisted.trial.unittest import TestCase
 
 from ..connection import MAX_REPLY_LENGTH
-from ..message import Message, collapse
+from ..message import Message, MessageType, collapse
 from ..plugin import EventPlugin, UserVisibleError
 from ..plugins.more import Default as More
 from .helpers import ConnectionTestMixin, CommandTestMixin, OutgoingPlugin
@@ -64,7 +64,7 @@ class BasicCommandTestCase(AbstractCommandMonitor):
     command_class = BasicCommand
 
     def assert_success(self, deferred_result=None):
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314party3: Deliquatue volut pulvinar feugiat eleifend
@@ -81,7 +81,7 @@ class BasicCommandTestCase(AbstractCommandMonitor):
             .format(self.other_users[0].nick)))
 
     def assert_hidden_error(self, deferred_result=None):
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314{}: Command \x02basiccommand\x02 encountered an error.
@@ -89,14 +89,14 @@ class BasicCommandTestCase(AbstractCommandMonitor):
         self.assertLoggedErrors(1)
 
     def assert_visible_error(self, deferred_result=None):
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314{}: Lorem ipsum.""".format(self.other_users[0].nick)))
 
     def test_empty_buffer(self):
         self.more(venue='#foo')
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
             \x0314{}: No results.""".format(self.other_users[0].nick)))
@@ -108,7 +108,7 @@ class BasicCommandTestCase(AbstractCommandMonitor):
     def test_synchronous_success_private(self):
         self.receive('PRIVMSG {} :basiccommand > party3'.format(
             self.connection.nickname))
-        self.assertEqual(self.outgoing.last_seen.action, 'notice')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.notice)
         self.assertEqual(self.outgoing.last_seen.venue,
                          self.other_users[0].nick)
         self.assertEqual(self.outgoing.last_seen.content, collapse("""
@@ -184,7 +184,7 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
 
     def test_synchronous(self):
         self.receive('PRIVMSG #foo :!iteratorcommand > party3')
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content,
                          '\x0314party3: 0')
@@ -199,7 +199,7 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
     @inlineCallbacks
     def test_deferred(self):
         yield self.receive('PRIVMSG #foo :!iteratorcommand defer > party3')
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content,
                          '\x0314party3: 0')
@@ -214,7 +214,7 @@ class IteratorCommandTestCase(AbstractCommandMonitor):
     @inlineCallbacks
     def test_deferred_error(self):
         yield self.receive('PRIVMSG #foo :!iteratorcommand defer 1 > party3')
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content,
                          '\x0314party3: 0')
@@ -244,7 +244,7 @@ class UnicodeReplyTestCase(AbstractCommandMonitor):
     @inlineCallbacks
     def test_synchronous(self):
         self.receive('PRIVMSG #foo :!unicodecommand')
-        self.assertEqual(self.outgoing.last_seen.action, 'privmsg')
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
         self.assertEqual(self.outgoing.last_seen.content,
                          '\x0314{}: \xe2\x98\x83 (+1 more)'

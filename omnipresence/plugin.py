@@ -52,7 +52,7 @@ class EventPlugin(object):
         """Start any callback this plugin defines for *msg*.  Return a
         `Deferred` yielding its return value, or `None` if no callback
         exists for this message."""
-        callback_name = 'on_' + msg.action
+        callback_name = 'on_' + msg.action.name
         if not hasattr(self, callback_name):
             return succeed(None)
         callback = getattr(self, callback_name)

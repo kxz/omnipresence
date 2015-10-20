@@ -16,7 +16,7 @@ from . import __version__, __source__
 from .case_mapping import CaseMapping, CaseMappedDict
 from .compat import length_hint
 from .hostmask import Hostmask
-from .message import Message, ReplyBuffer, truncate_unicode
+from .message import Message, MessageType, ReplyBuffer, truncate_unicode
 from .plugin import UserVisibleError
 from .settings import ConnectionSettings, PRIVATE_CHANNEL
 
@@ -511,7 +511,7 @@ class Connection(StateTrackingMixin,
             msg = self.message_queue.pop(0)
             # Build the set of plugins that should be fired.
             plugins = set()
-            if msg.action == 'command':
+            if msg.action is MessageType.command:
                 plugins.update(
                     msg.settings.plugins_by_keyword(msg.subaction))
             elif msg.venue:
@@ -537,7 +537,7 @@ class Connection(StateTrackingMixin,
                 plugins.update(self.settings.loaded_plugins.itervalues())
             for plugin in plugins:
                 deferred = plugin.respond_to(msg)
-                if msg.action == 'command':
+                if msg.action is MessageType.command:
                     deferred.addCallback(self.buffer_and_reply, msg)
                     deferred.addErrback(self.reply_from_error, msg)
                 else:

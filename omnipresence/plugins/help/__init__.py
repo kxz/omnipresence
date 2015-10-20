@@ -4,7 +4,7 @@
 
 from twisted.internet.defer import inlineCallbacks, returnValue
 
-from ...message import collapse
+from ...message import MessageType, collapse
 from ...plugin import EventPlugin
 
 
@@ -27,7 +27,7 @@ class Default(EventPlugin):
                     help=msg.subaction)))
         if args[0] in keywords:
             help_string = yield keywords[args[0]].respond_to(msg._replace(
-                action='cmdhelp', subaction=args[0],
+                action=MessageType.cmdhelp, subaction=args[0],
                 content=''.join(args[1:])))
             if help_string:
                 returnValue('\x02{}\x02 {}'.format(args[0], help_string))

@@ -7,7 +7,7 @@ from twisted.trial.unittest import TestCase
 
 from ..compat import length_hint
 from ..hostmask import Hostmask
-from ..message import Message, ReplyBuffer, collapse
+from ..message import Message, MessageType, ReplyBuffer, collapse
 from .helpers import DummyConnection
 
 
@@ -29,7 +29,7 @@ class RawParsingTestCase(TestCase):
 
     def test_quit(self):
         msg = self._from_raw('QUIT :lorem ipsum')
-        self.assertEqual(msg.action, 'quit')
+        self.assertEqual(msg.action, MessageType.quit)
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -38,7 +38,7 @@ class RawParsingTestCase(TestCase):
 
     def test_nick(self):
         msg = self._from_raw('NICK :other')
-        self.assertEqual(msg.action, 'nick')
+        self.assertEqual(msg.action, MessageType.nick)
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -47,7 +47,7 @@ class RawParsingTestCase(TestCase):
 
     def test_channel_message(self):
         msg = self._from_raw('PRIVMSG #foo :lorem ipsum')
-        self.assertEqual(msg.action, 'privmsg')
+        self.assertEqual(msg.action, MessageType.privmsg)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -56,7 +56,7 @@ class RawParsingTestCase(TestCase):
 
     def test_private_message(self):
         msg = self._from_raw('PRIVMSG foo :lorem ipsum')
-        self.assertEqual(msg.action, 'privmsg')
+        self.assertEqual(msg.action, MessageType.privmsg)
         self.assertEqual(msg.venue, 'foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -65,7 +65,7 @@ class RawParsingTestCase(TestCase):
 
     def test_ctcp_query(self):
         msg = self._from_raw('PRIVMSG #foo :\x01tag param\x01')
-        self.assertEqual(msg.action, 'ctcpquery')
+        self.assertEqual(msg.action, MessageType.ctcpquery)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertEqual(msg.subaction, 'tag')
@@ -74,7 +74,7 @@ class RawParsingTestCase(TestCase):
 
     def test_ctcp_reply(self):
         msg = self._from_raw('NOTICE #foo :\x01tag param\x01')
-        self.assertEqual(msg.action, 'ctcpreply')
+        self.assertEqual(msg.action, MessageType.ctcpreply)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertEqual(msg.subaction, 'tag')
@@ -83,7 +83,7 @@ class RawParsingTestCase(TestCase):
 
     def test_channel_notice(self):
         msg = self._from_raw('NOTICE #foo :lorem ipsum')
-        self.assertEqual(msg.action, 'notice')
+        self.assertEqual(msg.action, MessageType.notice)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -92,7 +92,7 @@ class RawParsingTestCase(TestCase):
 
     def test_private_notice(self):
         msg = self._from_raw('NOTICE foo :lorem ipsum')
-        self.assertEqual(msg.action, 'notice')
+        self.assertEqual(msg.action, MessageType.notice)
         self.assertEqual(msg.venue, 'foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -101,7 +101,7 @@ class RawParsingTestCase(TestCase):
 
     def test_action_query(self):
         msg = self._from_raw('PRIVMSG #foo :\x01ACTION lorem ipsum\x01')
-        self.assertEqual(msg.action, 'action')
+        self.assertEqual(msg.action, MessageType.action)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -110,7 +110,7 @@ class RawParsingTestCase(TestCase):
 
     def test_action_reply(self):
         msg = self._from_raw('NOTICE #foo :\x01ACTION lorem ipsum\x01')
-        self.assertEqual(msg.action, 'action')
+        self.assertEqual(msg.action, MessageType.action)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -119,7 +119,7 @@ class RawParsingTestCase(TestCase):
 
     def test_topic(self):
         msg = self._from_raw('TOPIC #foo :lorem ipsum')
-        self.assertEqual(msg.action, 'topic')
+        self.assertEqual(msg.action, MessageType.topic)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -128,7 +128,7 @@ class RawParsingTestCase(TestCase):
 
     def test_join(self):
         msg = self._from_raw('JOIN #foo')
-        self.assertEqual(msg.action, 'join')
+        self.assertEqual(msg.action, MessageType.join)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -137,7 +137,7 @@ class RawParsingTestCase(TestCase):
 
     def test_part(self):
         msg = self._from_raw('PART #foo :lorem ipsum')
-        self.assertEqual(msg.action, 'part')
+        self.assertEqual(msg.action, MessageType.part)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -146,7 +146,7 @@ class RawParsingTestCase(TestCase):
 
     def test_part_without_message(self):
         msg = self._from_raw('PART #foo')
-        self.assertEqual(msg.action, 'part')
+        self.assertEqual(msg.action, MessageType.part)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -155,7 +155,7 @@ class RawParsingTestCase(TestCase):
 
     def test_mode(self):
         msg = self._from_raw('MODE #foo +mo other')
-        self.assertEqual(msg.action, 'mode')
+        self.assertEqual(msg.action, MessageType.mode)
         self.assertEqual(msg.venue, '#foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -164,7 +164,7 @@ class RawParsingTestCase(TestCase):
 
     def test_kick(self):
         msg = self._from_raw('KICK #foo other :lorem ipsum')
-        self.assertEqual(msg.action, 'kick')
+        self.assertEqual(msg.action, MessageType.kick)
         self.assertEqual(msg.venue, '#foo')
         self.assertEqual(msg.target, 'other')
         self.assertIsNone(msg.subaction)
@@ -173,7 +173,7 @@ class RawParsingTestCase(TestCase):
 
     def test_unknown(self):
         msg = self._from_raw('NONSENSE a b c :foo bar')
-        self.assertEqual(msg.action, 'unknown')
+        self.assertEqual(msg.action, MessageType.unknown)
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)
         self.assertEqual(msg.subaction, 'NONSENSE')
@@ -182,7 +182,7 @@ class RawParsingTestCase(TestCase):
 
     def test_empty(self):
         msg = self._from_raw('')
-        self.assertEqual(msg.action, 'unknown')
+        self.assertEqual(msg.action, MessageType.unknown)
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -191,7 +191,7 @@ class RawParsingTestCase(TestCase):
 
     def test_malformed(self):
         msg = self._from_raw('PRIVMSG')
-        self.assertEqual(msg.action, 'unknown')
+        self.assertEqual(msg.action, MessageType.unknown)
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)
         self.assertEqual(msg.subaction, 'PRIVMSG')
@@ -200,7 +200,7 @@ class RawParsingTestCase(TestCase):
 
     def test_malformed_with_params(self):
         msg = self._from_raw('KICK not :enough arguments')
-        self.assertEqual(msg.action, 'unknown')
+        self.assertEqual(msg.action, MessageType.unknown)
         self.assertIsNone(msg.venue)
         self.assertIsNone(msg.target)
         self.assertEqual(msg.subaction, 'KICK')
@@ -209,7 +209,7 @@ class RawParsingTestCase(TestCase):
 
     def test_override(self):
         msg = self._from_raw('PRIVMSG #foo :lorem ipsum', venue='foo')
-        self.assertEqual(msg.action, 'privmsg')
+        self.assertEqual(msg.action, MessageType.privmsg)
         self.assertEqual(msg.venue, 'foo')
         self.assertIsNone(msg.target)
         self.assertIsNone(msg.subaction)
@@ -239,35 +239,35 @@ class ExtractionTestCase(TestCase):
 
     def test_simple_command(self):
         msg = self._extract('!help')
-        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.action, MessageType.command)
         self.assertEqual(msg.target, 'nick')
         self.assertEqual(msg.subaction, 'help')
         self.assertEqual(msg.content, '')
 
     def test_simple_command_with_long_prefix(self):
         msg = self._extract('bot: help')
-        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.action, MessageType.command)
         self.assertEqual(msg.target, 'nick')
         self.assertEqual(msg.subaction, 'help')
         self.assertEqual(msg.content, '')
 
     def test_command_with_arguments(self):
         msg = self._extract('bot, help me')
-        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.action, MessageType.command)
         self.assertEqual(msg.target, 'nick')
         self.assertEqual(msg.subaction, 'help')
         self.assertEqual(msg.content, 'me')
 
     def test_command_redirection(self):
         msg = self._extract('!help > other')
-        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.action, MessageType.command)
         self.assertEqual(msg.target, 'other')
         self.assertEqual(msg.subaction, 'help')
         self.assertEqual(msg.content, '')
 
     def test_empty_command_redirection(self):
         msg = self._extract('!help >')
-        self.assertEqual(msg.action, 'command')
+        self.assertEqual(msg.action, MessageType.command)
         self.assertEqual(msg.target, 'nick')
         self.assertEqual(msg.subaction, 'help')
         self.assertEqual(msg.content, '')

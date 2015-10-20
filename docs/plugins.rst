@@ -27,9 +27,9 @@ distribution, see :doc:`builtins`.
            pass
 
    When a message is received, Omnipresence looks for a plugin method
-   named ``on_`` followed by the :ref:`message type <message-types>`,
-   such as ``on_privmsg``.
-   If one exists, it is called with a `~.Message` object as the sole
+   named ``on_`` followed by the name of the `.MessageType`, such as
+   ``on_privmsg``.
+   If one exists, it is called with a `.Message` object as the sole
    parameter.
    For example, the following plugin sends a private message to
    greet incoming channel users::

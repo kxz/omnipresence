@@ -48,7 +48,8 @@ setup(
         'pyOpenSSL',
         'service_identity',
         'ipaddress',
-        'PyYAML'],
+        'PyYAML',
+        'enum34'],
     extras_require={
         'html': [
             'beautifulsoup4']},

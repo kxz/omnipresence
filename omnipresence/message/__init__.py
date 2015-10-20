@@ -6,6 +6,8 @@ from collections import namedtuple, Iterable, Iterator, Sequence
 from functools import partial
 import itertools
 
+from enum import Enum
+
 from ..compat import length_hint
 from ..hostmask import Hostmask
 from .formatting import remove_formatting, unclosed_formatting
@@ -18,16 +20,17 @@ DEFAULT_ENCODING = 'utf-8'
 #: The length to chunk string command replies to, in bytes.
 CHUNK_LENGTH = 256
 
-#: The set of recognized Omnipresence message types.
-MESSAGE_TYPES = set([
-    'action', 'ctcpquery', 'ctcpreply', 'join', 'kick', 'mode', 'nick',
-    'notice', 'part', 'privmsg', 'quit', 'topic',
-    'connected', 'disconnected', 'command', 'cmdhelp', 'unknown'])
-
 
 #
 # Core message class
 #
+
+#: An enumeration of recognized Omnipresence message types.
+MessageType = Enum('MessageType', [
+    'action', 'ctcpquery', 'ctcpreply', 'join', 'kick', 'mode', 'nick',
+    'notice', 'part', 'privmsg', 'quit', 'topic',
+    'connected', 'disconnected', 'command', 'cmdhelp', 'unknown'])
+
 
 class MessageSettings(object):
     """A proxy for `ConnectionSettings` that automatically adds the
@@ -59,7 +62,9 @@ class Message(namedtuple('Message',
 
     .. attribute:: action
 
-       A string containing the :ref:`message type <message-types>`.
+       This message's `.MessageType`.  A string containing a message
+       type name may be passed to the constructor, but the property
+       always contains an enumeration member.
 
     .. attribute:: actor
 
@@ -87,9 +92,12 @@ class Message(namedtuple('Message',
                 connection, outgoing, action, actor=None,
                 venue=None, target=None, subaction=None, content=None,
                 raw=None):
-        if action not in MESSAGE_TYPES:
-            raise ValueError('cannot create message of unrecognized '
-                             'type "{}"'.format(action))
+        if not isinstance(action, MessageType):
+            try:
+                action = MessageType[action]
+            except KeyError:
+                raise ValueError('unrecognized message type "{}"'
+                                 .format(action))
         if isinstance(actor, str):
             actor = Hostmask.from_string(actor)
         return super(Message, cls).__new__(
@@ -116,7 +124,7 @@ class Message(namedtuple('Message',
         messages are only considered to have invocations if they begin
         with exactly one prefix.  Return any invocation found as a new
         `.Message`, or `None` otherwise."""
-        if self.action != 'privmsg':
+        if self.action is not MessageType.privmsg:
             return
         # We don't care about formatting in looking for commands.
         content = remove_formatting(self.content)
@@ -151,7 +159,7 @@ class Message(namedtuple('Message',
             content, target = (x.strip() for x in content.rsplit('>', 1))
         if not target:
             target = self.actor.nick
-        return self._replace(action='command', target=target,
+        return self._replace(action=MessageType.command, target=target,
                              subaction=keyword, content=content)
 
     @property

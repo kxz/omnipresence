@@ -64,135 +64,126 @@ Messages
 
    .. automethod:: from_raw
 
-   `~.Message` is a `~collections.namedtuple` type, and thus its
+   `.Message` is a `~collections.namedtuple` type, and thus its
    instances are immutable.
    To create a new object based on the attributes of an existing one,
    use an instance's `~collections.somenamedtuple._replace` method.
 
-.. autodata:: CHUNK_LENGTH
+.. class:: MessageType
 
+   A message's type is stored in its `.action` attribute as a member of
+   this enumeration.
+   The following message types directly correspond to incoming or
+   outgoing IRC messages (also see :rfc:`1459#section-4`):
 
-.. _message-types:
+   .. attribute:: action
 
-Message types
--------------
+      Represents a CTCP ACTION (``/me``).
+      All attributes are as for the `.privmsg` type.
 
-A message's type is stored in its `~.Message.action` attribute.
-The following message types directly correspond to incoming or outgoing
-IRC messages (also see :rfc:`1459#section-4`):
+   .. attribute:: ctcpquery
 
-.. describe:: action
+      Represents an unrecognized CTCP query wrapped in a ``PRIVMSG``.
+      `.venue` is the nick or channel name of the recipient.
+      `.subaction` is the CTCP message tag.
+      `.content` is a string containing any trailing arguments.
 
-   Represents a CTCP ACTION (``/me``).
-   All attributes are as for the ``privmsg`` type.
+      .. note:: Omnipresence does not support mixed messages containing
+         both normal and CTCP extended content.
 
-.. describe:: ctcpquery
+   .. attribute:: ctcpreply
 
-   Represents an unrecognized CTCP query wrapped in a PRIVMSG.
-   `~.Message.venue` is the nick or channel name of the recipient.
-   `~.Message.subaction` is the CTCP message tag.
-   `~.Message.content` is a string containing any trailing arguments.
+      Represents an unrecognized CTCP reply wrapped in a ``NOTICE``.
+      All attributes are as for the `.ctcpquery` type.
 
-   .. note:: Omnipresence does not support mixed messages containing
-      both normal and CTCP extended content.
+   .. attribute:: join
 
-.. describe:: ctcpreply
+      Represents a channel join.
+      `.venue` is the channel being joined.
 
-   Represents an unrecognized CTCP reply wrapped in a NOTICE.
-   All attributes are as for the ``ctcpquery`` type.
+   .. attribute:: kick
 
-.. describe:: join
+      Represents a kick.
+      `.venue` is the channel the kick took place in.
+      `.target` is the nick of the kicked user.
+      `.content` is the kick message.
 
-   Represents a channel join.
-   `~.Message.venue` is the channel being joined.
+   .. attribute:: mode
 
-.. describe:: kick
+      Represents a mode change.
+      `.venue` is the affected channel or nick.
+      `.content` is the mode change string.
 
-   Represents a kick.
-   `~.Message.venue` is the channel the kick took place in.
-   `~.Message.target` is the nick of the kicked user.
-   `~.Message.content` is the kick message.
+   .. attribute:: nick
 
-.. describe:: mode
+      Represents a nick change.
+      `.content` is the new nick.
 
-   Represents a mode change.
-   `~.Message.venue` is the affected channel or nick.
-   `~.Message.content` is the mode change string.
+   .. attribute:: notice
 
-.. describe:: nick
+      Represents a notice.
+      All attributes are as for the `privmsg` type.
 
-   Represents a nick change.
-   `~.Message.content` is the new nick.
+   .. attribute:: part
 
-.. describe:: notice
+      Represents a channel part.
+      `.venue` is the channel being departed from.
+      `.content` is the part message.
 
-   Represents a notice.
-   All attributes are as for the ``privmsg`` type.
+   .. attribute:: privmsg
 
-.. describe:: part
+      Represents a typical message.
+      `.venue` is the nick or channel name of the recipient.
+      (`.private` can also be used to determine whether a message was
+      sent to a single user or a channel.)
+      `.content` is the text of the message.
 
-   Represents a channel part.
-   `~.Message.venue` is the channel being departed from.
-   `~.Message.content` is the part message.
+   .. attribute:: quit
 
-.. describe:: privmsg
+      Represents a client quit from the IRC network.
+      `.content` is the quit message.
 
-   Represents a typical message.
-   `~.Message.venue` is the nick or channel name of the recipient.
-   (`~.Message.private` can also be used to determine
-   whether a message was sent to a single user or a channel.)
-   `~.Message.content` is the text of the message.
+   .. attribute:: topic
 
-.. describe:: quit
+      Represents a topic change.
+      `.venue` is the affected channel.
+      `.content` is the new topic, or an empty string if the topic is
+      being unset.
 
-   Represents a client quit from the IRC network.
-   `~.Message.content` is the quit message.
+   .. attribute:: unknown
 
-.. describe:: topic
+      Represents a message not of one of the above types, or that could
+      not be correctly parsed.
+      `.subaction` is the IRC command name or numeric.
+      `.content` is a string containing any trailing arguments.
 
-   Represents a topic change.
-   `~.Message.venue` is the affected channel.
-   `~.Message.content` is the new topic, or an empty string if the topic
-   is being unset.
+   Omnipresence defines additional message types for synthetic events:
 
-.. describe:: unknown
+   .. attribute:: connected
 
-   Represents a message not of one of the above types, or that could not
-   be correctly parsed.
-   `~.Message.subaction` is the IRC command name or numeric.
-   `~.Message.content` is a string containing any trailing arguments.
+      Created when the server has responded with ``RPL_WELCOME``.
+      No optional arguments are specified.
 
-.. _synthetic-message-types:
+   .. attribute:: disconnected
 
-Omnipresence defines additional message types for synthetic events:
+      Created when the connection to the server has been closed or lost.
+      No optional arguments are specified.
 
-.. describe:: connected
+   .. attribute:: command
 
-   Created when the server has responded with ``RPL_WELCOME``.
-   No optional arguments are specified.
+      Represents a :ref:`command invocation <command-replies>`.
+      `.venue` is as for the `.privmsg` type.
+      `.target` is a string containing the reply redirection target, or
+      the actor's nick if none was specified.
+      `.subaction` is the command keyword.
+      `.content` is a string containing any trailing arguments.
 
-.. describe:: disconnected
+   .. attribute:: cmdhelp
 
-   Created when the connection to the server has been closed or lost.
-   No optional arguments are specified.
-
-.. describe:: command
-
-   Represents a :ref:`command invocation <command-replies>`.
-   `~.Message.venue` is as for the ``privmsg`` type.
-   `~.Message.target` is a string containing the reply redirection
-   target, or the actor's nick if none was specified.
-   `~.Message.subaction` is the command keyword.
-   `~.Message.content` is a string containing any trailing arguments.
-
-.. describe:: cmdhelp
-
-   Represents a command help request.
-   `~.Message.venue` and `~.Message.target` are as for the ``command``
-   type.
-   `~.Message.subaction` is the command keyword for which help was
-   requested.
-   `~.Message.content` is a string containing any trailing arguments.
+      Represents a command help request.
+      `.venue` and `.target` are as for the `.command` type.
+      `.subaction` is the command keyword for which help was requested.
+      `.content` is a string containing any trailing arguments.
 
 
 Message formatting
