@@ -38,6 +38,9 @@ class GeoNamesMixin(object):
 
     def __init__(self):
         self.agent = default_agent
+        #: Time provider that can be stubbed out for unit tests, given
+        #: that time is being computed locally as with tzdata requests.
+        self.utcnow = datetime.utcnow
 
     def request(self, action, params, username):
         """Make a request to the GeoNames API."""
@@ -64,14 +67,17 @@ class GeoNamesMixin(object):
 
 
 class Time(GeoNamesMixin, EventPlugin):
+    def __init__(self):
+        super(Time, self).__init__()
+
     @inlineCallbacks
     def on_command(self, msg):
         if not msg.content:
             raise UserVisibleError('Please specify a location.')
         if pytz and msg.content in pytz.all_timezones:
-            time = (datetime.utcnow().replace(tzinfo=pytz.utc)
-                            .astimezone(pytz.timezone(msg.content))
-                            .strftime('%Y-%m-%d %H:%M'))
+            time = (self.utcnow().replace(tzinfo=pytz.utc)
+                        .astimezone(pytz.timezone(msg.content))
+                        .strftime('%Y-%m-%d %H:%M'))
             returnValue(u'{} (tz database): {}'.format(msg.content, time))
         username = msg.settings.get('geonames.username')
         location = yield self.geocode(msg.content, username)
@@ -82,6 +88,13 @@ class Time(GeoNamesMixin, EventPlugin):
             raise UserVisibleError(u'There is no time information for {}.'
                                    .format(location))
         returnValue(u'{}: {}'.format(location, data['time']))
+
+    def on_cmdhelp(self, msg):
+        return collapse("""\
+            \x1Flocation\x1F - Look up the current date and time in a
+            given location using GeoNames <http://geonames.org/>.
+            Case-sensitive tz database names are also supported.
+            """)
 
 
 class Weather(GeoNamesMixin, EventPlugin):
@@ -113,9 +126,15 @@ class Weather(GeoNamesMixin, EventPlugin):
         try:
             dt = ago(datetime.strptime(observation['datetime'],
                                        '%Y-%m-%d %H:%M:%S'),
-                     datetime.utcnow())
+                     self.utcnow())
         except ValueError:
             dt = observation['datetime'] + u' UTC'
         returnValue(u'{}: {} from {} ({}) as of {}'.format(
             location, weather,
             observation['stationName'], observation['ICAO'], dt))
+
+    def on_cmdhelp(self, msg):
+        return collapse("""\
+            \x1Flocation\x1F - Look up the current weather conditions in
+            a given location using GeoNames <http://geonames.org/>.
+            """)

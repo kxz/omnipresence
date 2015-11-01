@@ -131,6 +131,8 @@ class CommandTestMixin(ConnectionTestMixin):
         name = self.command_class.name
         self.keyword = name.rsplit('/', 1)[-1].rsplit('.', 1)[-1].lower()
         self.command = self.connection.settings.enable(name, [self.keyword])
+        self.reply_buffer = iter([])
+        self.failure = None
 
     def command_message(self, content, **kwargs):
         kwargs.setdefault('actor', self.other_users[0])
@@ -160,8 +162,10 @@ class CommandTestMixin(ConnectionTestMixin):
         return finished
 
     def assert_error(self, expected):
+        self.assertIsNotNone(self.failure)
         self.assertIsNotNone(self.failure.check(UserVisibleError))
         self.assertEqual(self.failure.getErrorMessage(), expected)
+        self.failure = None
 
     @staticmethod
     def use_cassette(cassette_name):
