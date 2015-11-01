@@ -19,6 +19,7 @@ class DummyRandom(object):
 
 class DiceTestCase(CommandTestMixin, TestCase):
     command_class = Default
+    help_arguments = ('add', 'clear', 'new', 'notation', 'roll', 'show', 'use')
 
     def setUp(self):
         super(DiceTestCase, self).setUp()

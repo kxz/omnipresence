@@ -14,6 +14,7 @@ import urllib
 from twisted.internet.defer import inlineCallbacks, returnValue
 
 from ...humanize import ago
+from ...message import collapse
 from ...plugin import EventPlugin, UserVisibleError
 from ...web.http import default_agent, read_json_body
 

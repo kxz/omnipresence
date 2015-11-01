@@ -125,6 +125,9 @@ class CommandTestMixin(ConnectionTestMixin):
     #: The command plugin class to test.
     command_class = None
 
+    #: Any additional help arguments to test in `test_help`.
+    help_arguments = tuple()
+
     def setUp(self):
         super(CommandTestMixin, self).setUp()
         self.default_venue = self.connection.nickname
@@ -135,10 +138,11 @@ class CommandTestMixin(ConnectionTestMixin):
         self.failure = None
 
     def command_message(self, content, **kwargs):
+        action = kwargs.pop('action', 'command')
         kwargs.setdefault('actor', self.other_users[0])
-        kwargs.setdefault('subaction', self.keyword)
         kwargs.setdefault('venue', self.default_venue)
-        return Message(self.connection, False, 'command',
+        kwargs.setdefault('subaction', self.keyword)
+        return Message(self.connection, False, action,
                        content=content, **kwargs)
 
     @inlineCallbacks
@@ -149,7 +153,8 @@ class CommandTestMixin(ConnectionTestMixin):
         except UserVisibleError:
             self.failure = Failure()
         else:
-            self.reply_buffer = ReplyBuffer(response, request)
+            if response is not None:
+                self.reply_buffer = ReplyBuffer(response, request)
 
     def assert_reply(self, expected):
         finished = maybeDeferred(next, self.reply_buffer, None)
@@ -181,3 +186,8 @@ class CommandTestMixin(ConnectionTestMixin):
                 return finished
             return wrapper
         return decorator
+
+    def test_help(self):
+        """Ensure that command help doesn't cause errors."""
+        for content in ('',) + self.help_arguments:
+            self.send_command(content, action='cmdhelp')

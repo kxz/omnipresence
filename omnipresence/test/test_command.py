@@ -16,9 +16,9 @@ from ..plugins.more import Default as More
 from .helpers import ConnectionTestMixin, CommandTestMixin, OutgoingPlugin
 
 
-class AbstractCommandMonitor(CommandTestMixin, TestCase):
+class CommandMonitorMixin(CommandTestMixin):
     def setUp(self):
-        super(AbstractCommandMonitor, self).setUp()
+        super(CommandMonitorMixin, self).setUp()
         self.connection.settings.set('command_prefixes', ['!'])
         self.outgoing = self.connection.settings.enable(
             OutgoingPlugin.name, [])
@@ -60,7 +60,7 @@ class BasicCommand(EventPlugin):
         return self.quote
 
 
-class BasicCommandTestCase(AbstractCommandMonitor):
+class BasicCommandTestCase(CommandMonitorMixin, TestCase):
     command_class = BasicCommand
 
     def assert_success(self, deferred_result=None):
@@ -179,7 +179,7 @@ class IteratorCommand(EventPlugin):
         return imap(str, xrange(2))
 
 
-class IteratorCommandTestCase(AbstractCommandMonitor):
+class IteratorCommandTestCase(CommandMonitorMixin, TestCase):
     command_class = IteratorCommand
 
     def test_synchronous(self):
@@ -238,7 +238,7 @@ class UnicodeCommand(EventPlugin):
         return [u'☃'] * 2
 
 
-class UnicodeReplyTestCase(AbstractCommandMonitor):
+class UnicodeReplyTestCase(CommandMonitorMixin, TestCase):
     command_class = UnicodeCommand
 
     @inlineCallbacks
@@ -314,7 +314,7 @@ class LongReplyWithMoreCommand(EventPlugin):
         return ['*' * 999] * 999
 
 
-class LongReplyWithMoreTestCase(AbstractCommandMonitor):
+class LongReplyWithMoreTestCase(CommandMonitorMixin, TestCase):
     command_class = LongReplyWithMoreCommand
 
     def test_more_tag_visible(self):
