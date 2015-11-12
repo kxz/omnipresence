@@ -21,7 +21,8 @@ class IdentifyingAgent(object):
     outgoing request."""
 
     #: The default HTTP user agent.
-    user_agent = 'Omnipresence/{} (+bot; {})'.format(__version__, __source__)
+    user_agent = ('Mozilla/5.0 (compatible; Omnipresence/{}; +{})'
+                  .format(__version__, __source__))
 
     def __init__(self, agent):
         self.agent = agent
