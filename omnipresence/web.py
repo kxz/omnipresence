@@ -9,6 +9,7 @@ from twisted.internet import defer, reactor
 from twisted.plugin import IPlugin
 from twisted.web.client import (Agent, ContentDecoderAgent, RedirectAgent,
                                 GzipDecoder, readBody, PartialDownloadError)
+from twisted.web.iweb import IAgent
 from twisted.web.http_headers import Headers
 from zope.interface import implements
 
@@ -16,15 +17,37 @@ from omnipresence import VERSION_NUM, SOURCE_URL
 from omnipresence.iomnipresence import ICommand
 
 
-USER_AGENT = 'Omnipresence/{} (+bot; {})'.format(VERSION_NUM, SOURCE_URL)
-
-
 #
 # HTTP request machinery
 #
 
-default_agent = ContentDecoderAgent(RedirectAgent(Agent(reactor)),
-                                    [('gzip', GzipDecoder)])
+class IdentifyingAgent(object):
+    """An `Agent` wrapper that adds a default user agent string to the
+    outgoing request."""
+    implements(IAgent)
+
+    #: The default HTTP user agent.
+    user_agent = ('Mozilla/5.0 (compatible; Omnipresence/{}; +{})'
+                  .format(VERSION_NUM, SOURCE_URL))
+
+    def __init__(self, agent):
+        self.agent = agent
+
+    def request(self, method, uri, headers=None, bodyProducer=None):
+        if headers is None:
+            headers = Headers()
+        else:
+            headers = headers.copy()
+        if not headers.hasHeader('user-agent'):
+            headers.addRawHeader('user-agent', self.user_agent)
+        return self.agent.request(method, uri, headers, bodyProducer)
+
+
+#: A Twisted Web `Agent` with reasonable settings for most requests.
+#: Use this if you need to make a request inside a plugin.
+default_agent = IdentifyingAgent(
+    ContentDecoderAgent(RedirectAgent(Agent(reactor)),
+                        [('gzip', GzipDecoder)]))
 
 
 @defer.inlineCallbacks
@@ -44,11 +67,7 @@ def request(*args, **kwargs):
     ``X-Omni-Length`` contains the original value of the response's
     ``Content-Length`` header, which Twisted may overwrite if the actual
     response exceeds *max_bytes* in size."""
-    kwargs.setdefault('headers', Headers())
-    if not kwargs['headers'].hasHeader('User-Agent'):
-        kwargs['headers'].addRawHeader('User-Agent', USER_AGENT)
-    agent = kwargs.pop('agent', None) or default_agent
-    response = yield agent.request(*args, **kwargs)
+    response = yield default_agent.request(*args, **kwargs)
     headers = dict((k, v[0]) for k, v in response.headers.getAllRawHeaders())
     # Add the ultimately requested URL as a custom X-header.
     headers['X-Omni-Location'] = response.request.absoluteURI

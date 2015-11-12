@@ -6,7 +6,7 @@ import re
 import urllib
 from urlparse import urlparse, urldefrag
 
-from littlebrother import fetch_title, BlacklistedHost
+from littlebrother import BlacklistedHost, TitleFetcher
 from twisted.internet.defer import DeferredList, inlineCallbacks, returnValue
 from twisted.internet.error import ConnectError, DNSLookupError
 from twisted.plugin import IPlugin
@@ -16,6 +16,7 @@ from twisted.web.error import InfiniteRedirection
 from zope.interface import implements
 
 from ...iomnipresence import IHandler
+from ...web import IdentifyingAgent
 
 
 # Based on django.utils.html.urlize from the Django project.
@@ -60,6 +61,8 @@ class URLTitleFetcher(object):
 
     def __init__(self):
         self.ignore_list = []
+        self.fetcher = TitleFetcher()
+        self.fetcher.agent = IdentifyingAgent(self.fetcher.agent)
 
     def registered(self):
         self.ignore_list = self.factory.config.getspacelist(
@@ -88,7 +91,7 @@ class URLTitleFetcher(object):
             if frag.startswith('!'):
                 url += ('&' if '?' in url else '?' +
                         '_escaped_fragment_=' + urllib.quote(frag[1:]))
-            d = fetch_title(url, hostname_tag=True)
+            d = self.fetcher.fetch_title(url, hostname_tag=True)
             d.addErrback(self.make_error_reply, hostname)
             fetchers.append(d)
         l = DeferredList(fetchers)
