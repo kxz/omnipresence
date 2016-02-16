@@ -80,6 +80,23 @@ class BasicCommandTestCase(CommandMonitorMixin, TestCase):
             feum in augait vullam. Tortor augait dignissim."""
             .format(self.other_users[0].nick)))
 
+    def assert_success_private(self):
+        self.assertEqual(self.outgoing.last_seen.action, MessageType.notice)
+        self.assertEqual(self.outgoing.last_seen.venue,
+                         self.other_users[0].nick)
+        self.assertEqual(self.outgoing.last_seen.content, collapse("""
+            Deliquatue volut pulvinar feugiat eleifend quisque
+            suspendisse faccummy etuerci; vullandigna praestie hac
+            consectem ipisim esequi. Facidui augiam proin nisit diamet
+            ing. Incinim iliquipisl ero alit amconsecte adionse loborer
+            odionsequip sagittis, (+1 more)"""))
+        self.more(venue=self.connection.nickname)
+        self.assertEqual(self.outgoing.last_seen.content, collapse("""
+            iuscipit hent dipiscipit. Molore proin consecte min amcommo;
+            lobortio platea loboreet il consequis. Lan ullut corem
+            esectem vercilisit delent exer, feu inciduipit feum in
+            augait vullam. Tortor augait dignissim."""))
+
     def assert_hidden_error(self, deferred_result=None):
         self.assertEqual(self.outgoing.last_seen.action, MessageType.privmsg)
         self.assertEqual(self.outgoing.last_seen.venue, '#foo')
@@ -108,21 +125,12 @@ class BasicCommandTestCase(CommandMonitorMixin, TestCase):
     def test_synchronous_success_private(self):
         self.receive('PRIVMSG {} :basiccommand > party3'.format(
             self.connection.nickname))
-        self.assertEqual(self.outgoing.last_seen.action, MessageType.notice)
-        self.assertEqual(self.outgoing.last_seen.venue,
-                         self.other_users[0].nick)
-        self.assertEqual(self.outgoing.last_seen.content, collapse("""
-            Deliquatue volut pulvinar feugiat eleifend quisque
-            suspendisse faccummy etuerci; vullandigna praestie hac
-            consectem ipisim esequi. Facidui augiam proin nisit diamet
-            ing. Incinim iliquipisl ero alit amconsecte adionse loborer
-            odionsequip sagittis, (+1 more)"""))
-        self.more(venue=self.connection.nickname)
-        self.assertEqual(self.outgoing.last_seen.content, collapse("""
-            iuscipit hent dipiscipit. Molore proin consecte min amcommo;
-            lobortio platea loboreet il consequis. Lan ullut corem
-            esectem vercilisit delent exer, feu inciduipit feum in
-            augait vullam. Tortor augait dignissim."""))
+        self.assert_success_private()
+
+    def test_synchronous_success_private_with_prefix(self):
+        self.receive('PRIVMSG {} :!basiccommand > party3'.format(
+            self.connection.nickname))
+        self.assert_success_private()
 
     def test_synchronous_hidden_error(self):
         self.receive('PRIVMSG #foo :!basiccommand failure > party3')

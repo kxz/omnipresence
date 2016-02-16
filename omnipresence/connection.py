@@ -546,15 +546,11 @@ class Connection(StateTrackingMixin,
                         name=plugin.__class__.name, msg=msg)
                 deferreds.append(deferred)
             # Extract any command invocations and fire events for them.
-            if msg.private:
-                command_prefixes = None
-            else:
-                # Make a copy so we don't accidentally change the value.
-                command_prefixes = tuple(
-                    msg.settings.get('command_prefixes', default=[]))
-                if msg.settings.get('direct_addressing', default=True):
-                    command_prefixes += (self.nickname + ':',
-                                         self.nickname + ',')
+            command_prefixes = tuple(  # immutable copy, to be safe
+                msg.settings.get('command_prefixes', default=[]))
+            if msg.settings.get('direct_addressing', default=True):
+                command_prefixes += (self.nickname + ':',
+                                     self.nickname + ',')
             command_msg = msg.extract_command(prefixes=command_prefixes)
             if command_msg is not None:
                 # Get the command message in immediately after the

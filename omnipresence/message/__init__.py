@@ -135,9 +135,10 @@ class Message(namedtuple('Message',
                     content = content[len(prefix):]
                     break
             else:
-                # The message doesn't start with any of the given
-                # prefixes.  We're done here.
-                return
+                if not self.private:
+                    # The message doesn't start with any of the given
+                    # prefixes.  We're done here.
+                    return
         # Extract the keyword for looking up the corresponding plugin.
         #
         # TODO:  Should this check against the list of plugins enabled
