@@ -15,7 +15,6 @@ from twisted.python import usage
 import yaml
 
 from .connection import ConnectionFactory
-from .settings import ConnectionSettings
 
 
 def indent(string):

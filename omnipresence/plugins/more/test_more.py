@@ -6,7 +6,7 @@ from itertools import count, imap
 
 from twisted.trial.unittest import TestCase
 
-from ...message import Message, ReplyBuffer, collapse
+from ...message import ReplyBuffer
 from ...settings import PRIVATE_CHANNEL
 from ...test.helpers import CommandTestMixin, OutgoingPlugin
 

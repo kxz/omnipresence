@@ -582,7 +582,7 @@ class Connection(StateTrackingMixin,
         # Twisted doesn't like it when `lineReceived` returns a value,
         # but we need to do so for some unit tests.
         deferred = self.respond_to(Message.from_raw(self, False, line))
-        super(ConnectionBase, self).lineReceived(line)
+        super(Connection, self).lineReceived(line)
         return deferred
 
     def lineReceived(self, line):
@@ -593,7 +593,7 @@ class Connection(StateTrackingMixin,
         """Overrides `.IRCClient.sendLine`."""
         deferred = self.respond_to(Message.from_raw(
             self, True, line, actor=self.nickname))
-        super(ConnectionBase, self).sendLine(line)
+        super(Connection, self).sendLine(line)
         return deferred
 
 

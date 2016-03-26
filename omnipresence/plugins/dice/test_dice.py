@@ -5,7 +5,6 @@
 from twisted.internet.defer import inlineCallbacks
 from twisted.trial.unittest import TestCase
 
-from ...hostmask import Hostmask
 from ...message import Message, collapse
 from ...test.helpers import CommandTestMixin
 

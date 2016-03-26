@@ -11,7 +11,7 @@ class ExtractURLsTestCase(unittest.TestCase):
     # Most test cases are adapted from Django's urlize tests.
 
     def assert_urls(self, text, urls):
-        return list(extract_urls(text)) == urls
+        self.assertEqual(list(extract_urls(text)), urls)
 
     def test_http(self):
         self.assert_urls('http://example.com', ['http://example.com'])
@@ -33,11 +33,11 @@ class ExtractURLsTestCase(unittest.TestCase):
 
     def test_parentheses(self):
         self.assert_urls('http://example.com/a_(b)',
-                          ['http://example.com/a_(b)'])
+                         ['http://example.com/a_(b)'])
         self.assert_urls('(http://example.com/a_(b))',
-                          ['http://example.com/a_(b)'])
+                         ['http://example.com/a_(b)'])
         self.assert_urls('(see http://example.com/a_(b))',
-                          ['http://example.com/a_(b)'])
+                         ['http://example.com/a_(b)'])
 
     def test_malformed(self):
         self.assert_urls('http:///example.com', [])
@@ -49,14 +49,14 @@ class ExtractURLsTestCase(unittest.TestCase):
 
     def test_trailing_period(self):
         self.assert_urls('(Go to http://example.com/a.)',
-                          ['http://example.com/a'])
+                         ['http://example.com/a'])
 
     def test_ipv4(self):
         self.assert_urls('http://10.0.0.1/foo', ['http://10.0.0.1/foo'])
 
     def test_ipv6(self):
         self.assert_urls('http://[2001:db8:cafe::2]/foo',
-                          ['http://[2001:db8:cafe::2]/foo'])
+                         ['http://[2001:db8:cafe::2]/foo'])
 
     def test_catastrophic_backtracking(self):
         """Test that we don't crash on URLs that cause catastrophic

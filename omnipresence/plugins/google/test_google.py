@@ -8,7 +8,6 @@ from twisted.trial.unittest import TestCase
 
 from ...compat import length_hint
 from ...message import collapse
-from ...plugin import UserVisibleError
 from ...test.helpers import CommandTestMixin
 
 from . import Default
