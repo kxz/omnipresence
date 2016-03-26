@@ -63,6 +63,78 @@ class EventPlugin(object):
         return maybeDeferred(callback, msg)
 
 
+class SubcommandEventPlugin(EventPlugin):
+    """A base class for command plugins that invoke subcommands given in
+    the first argument by invoking one of the following methods:
+
+    #. ``on_empty_subcommand(msg)``, if no arguments are present.  The
+       default implementation raises a `UserVisibleError` asking the
+       user to provide a valid subcommand.
+
+    #. ``on_subcommand_KEYWORD(msg, remaining_args)``, if such a method
+       exists.
+
+    #. Otherwise, ``on_invalid_subcommand(msg, keyword,
+       remaining_args)``, which by default raises an "unrecognized
+       command" `UserVisibleError`.
+
+    ``on_cmdhelp`` is similarly delegated to ``on_subcmdhelp`` methods:
+
+    #. ``on_empty_subcmdhelp(msg)``, if no arguments are present.  The
+       default implementation lists all available subcommands.
+
+    #. ``on_subcmdhelp_KEYWORD(msg)``, if such a method exists.
+
+    #. Otherwise, ``on_invalid_subcmdhelp(msg, keyword)``, which by
+       default simply calls ``on_empty_subcmdhelp``.
+
+    As with ``on_cmdhelp``, the subcommand keyword is automatically
+    added to the help string, after the containing command's keyword and
+    before the rest of the string.
+    """
+
+    @property
+    def _subcommands(self):
+        return sorted(name[14:] for name in dir(self)
+                      if name.startswith('on_subcommand_'))
+
+    def on_command(self, msg):
+        args = msg.content.split(None, 1)
+        if args:
+            callback_name = 'on_subcommand_' + args[0]
+            subargs = '' if len(args) < 2 else args[1]
+            if hasattr(self, callback_name):
+                return getattr(self, callback_name)(msg, subargs)
+            return self.on_invalid_subcommand(msg, args[0], subargs)
+        return self.on_empty_subcommand(msg)
+
+    def on_cmdhelp(self, msg):
+        if not msg.content:
+            return self.on_empty_subcmdhelp(msg)
+        callback_name = 'on_subcmdhelp_' + msg.content
+        if hasattr(self, callback_name):
+            return '\x02{}\x02 {}'.format(
+                msg.content, getattr(self, callback_name)(msg))
+        return self.on_invalid_subcmdhelp(msg, msg.content)
+
+    def on_empty_subcommand(self, msg):
+        raise UserVisibleError(
+            'Please provide a subcommand: \x02{}\x02.'
+            .format('\x02, \x02'.join(self._subcommands)))
+
+    def on_empty_subcmdhelp(self, msg):
+        return '\x02{}\x02'.format('\x02|\x02'.join(self._subcommands))
+
+    def on_invalid_subcommand(self, msg, keyword, args):
+        raise UserVisibleError(
+            'Unrecognized subcommand \x02{}\x02. Valid subcommands: '
+            '\x02{}\x02.'.format(
+                keyword, '\x02, \x02'.join(self._subcommands)))
+
+    def on_invalid_subcmdhelp(self, msg, keyword):
+        return self.on_empty_subcmdhelp(msg)
+
+
 def plugin_class_by_name(name):
     """Return an event plugin class given the *name* used to refer to
     it in an Omnipresence configuration file."""
@@ -80,6 +152,6 @@ def plugin_class_by_name(name):
 class UserVisibleError(Exception):
     """Raise this inside a command callback if you need to return an
     error message to the user, regardless of whether or not the
-    ``show_errors`` configuration option is enabled. Errors are always
+    ``show_errors`` configuration option is enabled.  Errors are always
     given as replies to the invoking user, even if command redirection
     is requested."""

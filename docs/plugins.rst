@@ -195,6 +195,16 @@ prefix ending with a period (``.``).
 Undotted names are reserved for Omnipresence core variables.
 
 
+Command base classes
+====================
+
+Omnipresence provides classes for common types of command plugins.
+As with the standard `EventPlugin` class, they are intended to be
+subclassed, not instantiated.
+
+.. autoclass:: SubcommandEventPlugin(bot)
+
+
 Writing tests
 =============
 

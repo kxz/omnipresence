@@ -8,7 +8,7 @@ from random import Random
 
 from ...humanize import andify
 from ...message import collapse
-from ...plugin import EventPlugin, UserVisibleError
+from ...plugin import SubcommandEventPlugin, UserVisibleError
 
 
 #: The maximum number of dice that can be rolled at once.
@@ -25,7 +25,7 @@ def format_rolls(rolls):
         ' '.join(str(r) for r in sorted(rolls)), sum(rolls))
 
 
-class Default(EventPlugin):
+class Default(SubcommandEventPlugin):
     def __init__(self):
         #: User die banks, keyed by a (channel, nick) tuple.
         self.banks = defaultdict(Counter)
@@ -64,65 +64,118 @@ class Default(EventPlugin):
                              else self.random.randint(1, size))
         return rolls
 
-    def on_command(self, msg):
+    def reply_for_roll(self, msg, args, update=False, clear=False):
         nick = msg.connection._lower(msg.actor.nick)
-        args = (msg.content or 'show').split(None, 1)
-        subcommand = args[0]
-        if subcommand == 'show':
-            if len(args) < 2:
-                # Show the actor's own die bank if no nick is provided.
-                requested_nick = nick
-            else:
-                requested_nick = msg.connection._lower(args[1])
-            rolls = self.banks[(msg.venue, requested_nick)].elements()
-            return 'Bank has {}.'.format(format_rolls(rolls))
-        if subcommand in ('roll', 'add', 'new'):
-            if len(args) < 2:
-                raise UserVisibleError('Please specify dice to roll.')
+        if not args:
+            raise UserVisibleError('Please specify dice to roll.')
+        try:
+            rolls = self.roll_dice(args.split())
+        except ValueError as e:
+            raise UserVisibleError(str(e))
+        message = 'Rolled {}.'.format(format_rolls(rolls))
+        if update:
+            if clear:
+                self.banks.pop((msg.venue, nick), None)
+            bank = self.banks[(msg.venue, nick)]
+            bank.update(rolls)
+            message += ' Bank now has {}.'.format(
+                format_rolls(bank.elements()))
+        return message
+
+    def on_empty_subcommand(self, msg):
+        return self.on_subcommand_show(msg, '')
+
+    def on_empty_subcmdhelp(self, msg):
+        return ('[\x02add\x02 \x1Fdice\x1F | '
+                    '\x02clear\x02 | '
+                    '\x02new\x02 \x1Fdice\x1F | '
+                    '\x02roll\x02 \x1Fdice\x1F | '
+                    '\x02show\x02 [\x1Fnick\x1F] | '
+                    '\x02use\x02 \x1Frolls\x1F] - '
+                'Manage your die bank. '
+                'For more details on a specific subcommand, see help '
+                'for \x02{0}\x02 \x1Fsubcommand\x1F. '
+                'For information on dice notation, see help for '
+                '\x02{0} notation\x02.').format(msg.subaction)
+
+    def on_subcommand_add(self, msg, args):
+        return self.reply_for_roll(msg, args, update=True)
+
+    def on_subcmdhelp_add(self, msg):
+        return ('\x1Fdice\x1F - Roll the given dice and add the '
+                'resulting rolls to your die bank.')
+
+    def on_subcommand_clear(self, msg, args):
+        nick = msg.connection._lower(msg.actor.nick)
+        self.banks.pop((msg.venue, nick), None)
+        return 'Bank cleared.'
+
+    def on_subcmdhelp_clear(self, msg):
+        return '- Remove all rolls from your die bank.'
+
+    def on_subcommand_new(self, msg, args):
+        return self.reply_for_roll(msg, args, update=True, clear=True)
+
+    def on_subcmdhelp_new(self, msg):
+        return ('\x1Fdice\x1F - Remove all rolls from your die bank, '
+                'then roll the given dice and add the resulting rolls '
+                'to your die bank.')
+
+    def on_subcmdhelp_notation(self, msg):
+        return ('- Indicate dice using the standard '
+                '\x1FA\x1F\x02d\x02\x1FX\x1F notation, where \x1FA\x1F '
+                'is the number of dice to roll and \x1FX\x1F is the '
+                'die size. '
+                'Separate multiple sets of dice with spaces. '
+                'Positive integers may also be used as dice; they '
+                '"roll" to themselves.')
+
+    def on_subcommand_roll(self, msg, args):
+        return self.reply_for_roll(msg, args)
+
+    def on_subcmdhelp_roll(self, msg):
+        return ('\x1Fdice\x1F - Roll the given dice without adding the '
+                ' resulting rolls to your die bank.')
+
+    def on_subcommand_show(self, msg, args):
+        nick = msg.connection._lower(args or msg.actor.nick)
+        rolls = self.banks[(msg.venue, nick)].elements()
+        return 'Bank has {}.'.format(format_rolls(rolls))
+
+    def on_subcmdhelp_show(self, msg):
+        return ('[\x1Fnick\x1F] - Show the rolls in the die bank '
+                'belonging to the user with the given nick, or your '
+                'own if no nick is provided.')
+
+    def on_subcommand_use(self, msg, args):
+        nick = msg.connection._lower(msg.actor.nick)
+        if not args:
+            raise UserVisibleError('Please specify rolls to use.')
+        rolls = []
+        for roll in args.split():
             try:
-                rolls = self.roll_dice(args[1].split())
-            except ValueError as e:
-                raise UserVisibleError(str(e))
-            message = 'Rolled {}.'.format(format_rolls(rolls))
-            if subcommand in ('add', 'new'):
-                if subcommand == 'new':
-                    self.banks.pop((msg.venue, nick), None)
-                bank = self.banks[(msg.venue, nick)]
-                bank.update(rolls)
-                message += ' Bank now has {}.'.format(
-                    format_rolls(bank.elements()))
-            return message
-        if subcommand == 'use':
-            if len(args) < 2:
-                raise UserVisibleError('Please specify rolls to use.')
-            rolls = []
-            for roll in args[1].split():
-                try:
-                    rolls.append(int(roll))
-                except ValueError:
-                    raise UserVisibleError(
-                        '{} is not a valid roll.'.format(roll))
-            # Figure out if the specified rolls actually exist by
-            # duplicating the bank, subtracting the rolls from it,
-            # and bailing if any of the counts are negative.
-            new_bank = Counter(self.banks[(msg.venue, nick)])
-            new_bank.subtract(rolls)
-            negatives = sorted([
-                roll for roll, count in new_bank.iteritems() if count < 0])
-            if negatives:
-                raise UserVisibleError(
-                    'You do not have enough {} in your die bank to use '
-                    'those rolls.'.format(
-                        andify(['{}s'.format(n) for n in negatives])))
-            self.banks[(msg.venue, nick)] = new_bank
-            return 'Used {}. Bank now has {}.'.format(
-                format_rolls(rolls),
-                format_rolls(new_bank.elements()))
-        if subcommand == 'clear':
-            self.banks.pop((msg.venue, nick), None)
-            return 'Bank cleared.'
-        raise UserVisibleError(
-            'Unrecognized subcommand \x02{}\x02.'.format(subcommand))
+                rolls.append(int(roll))
+            except ValueError:
+                raise UserVisibleError('{} is not a valid roll.'.format(roll))
+        # Figure out if the specified rolls actually exist by
+        # duplicating the bank, subtracting the rolls from it,
+        # and bailing if any of the counts are negative.
+        new_bank = Counter(self.banks[(msg.venue, nick)])
+        new_bank.subtract(rolls)
+        negatives = sorted([
+            roll for roll, count in new_bank.iteritems() if count < 0])
+        if negatives:
+            raise UserVisibleError(
+                'You do not have enough {} in your die bank to use '
+                'those rolls.'.format(
+                    andify(['{}s'.format(n) for n in negatives])))
+        self.banks[(msg.venue, nick)] = new_bank
+        return 'Used {}. Bank now has {}.'.format(
+            format_rolls(rolls),
+            format_rolls(new_bank.elements()))
+
+    def on_subcmdhelp_use(self, msg):
+        return '\x1Frolls\x1F - Remove the given rolls from your die bank.'
 
     def on_nick(self, msg):
         venues = [venue for venue, nick in self.banks
@@ -132,61 +185,3 @@ class Default(EventPlugin):
         for venue in venues:
             self.banks[(venue, new_nick)] = self.banks[(venue, old_nick)]
             del self.banks[(venue, old_nick)]
-
-    def on_cmdhelp(self, msg):
-        if msg.content == 'add':
-            help_text = """\
-                \x02{1}\x02 \x1Fdice\x1F - Roll the given dice and add
-                the resulting rolls to your die bank.
-                """
-        elif msg.content == 'clear':
-            help_text = """\
-                \x02{1}\x02 - Remove all rolls from your die bank.
-                """
-        elif msg.content == 'new':
-            help_text = """\
-                \x02{1}\x02 \x1Fdice\x1F - Remove all rolls from your
-                die bank, then roll the given dice and add the resulting
-                rolls to your die bank.
-                """
-        elif msg.content == 'notation':
-            help_text = """\
-                notation - Indicate dice using the standard
-                \x1FA\x1F\x02d\x02\x1FX\x1F notation, where
-                \x1FA\x1F is the number of dice to roll and
-                \x1FX\x1F is the die size.
-                Separate multiple sets of dice with spaces.
-                Positive integers may also be used as dice;
-                they "roll" to themselves.
-                """
-        elif msg.content == 'roll':
-            help_text = """\
-                \x02{1}\x02 \x1Fdice\x1F - Roll the given dice without
-                adding the resulting rolls to your die bank.
-                """
-        elif msg.content == 'show':
-            help_text = """\
-                \x02{1}\x02 [\x1Fnick\x1F] - Show the rolls in the die
-                bank belonging to the user with the given nick, or your
-                own if no nick is provided.'
-                """
-        elif msg.content == 'use':
-            help_text = """\
-                \x02{1}\x02 \x1Frolls\x1F - Remove the given rolls from
-                your die bank.
-                """
-        else:
-            help_text = """\
-                [\x02add\x02 \x1Fdice\x1F |
-                    \x02clear\x02 |
-                    \x02new\x02 \x1Fdice\x1F |
-                    \x02roll\x02 \x1Fdice\x1F |
-                    \x02show\x02 [\x1Fnick\x1F] |
-                    \x02use\x02 \x1Frolls\x1F] -
-                Manage your die bank.
-                For more details on a specific subcommand, see help for
-                \x02{0}\x02 \x1Fsubcommand\x1F.
-                For information on dice notation, see help for \x02{0}
-                notation\x02.
-                """
-        return collapse(help_text).format(msg.subaction, msg.content)
