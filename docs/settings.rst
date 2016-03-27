@@ -212,7 +212,7 @@ The ``ignore`` directive tells Omnipresence to not pass messages from
 certain user hostmasks to certain plugins::
 
     ignore no_google_for_you:
-        hostmasks: [*!*@foo.example]
+        hostmasks: ["*!*@foo.example"]
         include: [google]
     ignore otherbots:
         hostmasks: [foobot, barbot]
