@@ -5,7 +5,8 @@
 from collections import Sequence
 from itertools import tee
 
-from ...message import ReplyBuffer, collapse
+from ...message import collapse
+from ...message.buffering import ReplyBuffer
 from ...plugin import EventPlugin, UserVisibleError
 from ...settings import PRIVATE_CHANNEL
 

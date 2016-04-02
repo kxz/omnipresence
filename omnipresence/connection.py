@@ -16,7 +16,8 @@ from . import __version__, __source__
 from .case_mapping import CaseMapping, CaseMappedDict
 from .compat import length_hint
 from .hostmask import Hostmask
-from .message import Message, MessageType, ReplyBuffer, truncate_unicode
+from .message import Message, MessageType
+from .message.buffering import ReplyBuffer, truncate_unicode
 from .plugin import UserVisibleError
 from .settings import ConnectionSettings, PRIVATE_CHANNEL
 

@@ -18,7 +18,8 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 
 from ..connection import Connection
 from ..hostmask import Hostmask
-from ..message import Message, ReplyBuffer
+from ..message import Message
+from ..message.buffering import ReplyBuffer
 from ..plugin import EventPlugin, UserVisibleError
 from ..web.http import IdentifyingAgent
 
