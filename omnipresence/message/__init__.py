@@ -9,7 +9,6 @@ from enum import Enum
 
 from ..hostmask import Hostmask
 from .formatting import remove_formatting
-from .parser import parse as parse_raw
 
 
 #: The default text encoding.
@@ -73,7 +72,7 @@ class Message(namedtuple('Message',
 
     .. py:attribute:: raw
 
-       If this message was created using `.Message.from_raw`, the
+       If this message was created by parsing a raw message, the
        original raw IRC message string passed to that function.
        Otherwise, `None`.
     """
@@ -93,15 +92,6 @@ class Message(namedtuple('Message',
         return super(Message, cls).__new__(
             cls, connection, outgoing, action, actor,
             venue, target, subaction, content, raw)
-
-    @classmethod
-    def from_raw(cls, connection, outgoing, raw, **kwargs):
-        """Parse a raw IRC message string and return a corresponding
-        `.Message` object.  Any keyword arguments override field values
-        returned by the parser."""
-        parser_kwargs = parse_raw(raw)
-        parser_kwargs.update(kwargs)
-        return cls.__new__(cls, connection, outgoing, raw=raw, **parser_kwargs)
 
     @property
     def encoding(self):

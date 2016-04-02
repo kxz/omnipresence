@@ -1,9 +1,10 @@
-"""A raw message parser implementation for Message.from_raw()."""
+"""Raw message parser implementations."""
 # pylint: disable=missing-docstring
 
 
 from twisted.words.protocols.irc import ctcpExtract, parsemsg, X_DELIM
 
+from . import Message
 from ..hostmask import Hostmask
 
 
@@ -20,43 +21,48 @@ class RawMessageParser(object):
             return function
         return decorator
 
-    def parse(self, raw):
-        """Return a dict representation of a raw IRC message string, in
-        the form of keyword arguments for the `.Message` constructor."""
+    def parse(self, connection, outgoing, raw, **kwargs):
+        """Parse a raw IRC message string and return a corresponding
+        `.Message` object.  Any keyword arguments override field values
+        returned by the parser."""
         try:
             prefix, command, params = parsemsg(raw)
         except IndexError:
-            return {'action': 'unknown'}
-        kwargs = {'actor': Hostmask.from_string(prefix)}
-        if command in self.functions:
-            try:
-                kwargs['action'] = command.lower()
-                kwargs.update(self.functions[command](command, params))
-            except IndexError:
-                del kwargs['action']
-        if 'action' not in kwargs:
-            kwargs['action'] = 'unknown'
-            kwargs['subaction'] = command
-            splits = 2 if raw.startswith(':') else 1
-            params = raw.split(None, splits)
-            if len(params) > splits:
-                kwargs['content'] = params[splits]
-            else:
-                kwargs['content'] = ''
-        return kwargs
+            parsed_kwargs = {'action': 'unknown'}
+        else:
+            parsed_kwargs = {'actor': Hostmask.from_string(prefix)}
+            if command in self.functions:
+                try:
+                    parsed_kwargs['action'] = command.lower()
+                    parsed_kwargs.update(
+                        self.functions[command](command, params))
+                except IndexError:
+                    del parsed_kwargs['action']
+            if 'action' not in parsed_kwargs:
+                parsed_kwargs['action'] = 'unknown'
+                parsed_kwargs['subaction'] = command
+                splits = 2 if raw.startswith(':') else 1
+                params = raw.split(None, splits)
+                if len(params) > splits:
+                    parsed_kwargs['content'] = params[splits]
+                else:
+                    parsed_kwargs['content'] = ''
+        parsed_kwargs.update(kwargs)
+        return Message(connection, outgoing, raw=raw, **parsed_kwargs)
 
 
-parser = RawMessageParser()
+#: A parser for the standard IRC version 2 protocol.
+IRCV2_PARSER = RawMessageParser()
 
-@parser.command('QUIT', 'NICK')
+@IRCV2_PARSER.command('QUIT', 'NICK')
 def parse_undirected_message(command, params):
     return {'content': params[0]}
 
-@parser.command('TOPIC')
+@IRCV2_PARSER.command('TOPIC')
 def parse_directed_message(command, params):
     return {'venue': params[0], 'content': params[1]}
 
-@parser.command('PRIVMSG', 'NOTICE')
+@IRCV2_PARSER.command('PRIVMSG', 'NOTICE')
 def parse_ctcpable_directed_message(command, params):
     kwargs = parse_directed_message(command, params)
     if params[1].startswith(X_DELIM):
@@ -72,16 +78,14 @@ def parse_ctcpable_directed_message(command, params):
             kwargs['subaction'] = tag
     return kwargs
 
-@parser.command('JOIN')
+@IRCV2_PARSER.command('JOIN')
 def parse_join(command, params):
     return {'venue': params[0]}
 
-@parser.command('PART', 'MODE')
+@IRCV2_PARSER.command('PART', 'MODE')
 def parse_part_mode(command, params):
     return {'venue': params[0], 'content': ' '.join(params[1:])}
 
-@parser.command('KICK')
+@IRCV2_PARSER.command('KICK')
 def parse_kick(command, params):
     return {'venue': params[0], 'target': params[1], 'content': params[2]}
-
-parse = parser.parse

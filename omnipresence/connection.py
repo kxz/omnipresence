@@ -18,6 +18,7 @@ from .compat import length_hint
 from .hostmask import Hostmask
 from .message import Message, MessageType
 from .message.buffering import ReplyBuffer, truncate_unicode
+from .message.parser import IRCV2_PARSER
 from .plugin import UserVisibleError
 from .settings import ConnectionSettings, PRIVATE_CHANNEL
 
@@ -467,6 +468,9 @@ class Connection(StateTrackingMixin,
     def __init__(self):
         super(Connection, self).__init__()
 
+        #: The raw message parser being used on this connection.
+        self.parser = IRCV2_PARSER
+
         #: If the bot is currently firing callbacks, a queue of
         #: `.Message` objects for which the bot has yet to fire
         #: callbacks.  Otherwise, `None`.
@@ -582,7 +586,7 @@ class Connection(StateTrackingMixin,
     def _lineReceived(self, line):
         # Twisted doesn't like it when `lineReceived` returns a value,
         # but we need to do so for some unit tests.
-        deferred = self.respond_to(Message.from_raw(self, False, line))
+        deferred = self.respond_to(IRCV2_PARSER.parse(self, False, line))
         super(Connection, self).lineReceived(line)
         return deferred
 
@@ -592,7 +596,7 @@ class Connection(StateTrackingMixin,
 
     def sendLine(self, line):
         """Overrides `.IRCClient.sendLine`."""
-        deferred = self.respond_to(Message.from_raw(
+        deferred = self.respond_to(IRCV2_PARSER.parse(
             self, True, line, actor=self.nickname))
         super(Connection, self).sendLine(line)
         return deferred
