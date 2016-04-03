@@ -201,10 +201,10 @@ class ConnectionBase(IRCClient, object):
         self.log.info('Kicked from {channel} by {kicker}: {message}',
                       channel=channel, kicker=kicker, message=message)
 
-    def join(self, channel):
+    def join(self, channel, key=None):
         """See `IRCClient.join`."""
         self.log.info('Joining {channel}', channel=channel)
-        super(ConnectionBase, self).join(channel)
+        super(ConnectionBase, self).join(channel, key=key)
 
     #
     # Command replies
