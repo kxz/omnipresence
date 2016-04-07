@@ -2,6 +2,7 @@
 """Core IRC connection protocol class and supporting machinery."""
 
 
+from collections import defaultdict
 import re
 from weakref import WeakSet
 
@@ -293,6 +294,16 @@ class VenueInfo(object):
         #: This channel's topic, or the empty string if none is set.
         self.topic = ''
 
+        #: A mapping of modes currently active on this channel to one of
+        #: `False` (not set or invalid), `True` (set, for modes that
+        #: take no arguments), a single number or string, or a set of
+        #: `Hostmask` objects.
+        #
+        # TODO:  Resolve how to store unset modes that aren't just
+        # on/off.  What's a sane default value for a numeric or string
+        # mode argument?
+        self.modes = defaultdict(bool)
+
     def add_nick(self, nick):
         self.nicks.setdefault(nick, VenueUserInfo())
 
@@ -331,6 +342,14 @@ class StateTrackingMixin(object):
         """See `IRCClient.joined`."""
         super(StateTrackingMixin, self).joined(channel)
         self.venues[channel] = VenueInfo(case_mapping=self.case_mapping)
+
+    def modeChanged(self, user, channel, enable, modes, args):
+        """See `IRCClient.modeChanged`."""
+        # TODO:  This needs to inspect CHANMODES and PREFIX to determine
+        # how to handle a particular channel mode.  Right now, it treats
+        # all modes as binary, which is obviously wrong.
+        for mode in modes:
+            self.venues[channel].modes[mode] = enable
 
     def irc_RPL_NAMREPLY(self, prefix, params):
         channel = params[2]
