@@ -67,7 +67,7 @@ class OutgoingPlugin(NoticingPlugin):
         super(OutgoingPlugin, self).on_privmsg(msg)
     on_privmsg.outgoing = True
 
-    on_command = on_notice = on_join = on_quit = on_privmsg
+    on_mode = on_command = on_notice = on_join = on_quit = on_privmsg
 
 
 #
