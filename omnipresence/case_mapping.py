@@ -2,6 +2,7 @@
 """Operations on IRC case mappings."""
 
 
+from collections import MutableMapping
 from string import maketrans, ascii_lowercase, ascii_uppercase
 
 from twisted.python.util import InsensitiveDict
@@ -82,7 +83,7 @@ class CaseMapping(object):
         return string.translate(self.upper_trans)
 
 
-class CaseMappedDict(InsensitiveDict):
+class CaseMappedDict(InsensitiveDict, MutableMapping):
     """A dictionary whose keys are treated case-insensitively according
     to a `.CaseMapping` or mapping name string (as given to `.by_name`)
     provided on instantiation."""
@@ -94,6 +95,9 @@ class CaseMappedDict(InsensitiveDict):
             case_mapping = CaseMapping.by_name(case_mapping)
         self.case_mapping = case_mapping
         InsensitiveDict.__init__(self, initial, preserve=1)
+
+    def __iter__(self):
+        return self.iterkeys()
 
     def _lowerOrReturn(self, key):
         """Return a lowercase version of *key* according to the case

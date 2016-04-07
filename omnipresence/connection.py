@@ -297,10 +297,7 @@ class VenueInfo(object):
         self.nicks.setdefault(nick, VenueUserInfo())
 
     def remove_nick(self, nick):
-        try:
-            del self.nicks[nick]
-        except KeyError:
-            pass
+        self.nicks.pop(nick, None)
 
 
 class StateTrackingMixin(object):
