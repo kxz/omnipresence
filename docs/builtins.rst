@@ -154,6 +154,23 @@ __ http://stackoverflow.com/a/11206266
       attribute of a deity or ... (+147999 more)
 
 
+``.url``
+========
+
+.. module:: omnipresence.plugins.url
+
+Fetch the titles of URLs mentioned in normal messages or actions.
+Requires `Little Brother`__.
+
+__ https://github.com/kxz/littlebrother
+
+:charlie: http://www.example.com/ is an example site
+:bot: [www.example.com] Example Domain
+:alice: http://www.example.org/ and http://www.example.net/ too
+:bot: [www.example.org] Example Domain
+:bot: [www.example.net] Example Domain
+
+
 ``.vndb``
 =========
 
