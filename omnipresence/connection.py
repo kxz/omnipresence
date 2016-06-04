@@ -543,9 +543,9 @@ class Connection(StateTrackingMixin,
                     deferred.addCallback(self.buffer_and_reply, msg)
                     deferred.addErrback(self.reply_from_error, msg)
                 else:
-                    deferred.addErrback(self.log.failure,
+                    deferred.addErrback(lambda f: self.log.failure(
                         'Error in plugin {name} responding to {msg}',
-                        name=plugin.__class__.name, msg=msg)
+                        failure=f, name=plugin.__class__.name, msg=msg))
                 deferreds.append(deferred)
             # Extract any command invocations and fire events for them.
             command_prefixes = tuple(  # immutable copy, to be safe
