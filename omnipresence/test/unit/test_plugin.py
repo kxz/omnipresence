@@ -5,9 +5,9 @@ from mock import Mock
 from twisted.internet.defer import inlineCallbacks
 from twisted.trial.unittest import TestCase
 
-from ..message import Message
-from ..plugin import (EventPlugin, SubcommandEventPlugin,
-                      plugin_class_by_name, UserVisibleError)
+from ...message import Message
+from ...plugin import (EventPlugin, SubcommandEventPlugin,
+                       plugin_class_by_name, UserVisibleError)
 
 
 #

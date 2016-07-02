@@ -9,7 +9,7 @@ from twisted.internet import ssl
 from twisted.internet.task import Clock
 from twisted.trial.unittest import TestCase
 
-from ..service import Options, SSLBotService, TCPBotService, makeService
+from ...service import Options, SSLBotService, TCPBotService, makeService
 
 
 class DummyConnection(object):
@@ -64,7 +64,7 @@ class ServiceMakerTestCase(TestCase):
     def options(settings_name):
         opts = Options()
         opts.parseArgs(os.path.join(
-            os.path.dirname(__file__), 'fixtures', 'settings',
+            os.path.dirname(__file__), '..', 'fixtures', 'settings',
             settings_name + '.yaml'))
         return opts
 

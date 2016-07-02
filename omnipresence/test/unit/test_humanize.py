@@ -6,7 +6,7 @@ from datetime import datetime
 
 from twisted.trial import unittest
 
-from .. import humanize
+from ... import humanize
 
 
 class AgoTestCase(unittest.TestCase):

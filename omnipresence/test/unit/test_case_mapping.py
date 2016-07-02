@@ -4,7 +4,7 @@
 
 from twisted.trial.unittest import TestCase
 
-from ..case_mapping import CaseMapping, KNOWN_CASE_MAPPINGS, CaseMappedDict
+from ...case_mapping import CaseMapping, KNOWN_CASE_MAPPINGS, CaseMappedDict
 
 
 EXPECTED = {

@@ -1,16 +1,11 @@
-"""Unit tests for IRC message handling."""
+"""Unit tests for command extraction."""
 # pylint: disable=missing-docstring,too-few-public-methods
 
 
 from twisted.trial.unittest import TestCase
 
-from ..message import Message, MessageType
-from .helpers import DummyConnection
-
-
-class MessageTestCase(TestCase):
-    def test_invalid_action(self):
-        self.assertRaises(ValueError, Message, None, False, 'foo')
+from ....message import Message, MessageType
+from ...helpers import DummyConnection
 
 
 class ExtractionTestCase(TestCase):

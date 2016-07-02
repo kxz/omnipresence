@@ -4,7 +4,7 @@
 
 from twisted.trial.unittest import TestCase
 
-from ..compat import length_hint
+from ...compat import length_hint
 
 
 class LengthHintTestCase(TestCase):

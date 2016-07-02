@@ -4,7 +4,7 @@
 
 from twisted.trial import unittest
 
-from ..message.formatting import remove_formatting, unclosed_formatting
+from ....message.formatting import remove_formatting, unclosed_formatting
 
 
 class FormattingRemovalTestCase(unittest.TestCase):

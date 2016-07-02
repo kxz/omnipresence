@@ -4,8 +4,8 @@
 
 from twisted.trial import unittest
 
-from ..case_mapping import CaseMapping
-from ..hostmask import Hostmask, mask_as_regex as mar
+from ...case_mapping import CaseMapping
+from ...hostmask import Hostmask, mask_as_regex as mar
 
 
 class HostmaskTestCase(unittest.TestCase):

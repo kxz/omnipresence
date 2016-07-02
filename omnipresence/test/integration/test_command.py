@@ -9,11 +9,11 @@ from textwrap import dedent
 from twisted.internet.defer import inlineCallbacks, fail, succeed
 from twisted.trial.unittest import TestCase
 
-from ..connection import MAX_REPLY_LENGTH
-from ..message import Message, MessageType, collapse
-from ..plugin import EventPlugin, UserVisibleError
-from ..plugins.more import Default as More
-from .helpers import ConnectionTestMixin, CommandTestMixin, OutgoingPlugin
+from ...connection import MAX_REPLY_LENGTH
+from ...message import Message, MessageType, collapse
+from ...plugin import EventPlugin, UserVisibleError
+from ...plugins.more import Default as More
+from ..helpers import ConnectionTestMixin, CommandTestMixin, OutgoingPlugin
 
 
 class CommandMonitorMixin(CommandTestMixin):

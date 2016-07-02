@@ -7,9 +7,9 @@ from twisted.trial.unittest import TestCase
 from twisted.web.test.test_agent import AbortableStringTransport
 from twisted.words.protocols.irc import RPL_NAMREPLY, RPL_ENDOFNAMES
 
-from ..connection import Connection, ConnectionFactory
-from ..settings import ConnectionSettings
-from .helpers import ConnectionTestMixin, NoticingPlugin
+from ...connection import Connection, ConnectionFactory
+from ...settings import ConnectionSettings
+from ..helpers import ConnectionTestMixin, NoticingPlugin
 
 
 class JoinSuspensionTestCase(ConnectionTestMixin, TestCase):

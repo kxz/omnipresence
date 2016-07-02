@@ -5,9 +5,9 @@
 from twisted.internet.defer import inlineCallbacks, succeed, fail
 from twisted.trial.unittest import TestCase
 
-from ..message import MessageType
-from ..plugin import EventPlugin
-from .helpers import ConnectionTestMixin, NoticingPlugin, OutgoingPlugin
+from ...message import MessageType
+from ...plugin import EventPlugin
+from ..helpers import ConnectionTestMixin, NoticingPlugin, OutgoingPlugin
 
 
 #

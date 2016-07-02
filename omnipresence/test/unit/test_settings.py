@@ -4,12 +4,12 @@
 
 from twisted.trial import unittest
 
-from ..case_mapping import CaseMapping, KNOWN_CASE_MAPPINGS
-from ..hostmask import Hostmask
-from ..message import Message
-from ..plugin import EventPlugin
-from ..settings import ConnectionSettings
-from .helpers import DummyConnection
+from ...case_mapping import CaseMapping, KNOWN_CASE_MAPPINGS
+from ...hostmask import Hostmask
+from ...message import Message
+from ...plugin import EventPlugin
+from ...settings import ConnectionSettings
+from ..helpers import DummyConnection
 from .test_case_mapping import EXPECTED as CASE_MAPPING_EXPECTED
 
 
@@ -154,19 +154,19 @@ class SettingsTestCase(unittest.TestCase):
 
     def test_plugins_and_ignores(self):
         settings = ConnectionSettings({
-            'plugin ..test.test_settings/PluginA': [],
-            'plugin ..test.test_settings/PluginB': ['foo', 'bar'],
+            'plugin ..test.unit.test_settings/PluginA': [],
+            'plugin ..test.unit.test_settings/PluginB': ['foo', 'bar'],
             'ignore test': {
                 'hostmasks': ['nick!*@*'],
-                'include': ['..test.test_settings/PluginA']},
+                'include': ['..test.unit.test_settings/PluginA']},
             'channel foo': {
-                'plugin ..test.test_settings/PluginB': False,
+                'plugin ..test.unit.test_settings/PluginB': False,
                 'ignore test': {  # overrides root rule with same name
                     'hostmasks': ['other!*@*'],
-                    'exclude': ['..test.test_settings/PluginA']}},
+                    'exclude': ['..test.unit.test_settings/PluginA']}},
             'private': {
-                'plugin ..test.test_settings/PluginB': ['baz'],
-                'plugin ..test.test_settings/PluginC': True,
+                'plugin ..test.unit.test_settings/PluginB': ['baz'],
+                'plugin ..test.unit.test_settings/PluginC': True,
                 'ignore test': False}})
         self.assert_plugins_with_keywords(settings.active_plugins(), {
             PluginA.name: [],
@@ -199,13 +199,13 @@ class SettingsTestCase(unittest.TestCase):
 
     def test_ignore_precedence(self):
         settings = ConnectionSettings({
-            'plugin ..test.test_settings/PluginA': [],
-            'plugin ..test.test_settings/PluginB': [],
+            'plugin ..test.unit.test_settings/PluginA': [],
+            'plugin ..test.unit.test_settings/PluginB': [],
             'ignore include': {'hostmasks': ['nick!*@*'], 'include': [
-                '..test.test_settings/PluginA']},
+                '..test.unit.test_settings/PluginA']},
             'ignore exclude1': {'hostmasks': ['*!*@host'], 'exclude': []},
             'ignore exclude2': {'hostmasks': ['*!*@host'], 'exclude': [
-                '..test.test_settings/PluginB']}})
+                '..test.unit.test_settings/PluginB']}})
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=PRIVATE_MESSAGE),
             {PluginB.name: []})
@@ -213,7 +213,7 @@ class SettingsTestCase(unittest.TestCase):
     def test_ignore_hostmasks_case_mapping(self):
         for (a, b), equal_case_mappings in CASE_MAPPING_EXPECTED.iteritems():
             settings = ConnectionSettings({
-                'plugin ..test.test_settings/PluginA': True,
+                'plugin ..test.unit.test_settings/PluginA': True,
                 'ignore test': {
                     'hostmasks': [a],
                     'exclude': []}})
@@ -226,8 +226,8 @@ class SettingsTestCase(unittest.TestCase):
 
     def test_empty_exclude(self):
         settings = ConnectionSettings({
-            'plugin ..test.test_settings/PluginA': [],
-            'plugin ..test.test_settings/PluginB': [],
+            'plugin ..test.unit.test_settings/PluginA': [],
+            'plugin ..test.unit.test_settings/PluginB': [],
             'ignore all': {'hostmasks': ['nick!*@*'], 'exclude': []}})
         self.assert_plugins_with_keywords(
             settings.active_plugins(message=PRIVATE_MESSAGE), {})
