@@ -602,7 +602,7 @@ class Connection(StateTrackingMixin,
     def _lineReceived(self, line):
         # Twisted doesn't like it when `lineReceived` returns a value,
         # but we need to do so for some unit tests.
-        deferred = self.respond_to(IRCV2_PARSER.parse(self, False, line))
+        deferred = self.respond_to(self.parser.parse(self, False, line))
         super(Connection, self).lineReceived(line)
         return deferred
 
@@ -612,7 +612,7 @@ class Connection(StateTrackingMixin,
 
     def sendLine(self, line):
         """Overrides `.IRCClient.sendLine`."""
-        deferred = self.respond_to(IRCV2_PARSER.parse(
+        deferred = self.respond_to(self.parser.parse(
             self, True, line, actor=self.nickname))
         super(Connection, self).sendLine(line)
         return deferred
