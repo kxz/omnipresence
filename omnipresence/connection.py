@@ -418,7 +418,7 @@ class StateTrackingMixin(object):
 
     def kickedFrom(self, channel, kicker, message):
         """See `IRCClient.kickedFrom`."""
-        super(StateTrackingMixin, self).kickedFrom(channel)
+        super(StateTrackingMixin, self).kickedFrom(channel, kicker, message)
         del self.venues[channel]
 
     def quit(self, message=''):

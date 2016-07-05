@@ -62,6 +62,14 @@ __ http://anidb.net/
       rated 8.43 (7443)
 
 
+``.autorejoin``
+===============
+
+.. module:: omnipresence.plugins.autorejoin
+
+Automatically rejoin channels after being kicked from them.
+
+
 ``.autovoice``
 ==============
 
