@@ -10,7 +10,7 @@ from twisted.trial.unittest import TestCase
 from twisted.web.client import Response
 from twisted.web.http_headers import Headers
 
-from ..web.http import read_json_body
+from ....web.http import read_json_body
 
 
 class ReadJSONBodyTestCase(TestCase):

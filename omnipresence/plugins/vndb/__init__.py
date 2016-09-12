@@ -5,13 +5,12 @@
 import urllib
 from urlparse import urljoin
 
-from bs4 import BeautifulSoup
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import readBody
 
 from ...message import collapse
 from ...plugin import EventPlugin, UserVisibleError
-from ...web.html import textify
+from ...web.html import parse as parse_html, textify
 from ...web.http import default_agent
 
 
@@ -37,7 +36,7 @@ class Default(EventPlugin):
         response = yield self.agent.request(
             'GET', 'https://vndb.org/v/all?s=pop&o=d&q={}'.format(q))
         content = yield readBody(response)
-        soup = BeautifulSoup(content)
+        soup = parse_html(content)
 
         # TODO:  Implement page navigation.
         results = []

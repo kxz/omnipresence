@@ -5,13 +5,12 @@
 import re
 import urllib
 
-from bs4 import BeautifulSoup
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import readBody
 
 from ...message import collapse
 from ...plugin import EventPlugin, UserVisibleError
-from ...web.html import textify
+from ...web.html import parse as parse_html, textify
 from ...web.http import default_agent
 
 
@@ -119,7 +118,7 @@ class Default(EventPlugin):
            'adb.search={}&orderby.ucnt=0.2&do.update=update&noalias=1'
            .format(urllib.quote_plus(msg.content)))
         content = yield readBody(response)
-        soup = BeautifulSoup(content)
+        soup = parse_html(content)
 
         # We get one of two response formats, depending on the number
         # of results.  If there is exactly one result, we're redirected

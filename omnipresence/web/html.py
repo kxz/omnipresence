@@ -7,6 +7,19 @@ from __future__ import unicode_literals
 from bs4 import BeautifulSoup, NavigableString, Tag
 
 
+#: The default parser to use for BeautifulSoup.
+DEFAULT_BS4_PARSER = 'html.parser'
+
+
+def parse(markup):
+    """Return a `BeautifulSoup` object from the given markup.
+
+    This is a convenience method that additionally adds a default parser
+    argument, to avoid warnings.
+    """
+    return BeautifulSoup(markup, DEFAULT_BS4_PARSER)
+
+
 def textify(html, format_output=True):
     """Convert the contents of *html* to a Unicode string.  *html* can
     be either a string containing HTML markup, or a Beautiful Soup tag
@@ -15,7 +28,7 @@ def textify(html, format_output=True):
     if isinstance(html, BeautifulSoup) or isinstance(html, Tag):
         soup = html
     else:
-        soup = BeautifulSoup(html)
+        soup = parse(html)
 
     def descend(soup):
         if not format_output:

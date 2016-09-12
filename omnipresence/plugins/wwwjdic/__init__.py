@@ -6,7 +6,6 @@
 import re
 import urllib
 
-from bs4 import BeautifulSoup
 from twisted.internet.defer import inlineCallbacks, returnValue
 from twisted.web.client import readBody
 try:
@@ -16,6 +15,7 @@ except ImportError:
 
 from ...message import collapse
 from ...plugin import EventPlugin, UserVisibleError
+from ...web.html import parse as parse_html
 from ...web.http import default_agent
 
 
@@ -55,7 +55,7 @@ class Default(EventPlugin):
         response = yield self.agent.request('GET',
             'http://www.edrdg.org/cgi-bin/wwwjdic/wwwjdic?1ZUJ{}'.format(q))
         content = yield readBody(response)
-        soup = BeautifulSoup(content)
+        soup = parse_html(content)
         results = []
         if not soup.pre:
             returnValue(results)

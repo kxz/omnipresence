@@ -4,17 +4,16 @@
 
 from __future__ import unicode_literals
 
-from bs4 import BeautifulSoup
 from twisted.trial import unittest
 
-from omnipresence.web.html import textify
+from ....web.html import parse, textify
 
 
 class HTMLTestCase(unittest.TestCase):
     def assert_textify(self, a, b, format_output=True):
         self.assertEqual(textify(a, format_output), b)
-        # str and BeautifulSoup should yield the same results
-        self.assertEqual(textify(BeautifulSoup(a), format_output), b)
+        # str and BeautifulSoup should yield the same results.
+        self.assertEqual(textify(parse(a), format_output), b)
 
     def test_simple(self):
         self.assert_textify('hello', 'hello')
@@ -44,5 +43,5 @@ class HTMLTestCase(unittest.TestCase):
                             'lorem ipsum dolor sit amet', False)
 
     def test_textify_tag(self):
-        soup = BeautifulSoup('<a><b>hello</b></a>')
+        soup = parse('<a><b>hello</b></a>')
         self.assertEqual(textify(soup.a, format_output=False), 'hello')
