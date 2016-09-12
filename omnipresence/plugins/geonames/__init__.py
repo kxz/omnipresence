@@ -1,6 +1,12 @@
 # -*- coding: utf-8
 # -*- test-case-name: omnipresence.plugins.geonames.test_geonames
-"""Event plugins for GeoNames services."""
+"""Event plugins for `GeoNames`__ services.
+
+__ http://geonames.org/
+
+The ``geonames.username`` :ref:`settings variable <settings-variable>`
+must be set to a valid GeoNames API username for them to function.
+"""
 
 
 from collections import namedtuple
@@ -68,6 +74,20 @@ class GeoNamesMixin(object):
 
 
 class Time(GeoNamesMixin, EventPlugin):
+    """Look up the current time in a world location.
+
+    :brian: time beijing
+    :bot: Beijing, Beijing, China (39.91, 116.40): 2015-08-14 11:10
+
+    If `pytz`__ is installed, case-sensitive tz database names are also
+    supported.
+
+    __ http://pythonhosted.org/pytz/
+
+    :alice: time UTC
+    :bot: UTC (tz database): 2015-08-14 03:10
+    """
+
     def __init__(self):
         super(Time, self).__init__()
 
@@ -99,6 +119,14 @@ class Time(GeoNamesMixin, EventPlugin):
 
 
 class Weather(GeoNamesMixin, EventPlugin):
+    """Look up weather conditions in a world location.
+
+    :brian: weather london
+    :bot: London, England, United Kingdom (51.51, -0.13):
+          19.0°C/66.2°F, broken clouds, 93% humidity
+          from London City Airport (EGLC) as of 26 minutes ago
+    """
+
     @inlineCallbacks
     def on_command(self, msg):
         if not msg.content:

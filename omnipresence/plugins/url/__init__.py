@@ -45,6 +45,19 @@ def extract_iris(text):
 
 
 class Default(EventPlugin):
+    """Fetch the titles of URLs mentioned in normal messages or actions.
+
+    Requires `Little Brother`__.
+
+    __ https://github.com/kxz/littlebrother
+
+    :charlie: http://www.example.com/ is an example site
+    :bot: [www.example.com] Example Domain
+    :alice: http://www.example.org/ and http://www.example.net/ too
+    :bot: [www.example.org] Example Domain
+    :bot: [www.example.net] Example Domain
+    """
+
     def __init__(self):
         self.fetcher = TitleFetcher()
         self.fetcher.agent = IdentifyingAgent(self.fetcher.agent)

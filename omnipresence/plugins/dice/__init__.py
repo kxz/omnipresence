@@ -26,6 +26,30 @@ def format_rolls(rolls):
 
 
 class Default(SubcommandEventPlugin):
+    """Manage dice pools.
+
+    The ``new``, ``add``, ``use``, and ``clear`` subcommands affect a
+    per-user bank of die rolls, while ``roll`` is used for one-off rolls
+    that should not be added to the bank.
+
+    :alice: dice new 4d6
+    :bot: Rolled **1 4 5 6** = 16.
+          Bank now has **1 4 5 6** = 16.
+    :brian: dice new 4d6
+    :bot: Rolled **2 3 3 4** = 12.
+          Bank now has **2 3 3 4** = 12.
+    :alice: dice
+    :bot: Bank has **1 4 5 6** = 16.
+    :alice: dice show brian
+    :bot: Bank has **2 3 3 4** = 12.
+    :brian: dice roll 2d20
+    :bot: Rolled **7 15** = 22.
+    :brian: dice use 3 3
+    :bot: Used **3 3** = 6. Bank now has **2 4** = 12.
+    :alice: dice clear
+    :bot: Bank cleared.
+    """
+
     def __init__(self):
         #: User die banks, keyed by a (channel, nick) tuple.
         self.banks = defaultdict(Counter)

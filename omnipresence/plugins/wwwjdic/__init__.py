@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 # -*- test-case-name: omnipresence.plugins.wwwjdic.test_wwwjdic
 """Event plugins for searching WWWJDIC."""
 
@@ -26,6 +27,22 @@ MARKINGS_RE = re.compile(ur'(?:\([^)]+\))+$')
 
 
 class Default(EventPlugin):
+    u"""Define a Japanese word or phrase using `Jim Breen's WWWJDIC`__.
+
+    __ http://wwwjdic.org/
+
+    If `Waapuro`__ is installed, Nihon-shiki romanizations are provided
+    alongside the kana spellings.
+
+    __ https://pypi.python.org/pypi/waapuro
+
+    :alice: wwwjdic kotoba
+    :bot: 言葉(P);詞;辞 [ことば (kotoba) (P); けとば (ketoba) (言葉)(ok)] (n)
+          (1) (See 言語) language; dialect;
+          (2) (See 単語) word; words; phrase; term; expression; remark;
+          (3) speech; (manner of) speaking; (P) (+28 more)
+    """
+
     def __init__(self):
         self.agent = default_agent
         self.romanize = romanize

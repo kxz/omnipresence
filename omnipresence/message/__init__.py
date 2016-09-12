@@ -14,11 +14,125 @@ from .formatting import remove_formatting
 #: The default text encoding.
 DEFAULT_ENCODING = 'utf-8'
 
-#: An enumeration of recognized Omnipresence message types.
-MessageType = Enum('MessageType', [
-    'action', 'ctcpquery', 'ctcpreply', 'join', 'kick', 'mode', 'nick',
-    'notice', 'part', 'privmsg', 'quit', 'topic',
-    'connected', 'disconnected', 'command', 'cmdhelp', 'unknown'])
+
+class MessageType(Enum):
+    """An enumeration of valid values of `.Message.action`.
+
+    The following message types directly correspond to incoming or
+    outgoing IRC messages (also see :rfc:`1459#section-4`):
+
+    .. autoattribute:: action
+    .. autoattribute:: ctcpquery
+    .. autoattribute:: ctcpreply
+    .. autoattribute:: join
+    .. autoattribute:: kick
+    .. autoattribute:: mode
+    .. autoattribute:: nick
+    .. autoattribute:: notice
+    .. autoattribute:: part
+    .. autoattribute:: privmsg
+    .. autoattribute:: quit
+    .. autoattribute:: topic
+    .. autoattribute:: unknown
+
+    Omnipresence defines additional message types for synthetic events:
+
+    .. autoattribute:: connected
+    .. autoattribute:: disconnected
+    .. autoattribute:: command
+    .. autoattribute:: cmdhelp
+    """
+
+    #: Represents a message that is not of any known type, or that could
+    #: not be correctly parsed.
+    #: `.subaction` is the IRC command name or numeric.
+    #: `.content` is a string containing any trailing arguments.
+    unknown = 0
+
+    #: Represents a CTCP ACTION (``/me``).
+    #: All attributes are as for the `.privmsg` type.
+    action = 1
+
+    #: Represents an otherwise unrecognized CTCP query wrapped in a
+    #: ``PRIVMSG``.
+    #: `.venue` is the nick or channel name of the recipient.
+    #: `.subaction` is the CTCP message tag.
+    #: `.content` is a string containing any trailing arguments.
+    #:
+    #: .. note:: Omnipresence does not support mixed messages containing
+    #:    both normal and CTCP extended content.
+    ctcpquery = 2
+
+    #: Represents an unrecognized CTCP reply wrapped in a ``NOTICE``.
+    #: All attributes are as for the `.ctcpquery` type.
+    ctcpreply = 3
+
+    #: Represents a channel join.
+    #: `.venue` is the channel being joined.
+    join = 4
+
+    #: Represents a kick.
+    #: `.venue` is the channel the kick took place in.
+    #: `.target` is the nick of the kicked user.
+    #: `.content` is the kick message.
+    kick = 5
+
+    #: Represents a mode change.
+    #: `.venue` is the affected channel or nick.
+    #: `.content` is the mode change string.
+    mode = 6
+
+    #: Represents a nick change.
+    #: `.content` is the new nick.
+    nick = 7
+
+    #: Represents a notice.
+    #: All attributes are as for the `privmsg` type.
+    notice = 8
+
+    #: Represents a channel part.
+    #: `.venue` is the channel being departed from.
+    #: `.content` is the part message.
+    part = 9
+
+    #: Represents a typical message.
+    #: `.venue` is the nick or channel name of the recipient.
+    #: (`.private` can also be used to determine whether a message was
+    #: sent to a single user or a channel.)
+    #: `.content` is the text of the message.
+    privmsg = 10
+
+    #: Represents a client quit from the IRC network.
+    #: `.content` is the quit message.
+    quit = 11
+
+    #: Represents a topic change.
+    #: `.venue` is the affected channel.
+    #: `.content` is the new topic, or an empty string if the topic is
+    #: being unset.
+    topic = 12
+
+    #: Created when the server has responded with ``RPL_WELCOME``.
+    #: No optional arguments are specified.
+    connected = 9001
+
+    #: Created when the connection to the server has been closed or lost.
+    #: No optional arguments are specified.
+    disconnected = 9002
+
+    #: Represents a :ref:`command invocation <command-replies>`.
+    #: `.venue` is as for the `.privmsg` type.
+    #: `.target` is a string containing the reply redirection target, or
+    #: the actor's nick if none was specified.
+    #: `.subaction` is the command keyword.
+    #: `.content` is a string containing any trailing arguments.
+    command = 9003
+
+    #: Represents a command help request.
+    #: `.venue` and `.target` are as for the `.command` type.
+    #: `.subaction` is the command keyword for which help was requested.
+    #: `.content` is a string containing any trailing arguments.
+    cmdhelp = 9004
 
 
 class MessageSettings(object):
@@ -61,20 +175,38 @@ class Message(namedtuple('Message',
        message's true origin.  In some cases, ``unknown`` messages will
        set this attribute to `None` if a prefix could not be parsed.
 
-    .. py:attribute:: venue
-                      target
-                      subaction
-                      content
+    .. attribute:: venue
+                   target
+                   subaction
+                   content
 
        Optional attributes, whose presence and meaning depend on the
        message type.  An attribute is `None` if and only if it is not
        used by the current message type, and a string value otherwise.
 
-    .. py:attribute:: raw
+    .. attribute:: raw
 
-       If this message was created by parsing a raw message, the
-       original raw IRC message string passed to that function.
-       Otherwise, `None`.
+       If this message was created by parsing a raw message with
+       `.RawMessageParser.parse`, the original raw IRC message string
+       passed to that function.  Otherwise, `None`.
+
+    .. note:: All string values are byte strings, not Unicode strings,
+       and therefore must be appropriately decoded when necessary.
+
+    The following additional properties are derived from the values of
+    one or more basic attributes, and are included for convenience:
+
+    .. autoattribute:: private
+    .. autoattribute:: encoding
+
+    New message objects can be created using either the standard
+    constructor, or by parsing a raw IRC message string using
+    `.RawMessageParser.parse`.
+
+    `.Message` is a `~collections.namedtuple` type, and thus its
+    instances are immutable.  To create a new object based on the
+    attributes of an existing one, use an instance's
+    `~collections.somenamedtuple._replace` method.
     """
 
     def __new__(cls,

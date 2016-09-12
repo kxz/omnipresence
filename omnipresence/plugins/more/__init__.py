@@ -12,6 +12,24 @@ from ...settings import PRIVATE_CHANNEL
 
 
 class Default(EventPlugin):
+    """Show additional text from a user's reply buffer.
+
+    :brian: count
+    :bot: 1
+    :brian: more
+    :bot: 2
+    :brian: more
+    :bot: 3
+
+    In public channels, an optional argument can be passed to view the
+    contents of another user's reply buffer.
+
+    :alice: count
+    :bot: alice: 1
+    :brian: more alice
+    :bot: brian: 2
+    """
+
     def on_command(self, msg):
         venue = PRIVATE_CHANNEL if msg.private else msg.venue
         source = msg.content or msg.actor.nick

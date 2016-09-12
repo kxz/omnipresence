@@ -9,6 +9,14 @@ from ...plugin import EventPlugin
 
 
 class Default(EventPlugin):
+    """Automatically voice users as they enter a channel, unless
+    moderation is set with the ``+m`` channel mode.  Useful for managing
+    a sudden influx of new users.
+
+    Note that Omnipresence almost certainly has to have channel operator
+    privileges (``+o``) in order for this plugin to work.
+    """
+
     def on_join(self, msg):
         if msg.private:
             return

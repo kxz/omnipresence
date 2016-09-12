@@ -94,6 +94,17 @@ def parse_anime_all(anime_all):
 
 
 class Default(EventPlugin):
+    u"""Look up an anime title on `AniDB`__.
+
+    __ http://anidb.net/
+
+    :alice: anidb bakemonogatari
+    :bot: http://anidb.net/a6327 \u2014
+          **Bakemonogatari** \u2014
+          TV Series, 12 episodes from 2009-07-03 to 2009-09-25 \u2014
+          rated 8.43 (7443)
+    """
+
     def __init__(self):
         self.agent = default_agent
 

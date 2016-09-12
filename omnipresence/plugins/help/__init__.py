@@ -9,6 +9,18 @@ from ...plugin import EventPlugin
 
 
 class Default(EventPlugin):
+    """Show detailed help for other commands, or list all available
+    commands if no argument is given.
+
+    :alice: help
+    :bot: Available commands: **alpha**, **beta**, **help**.
+          For further help, use **help** *keyword*.
+          To redirect a command reply to another user, use *command*
+          **>** *nick*.
+    :alice: help alpha
+    :bot: **alpha** *argument* - Help for command **alpha**.
+    """
+
     @inlineCallbacks
     def on_command(self, msg):
         args = msg.content.split(None, 1)

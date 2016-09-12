@@ -1,3 +1,5 @@
 # Documentation build dependencies for `tox -e docs` and Read the Docs.
 beautifulsoup4
 repoze.sphinx.autointerface
+
+littlebrother  # for `url` plugin

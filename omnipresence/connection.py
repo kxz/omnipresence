@@ -484,7 +484,7 @@ class Connection(StateTrackingMixin,
     def __init__(self):
         super(Connection, self).__init__()
 
-        #: The raw message parser being used on this connection.
+        #: The `.RawMessageParser` being used on this connection.
         self.parser = IRCV2_PARSER
 
         #: If the bot is currently firing callbacks, a queue of

@@ -1,5 +1,4 @@
 """Raw message parser implementations."""
-# pylint: disable=missing-docstring
 
 
 from twisted.words.protocols.irc import ctcpExtract, parsemsg, X_DELIM
@@ -9,6 +8,13 @@ from ..hostmask import Hostmask
 
 
 class RawMessageParser(object):
+    """An implementation of the parsing rules for a specific version of
+    the IRC protocol.
+
+    In most cases, you should use the `~.Connection.parser` attribute of
+    a `.Connection` to retrieve an instance of this class.
+    """
+
     def __init__(self):
         self.functions = {}
 

@@ -16,6 +16,16 @@ from ...web.http import default_agent
 
 
 class Default(EventPlugin):
+    u"""Look up a visual novel title on the `Visual Novel Database`__.
+
+    __ https://vndb.org/
+
+    :brian: vndb ever17
+    :bot: https://vndb.org/v17 \u2014
+          **Ever17 -The Out of Infinity-**,
+          first release 2002-08-29 \u2014 rated 8.71 (3763) (+1 more)
+    """
+
     def __init__(self):
         self.agent = default_agent
 
