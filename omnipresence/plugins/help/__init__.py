@@ -42,7 +42,7 @@ class Default(EventPlugin):
                 action=MessageType.cmdhelp, subaction=args[0],
                 content=''.join(args[1:])))
             if help_string:
-                returnValue('\x02{}\x02 {}'.format(args[0], help_string))
+                returnValue(u'\x02{}\x02 {}'.format(args[0], help_string))
             returnValue('There is no further help available for \x02{}\x02.'
                         .format(args[0]))
         returnValue('There is no command with the keyword \x02{}\x02.'

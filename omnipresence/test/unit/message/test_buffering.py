@@ -86,14 +86,14 @@ class ReplyBufferTestCase(TestCase):
             是时，适施氏适市。
             氏视是十狮，恃矢势，使是十狮逝世。
             氏拾是十狮尸，适石室。
-            """).encode('utf-8'))
+            """))
         self.assertEqual(length_hint(buf), 1)
         self.assertEqual(next(buf), collapse(u"""
             石室湿，氏使侍拭石室。
             石室拭，氏始试食是十狮。
             食时，始识是十狮尸，实十石狮尸。
             试释是事。
-            """).encode('utf-8'))
+            """))
         self.assertEqual(length_hint(buf), 0)
         self.assertRaises(StopIteration, next, buf)
 

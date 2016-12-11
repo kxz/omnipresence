@@ -16,10 +16,10 @@ CHUNK_LENGTH = 256
 def truncate_unicode(string, byte_limit, encoding=DEFAULT_ENCODING):
     """Truncate a Unicode *string* so that it fits within *byte_limit*
     when encoded using *encoding*.  Return the truncated string as a
-    byte string."""
+    Unicode string."""
     # Per Denis Otkidach on SO <http://stackoverflow.com/a/1820949>.
     encoded = string.encode(encoding)[:byte_limit]
-    return encoded.decode(encoding, 'ignore').encode(encoding)
+    return encoded.decode(encoding, 'ignore')
 
 
 def chunk(string, encoding=DEFAULT_ENCODING, max_length=CHUNK_LENGTH):
@@ -47,12 +47,12 @@ def chunk(string, encoding=DEFAULT_ENCODING, max_length=CHUNK_LENGTH):
             # reply length by truncating it and then comparing it to
             # the original.  If so, place the rest in the buffer.
             truncated = truncate_unicode(remaining, max_length, encoding)
-            if truncated.decode(encoding) == remaining:
-                remaining = ''
+            if truncated == remaining:
+                remaining = u''
             else:
                 # Try and find whitespace to split the string on.
                 truncated = truncated.rsplit(None, 1)[0]
-                remaining = remaining[len(truncated.decode(encoding)):]
+                remaining = remaining[len(truncated):]
         else:
             # We don't have to be so careful about length comparisons
             # with byte strings; just use slice notation.
@@ -63,12 +63,12 @@ def chunk(string, encoding=DEFAULT_ENCODING, max_length=CHUNK_LENGTH):
                 truncated = remaining[:max_length].rsplit(None, 1)[0]
                 remaining = remaining[len(truncated):]
         truncated = truncated.strip()
+        chunks.append(truncated)
         remaining = ''.join(unclosed_formatting(truncated)) + remaining.strip()
         # If all that's left are formatting codes, there's basically no
         # real content remaining in the string.
         if not remove_formatting(remaining):
-            remaining = ''
-        chunks.append(truncated)
+            break
     return chunks
 
 

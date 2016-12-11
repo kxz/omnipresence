@@ -224,9 +224,9 @@ class ConnectionBase(IRCClient, object):
         if isinstance(string, unicode):
             encoding = request.encoding
             truncated = truncate_unicode(string, MAX_REPLY_LENGTH, encoding)
-            if truncated.decode(encoding) != string:
-                truncated += u'...'.encode(encoding)
-            string = truncated
+            if truncated != string:
+                truncated += u'...'
+            string = truncated.encode(encoding)
         else:
             if len(string) > MAX_REPLY_LENGTH:
                 string = string[:MAX_REPLY_LENGTH] + '...'

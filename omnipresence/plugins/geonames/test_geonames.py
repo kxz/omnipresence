@@ -47,4 +47,4 @@ class WeatherTestCase(GeoNamesTestMixin, TestCase):
         yield self.assert_reply(collapse(u"""\
             Beijing, Beijing, China (39.91, 116.40): 2.0°C/35.6°F,
             clouds and visibility OK, 74% humidity from Beijing (ZBAA)
-            as of 4 minutes ago""").encode('utf-8'))
+            as of 4 minutes ago"""))
