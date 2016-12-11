@@ -74,6 +74,14 @@ __ https://pip.pypa.io/
    :members: Default
 
 
+``.mstranslate``
+================
+
+.. automodule:: omnipresence.plugins.mstranslate
+
+.. autoclass:: omnipresence.plugins.mstranslate.Default
+
+
 ``.url``
 ========
 

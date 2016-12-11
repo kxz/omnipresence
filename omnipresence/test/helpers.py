@@ -19,7 +19,7 @@ from twisted.words.protocols.irc import CHANNEL_PREFIXES
 from ..connection import Connection
 from ..hostmask import Hostmask
 from ..message import Message
-from ..message.buffering import ReplyBuffer
+from ..message.buffering import DEFAULT_ENCODING, ReplyBuffer
 from ..plugin import EventPlugin, UserVisibleError
 from ..web.http import IdentifyingAgent
 
@@ -149,6 +149,8 @@ class CommandTestMixin(ConnectionTestMixin):
 
     @inlineCallbacks
     def send_command(self, content, **kwargs):
+        if isinstance(content, unicode):
+            content = content.encode(DEFAULT_ENCODING)
         request = self.command_message(content, **kwargs)
         try:
             response = yield self.command.respond_to(request)
