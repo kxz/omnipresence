@@ -97,5 +97,3 @@ class AniDBTestCase(CommandTestMixin, TestCase):
             \x02Gekijouban Fairy Tail 2\x02 —
             Movie, 1 episode"""))
         yield self.assert_no_replies()
-
-
